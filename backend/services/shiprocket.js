@@ -7,42 +7,101 @@ const SHIPROCKET_PASSWORD = process.env.SHIPROCKET_PASSWORD;
 let cachedToken = null;
 let tokenExpiresAt = 0;
 
+/**
+ * Get authentication token from Shiprocket
+ */
 async function getToken() {
   const now = Date.now();
   if (cachedToken && now < tokenExpiresAt) {
+    console.log('[Shiprocket] Using cached token');
     return cachedToken;
   }
 
   if (!SHIPROCKET_EMAIL || !SHIPROCKET_PASSWORD) {
-    console.warn('Shiprocket credentials are not set. Skipping Shiprocket integration.');
+    console.error('[Shiprocket] ERROR: Credentials not configured');
     return null;
   }
 
   try {
+    console.log('[Shiprocket] Requesting new authentication token...');
     const res = await axios.post(`${SHIPROCKET_URL}/auth/login`, {
       email: SHIPROCKET_EMAIL,
       password: SHIPROCKET_PASSWORD,
     });
 
+    if (!res.data.token) {
+      console.error('[Shiprocket] No token in response');
+      return null;
+    }
+
     cachedToken = res.data.token;
-    // Token is typically valid for 10 minutes; keep it a bit shorter
     tokenExpiresAt = now + 8 * 60 * 1000;
+    console.log('[Shiprocket] Token obtained successfully');
 
     return cachedToken;
   } catch (err) {
-    console.error('Error getting Shiprocket token:', err.response?.data || err.message);
+    console.error('[Shiprocket] Token request failed:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Assign AWB to a shipment
+ */
+async function assignAwbToShipment(shipmentId, courierId = null) {
+  try {
+    const token = await getToken();
+    if (!token || !shipmentId) {
+      console.error('[Shiprocket] Cannot assign AWB: Missing token or shipmentId');
+      return null;
+    }
+
+    console.log(`[Shiprocket] Assigning AWB to shipment ${shipmentId}...`);
+
+    const payload = { shipment_id: shipmentId };
+    if (courierId) payload.courier_id = courierId;
+
+    const res = await axios.post(
+      `${SHIPROCKET_URL}/courier/assign/awb`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    console.log('[Shiprocket] AWB assignment response:', res.data);
+
+    if (res.data.success) {
+      return {
+        awb_code: res.data.awb_code,
+        courier_name: res.data.courier_name,
+        courier_company_id: res.data.courier_company_id,
+        assigned_date_time: new Date().toISOString(),
+      };
+    }
+
+    return null;
+  } catch (err) {
+    console.error('[Shiprocket] AWB assignment failed:', err.message);
     return null;
   }
 }
 
 /**
  * Create shipment for order in Shiprocket
- * Returns shipment detail object for storage in Order model
  */
 exports.createShipmentForOrder = async (order) => {
   try {
     const token = await getToken();
-    if (!token) return null;
+    if (!token) {
+      console.error('[Shiprocket] Cannot create shipment: No token');
+      return null;
+    }
+
+    console.log(`[Shiprocket] Creating shipment for order ${order._id}...`);
 
     const items = order.items.map((item, index) => ({
       name: item.name || item.title || `Item ${index + 1}`,
@@ -51,7 +110,6 @@ exports.createShipmentForOrder = async (order) => {
       selling_price: item.price,
     }));
 
-    // Get shipping info from order
     const shippingInfo = order.shippingInfo || {};
     const dimension = order.dimension || { length: 10, breadth: 10, height: 5, weight: 0.5 };
 
@@ -79,8 +137,6 @@ exports.createShipmentForOrder = async (order) => {
       weight: dimension.weight || 0.5,
     };
 
-    console.log('Creating Shiprocket order with payload:', payload);
-
     const res = await axios.post(
       `${SHIPROCKET_URL}/orders/create/adhoc`,
       payload,
@@ -92,13 +148,20 @@ exports.createShipmentForOrder = async (order) => {
       }
     );
 
-    console.log('Shiprocket response:', res.data);
+    console.log('[Shiprocket] Order creation response:', res.data);
 
-    // Map Shiprocket response to our shipmentDetail format
+    if (!res.data.order_id || !res.data.shipment_id) {
+      console.error('[Shiprocket] Invalid response: Missing order_id or shipment_id');
+      return null;
+    }
+
+    // Assign AWB
+    const awbData = await assignAwbToShipment(res.data.shipment_id);
+
     const shipmentDetail = {
-      pickup_location_added: res.data.pickup_location_added || 0, 
+      pickup_location_added: res.data.pickup_location_added || 0,
       order_created: res.data.order_created || 1,
-      awb_generated: res.data.awb_generated || 0,
+      awb_generated: awbData ? 1 : (res.data.awb_generated || 0),
       label_generated: res.data.label_generated || 0,
       pickup_generated: res.data.pickup_generated || 0,
       manifest_generated: res.data.manifest_generated || 0,
@@ -106,10 +169,10 @@ exports.createShipmentForOrder = async (order) => {
       pickup_booked_date: res.data.pickup_booked_date || null,
       order_id: res.data.order_id,
       shipment_id: res.data.shipment_id,
-      awb_code: res.data.awb_code || '',
-      courier_company_id: res.data.courier_company_id || '',
-      courier_name: res.data.courier_name || '',
-      assigned_date_time: res.data.assigned_date_time || '',
+      awb_code: awbData?.awb_code || res.data.awb_code || '',
+      courier_company_id: awbData?.courier_company_id || res.data.courier_company_id || '',
+      courier_name: awbData?.courier_name || res.data.courier_name || '',
+      assigned_date_time: awbData?.assigned_date_time || res.data.assigned_date_time || '',
       applied_weight: res.data.applied_weight || dimension.weight || 0.5,
       cod: res.data.cod || 0,
       label_url: res.data.label_url || null,
@@ -123,9 +186,11 @@ exports.createShipmentForOrder = async (order) => {
       shipmentDetail,
       shipmentId: res.data.shipment_id,
       orderId: res.data.order_id,
+      awbCode: awbData?.awb_code || res.data.awb_code || null,
+      courierName: awbData?.courier_name || res.data.courier_name || null,
     };
   } catch (err) {
-    console.error('Error creating Shiprocket shipment:', err.response?.data || err.message);
+    console.error('[Shiprocket] Shipment creation failed:', err.message);
     return null;
   }
 };
@@ -138,6 +203,8 @@ exports.getShipmentTracking = async (shipmentId) => {
     const token = await getToken();
     if (!token || !shipmentId) return null;
 
+    console.log(`[Shiprocket] Fetching tracking for shipment ${shipmentId}...`);
+
     const res = await axios.get(
       `${SHIPROCKET_URL}/courier/track/shipment/${shipmentId}`,
       {
@@ -149,7 +216,7 @@ exports.getShipmentTracking = async (shipmentId) => {
 
     return res.data;
   } catch (err) {
-    console.error('Error getting Shiprocket tracking:', err.response?.data || err.message);
+    console.error('[Shiprocket] Tracking failed:', err.message);
     return null;
   }
 };
@@ -173,7 +240,7 @@ exports.getOrderByShiprocketId = async (shiprocketOrderId) => {
 
     return res.data;
   } catch (err) {
-    console.error('Error getting Shiprocket order:', err.response?.data || err.message);
+    console.error('[Shiprocket] Get order failed:', err.message);
     return null;
   }
 };
@@ -188,22 +255,21 @@ exports.updateOrderWithShipmentData = async (order, shiprocketData) => {
     order.orderId = shiprocketData.orderId;
     order.shipmentId = shiprocketData.shipmentId;
     order.shipmentDetail = shiprocketData.shipmentDetail;
-    order.trackingNumber = shiprocketData.shipmentId; // For backward compatibility
+    order.trackingNumber = shiprocketData.awbCode || shiprocketData.shipmentId;
 
-    // Set order_date if not already set
     if (!order.order_date) {
       order.order_date = new Date(order.createdAt).toISOString().replace('T', ' ').split('.')[0];
     }
 
     return order;
   } catch (err) {
-    console.error('Error updating order with shipment data:', err);
+    console.error('[Shiprocket] Update failed:', err.message);
     return order;
   }
 };
 
 /**
- * Handle return order creation
+ * Create return order
  */
 exports.createReturnOrder = async (orderId, returnData) => {
   try {
@@ -227,9 +293,6 @@ exports.createReturnOrder = async (orderId, returnData) => {
       }
     );
 
-    console.log('Shiprocket return order response:', res.data);
-
-    // Map to our returnOrderDetail format
     const returnOrderDetail = {
       order_id: res.data.order_id,
       channel_order_id: `RET-${orderId}`,
@@ -245,7 +308,7 @@ exports.createReturnOrder = async (orderId, returnData) => {
       returnShipmentId: res.data.shipment_id,
     };
   } catch (err) {
-    console.error('Error creating Shiprocket return order:', err.response?.data || err.message);
+    console.error('[Shiprocket] Return order creation failed:', err.message);
     return null;
   }
 };
@@ -255,14 +318,14 @@ exports.createReturnOrder = async (orderId, returnData) => {
  */
 exports.updateShipmentStatus = async (webhookData) => {
   try {
-    // Handle Shiprocket webhook data
-    // This can be called from a webhook endpoint
     return {
       success: true,
       data: webhookData,
     };
   } catch (err) {
-    console.error('Error updating shipment status:', err);
+    console.error('[Shiprocket] Webhook processing failed:', err);
     return null;
   }
 };
+
+module.exports.getToken = getToken;

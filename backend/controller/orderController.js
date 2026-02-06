@@ -159,17 +159,37 @@ exports.create = async (req, res) => {
     console.log('Normalized payload:', JSON.stringify(payload, null, 2));
 
     const item = await Order.create(payload);
+    console.log('[Order] Created order:', item._id);
 
+    // Automatically create Shiprocket shipment if payment is completed
     if (item.paymentStatus === "completed" || item.status === "paid") {
+      console.log('[Order] Payment confirmed, initiating Shiprocket shipment creation...');
       try {
         const shipData = await createShipmentForOrder(item);
         if (shipData) {
+          console.log('[Order] Shiprocket shipment created:', {
+            shipmentId: shipData.shipmentId,
+            orderId: shipData.orderId,
+            awbCode: shipData.awbCode,
+            courierName: shipData.courierName,
+          });
           await updateOrderWithShipmentData(item, shipData);
           await item.save();
+          console.log('[Order] Order updated with shipment data');
+        } else {
+          console.warn('[Order] Shiprocket shipment creation returned null');
         }
       } catch (e) {
-        console.error("Shiprocket error:", e.message);
+        console.error("[Order] Shiprocket integration error:", {
+          orderId: item._id,
+          message: e.message,
+          stack: e.stack,
+        });
+        // Don't fail the order creation if Shiprocket fails
+        // The order is still valid, just not yet sent to shiprocket
       }
+    } else {
+      console.log('[Order] Payment not yet completed, shipment will be created when status changes to paid/shipped');
     }
 
     res.status(201).json({ item });
@@ -219,6 +239,11 @@ exports.updateStatus = async (req, res) => {
   try {
     const { status } = req.body;
 
+    console.log('[Order] Updating order status:', {
+      orderId: req.params.id,
+      newStatus: status,
+    });
+
     const item = await Order.findByIdAndUpdate(
       req.params.id,
       { status },
@@ -227,15 +252,32 @@ exports.updateStatus = async (req, res) => {
 
     if (!item) return res.status(404).json({ message: "Order not found" });
 
-    if (status === "shipped" && !item.shipmentId && item.paymentStatus === "completed") {
+    console.log('[Order] Order status updated:', {
+      orderId: item._id,
+      newStatus: item.status,
+      hasShipment: !!item.shipmentId,
+    });
+
+    // Create Shiprocket shipment if transitioning to shipped
+    if ((status === "shipped" || status === "processing") && !item.shipmentId && item.paymentStatus === "completed") {
+      console.log('[Order] Creating Shiprocket shipment for status change...');
       try {
         const shipData = await createShipmentForOrder(item);
         if (shipData) {
+          console.log('[Order] Shiprocket shipment created on status change:', {
+            shipmentId: shipData.shipmentId,
+            awbCode: shipData.awbCode,
+          });
           await updateOrderWithShipmentData(item, shipData);
           await item.save();
+        } else {
+          console.warn('[Order] Shiprocket shipment creation returned null');
         }
       } catch (e) {
-        console.error("Shiprocket error:", e.message);
+        console.error("[Order] Shiprocket error on status change:", {
+          orderId: item._id,
+          message: e.message,
+        });
       }
     }
 

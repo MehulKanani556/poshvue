@@ -7,6 +7,7 @@ router.use('/catalog', require('./catalog'));
 router.use('/content', require('./content'));
 router.use('/commerce', require('./commerce'));
 router.use('/payment', require('./payment'));
+router.use('/shiprocket', require('./shiprocket'));
 router.use('/support', require('./support'));
 router.use('/story', require('./story'));
 router.use('/home-poster', require('./homePoster'));
