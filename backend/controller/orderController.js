@@ -72,163 +72,7 @@ exports.get = async (req, res) => {
  * CREATE ORDER
  * =====================================
  */
-exports.create = async (req, res) => {
-  try {
-    // Log incoming request for debugging
-    console.log('Order creation request:', JSON.stringify(req.body, null, 2));
 
-    // Validate required fields
-    const { items } = req.body;
-    
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ 
-        message: "Order must have at least one item",
-        error: "Invalid items array"
-      });
-    }
-
-    // Validate each item has required fields
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (!item.product) {
-        return res.status(400).json({ 
-          message: `Item ${i + 1} must have a product ID`,
-          error: "Missing product field"
-        });
-      }
-      if (typeof item.price !== 'number' || item.price < 0) {
-        return res.status(400).json({ 
-          message: `Item ${i + 1} must have a valid price`,
-          error: "Invalid price"
-        });
-      }
-      if (!item.quantity && !item.qty) {
-        return res.status(400).json({ 
-          message: `Item ${i + 1} must have quantity or qty`,
-          error: "Missing quantity"
-        });
-      }
-    }
-
-    // Support both new format (items with qty) and old format (items with quantity)
-    const normalizedItems = items.map(item => ({
-      product: item.product,
-      title: item.title || item.name,
-      price: item.price,
-      quantity: item.quantity || item.qty,
-      size: item.size || null,
-      color: item.color || null,
-      discount: item.discount || 0,
-      tax: item.tax || 0,
-    }));
-
-    const payload = {
-      ...req.body,
-      items: normalizedItems,
-      user: req.user?.id,
-      paymentMethod: req.body.paymentMethod || 'card',
-      paymentStatus: req.body.paymentStatus || 'pending',
-      status: req.body.status || 'pending',
-      // Set order_date in proper format if not provided
-      order_date: req.body.order_date || new Date().toISOString().replace('T', ' ').split('.')[0],
-    };
-
-    // Calculate totals if not provided
-    if (!payload.subTotal) {
-      payload.subTotal = normalizedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    }
-
-    if (!payload.total) {
-      payload.total = payload.subTotal + (payload.tax || 0) - (payload.discount || 0);
-    }
-
-    // Default values for optional but recommended fields
-    if (!payload.discount) {
-      payload.discount = 0;
-    }
-
-    if (!payload.dimension) {
-      payload.dimension = {
-        length: 10,
-        breadth: 10,
-        height: 5,
-        weight: 0.5,
-      };
-    }
-
-    console.log('Normalized payload:', JSON.stringify(payload, null, 2));
-
-    const item = await Order.create(payload);
-    console.log('[Order] Created order:', item._id);
-
-    // Automatically create Shiprocket shipment if payment is completed
-    if (item.paymentStatus === "completed" || item.status === "paid") {
-      console.log('[Order] Payment confirmed, initiating Shiprocket shipment creation...');
-      try {
-        const shipData = await createShipmentForOrder(item);
-        if (shipData) {
-          console.log('[Order] Shiprocket shipment created:', {
-            shipmentId: shipData.shipmentId,
-            orderId: shipData.orderId,
-            awbCode: shipData.awbCode,
-            courierName: shipData.courierName,
-          });
-          await updateOrderWithShipmentData(item, shipData);
-          await item.save();
-          console.log('[Order] Order updated with shipment data');
-        } else {
-          console.warn('[Order] Shiprocket shipment creation returned null');
-        }
-      } catch (e) {
-        console.error("[Order] Shiprocket integration error:", {
-          orderId: item._id,
-          message: e.message,
-          stack: e.stack,
-        });
-        // Don't fail the order creation if Shiprocket fails
-        // The order is still valid, just not yet sent to shiprocket
-      }
-    } else {
-      console.log('[Order] Payment not yet completed, shipment will be created when status changes to paid/shipped');
-    }
-
-    res.status(201).json({ item });
-  } catch (err) {
-    console.error("Order create error details:", {
-      message: err.message,
-      name: err.name,
-      code: err.code,
-      errors: err.errors || err.validationErrors,
-      stack: err.stack,
-    });
-
-    // Handle Mongoose validation errors
-    if (err.name === 'ValidationError') {
-      const messages = Object.values(err.errors).map(e => e.message);
-      return res.status(400).json({ 
-        message: "Validation error",
-        errors: messages,
-        details: Object.keys(err.errors),
-      });
-    }
-
-    // Handle Mongoose cast errors
-    if (err.name === 'CastError') {
-      return res.status(400).json({ 
-        message: "Invalid ID format",
-        field: err.path,
-        value: err.value,
-      });
-    }
-
-    // Generic error response with more details
-    res.status(400).json({ 
-      message: "Invalid order data",
-      error: err.message,
-      type: err.name,
-    });
-  }
-};
 
 /**
  * =====================================
@@ -395,5 +239,170 @@ exports.trackOrder = async (req, res) => {
   } catch (err) {
     console.error("Track order error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+exports.create = async (req, res) => {
+  try {
+    // Log incoming request for debugging
+    console.log('Order creation request:', JSON.stringify(req.body, null, 2));
+
+    // Validate required fields
+    const { items } = req.body;
+    
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ 
+        message: "Order must have at least one item",
+        error: "Invalid items array"
+      });
+    }
+
+    // Validate each item has required fields
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (!item.product) {
+        return res.status(400).json({ 
+          message: `Item ${i + 1} must have a product ID`,
+          error: "Missing product field"
+        });
+      }
+      if (typeof item.price !== 'number' || item.price < 0) {
+        return res.status(400).json({ 
+          message: `Item ${i + 1} must have a valid price`,
+          error: "Invalid price"
+        });
+      }
+      if (!item.quantity && !item.qty) {
+        return res.status(400).json({ 
+          message: `Item ${i + 1} must have quantity or qty`,
+          error: "Missing quantity"
+        });
+      }
+    }
+
+    // Support both new format (items with qty) and old format (items with quantity)
+    const normalizedItems = items.map(item => ({
+      product: item.product,
+      title: item.title || item.name,
+      price: item.price,
+      quantity: item.quantity || item.qty,
+      size: item.size || null,
+      color: item.color || null,
+      discount: item.discount || 0,
+      tax: item.tax || 0,
+    }));
+
+    const payload = {
+      ...req.body,
+      items: normalizedItems,
+      user: req.user?.id,
+      paymentMethod: req.body.paymentMethod || 'card',
+      paymentStatus: req.body.paymentStatus || 'pending',
+      status: req.body.status || 'pending',
+      // Set order_date in proper format if not provided
+      order_date: req.body.order_date || new Date().toISOString().replace('T', ' ').split('.')[0],
+    };
+
+    // Calculate totals if not provided
+    if (!payload.subTotal) {
+      payload.subTotal = normalizedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    }
+
+    if (!payload.total) {
+      payload.total = payload.subTotal + (payload.tax || 0) - (payload.discount || 0);
+    }
+
+    // Default values for optional but recommended fields
+    if (!payload.discount) {
+      payload.discount = 0;
+    }
+
+    if (!payload.dimension) {
+      payload.dimension = {
+        length: 10,
+        breadth: 10,
+        height: 5,
+        weight: 0.5,
+      };
+    }
+
+    console.log('Normalized payload:', JSON.stringify(payload, null, 2));
+
+    // If payment already completed / status is paid, attempt Shiprocket BEFORE creating the order.
+    // If Shiprocket fails in this flow, do not create the order and return the error to client.
+    if (payload.paymentStatus === "completed" || payload.status === "paid") {
+      console.log('[Order] Payment confirmed, attempting Shiprocket shipment creation before saving order...');
+      try {
+        const shipData = await createShipmentForOrder(payload);
+        if (!shipData) {
+          console.error('[Order] Shiprocket returned no data while creating shipment');
+          return res.status(502).json({
+            message: 'Failed to create shipment with Shiprocket',
+            error: 'No shipment data returned'
+          });
+        }
+
+        // Attach shipment info to payload so order is created with shipment details
+        payload.shipmentId = shipData.shipmentId || shipData.orderId || shipData.awbCode;
+        payload.trackingNumber = shipData.awbCode || shipData.trackingNumber || payload.shipmentId;
+        payload.courierName = shipData.courierName || shipData.courier || null;
+        payload.shipmentDetail = shipData;
+        console.log('[Order] Shiprocket shipment created (pre-save):', {
+          shipmentId: payload.shipmentId,
+          awbCode: payload.trackingNumber,
+          courierName: payload.courierName,
+        });
+      } catch (e) {
+        console.error("[Order] Shiprocket integration error (pre-save):", {
+          message: e.message,
+          stack: e.stack,
+        });
+        // Return Shiprocket error and do NOT create the order (per request)
+        return res.status(502).json({
+          message: "Shiprocket shipment creation failed. Order not created.",
+          error: e.message,
+        });
+      }
+    } else {
+      console.log('[Order] Payment not yet completed, shipment will be created when status changes to paid/shipped');
+    }
+
+    const item = await Order.create(payload);
+    console.log('[Order] Created order:', item._id);
+
+    res.status(201).json({ item });
+  } catch (err) {
+    console.error("Order create error details:", {
+      message: err.message,
+      name: err.name,
+      code: err.code,
+      errors: err.errors || err.validationErrors,
+      stack: err.stack,
+    });
+
+    // Handle Mongoose validation errors
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(e => e.message);
+      return res.status(400).json({ 
+        message: "Validation error",
+        errors: messages,
+        details: Object.keys(err.errors),
+      });
+    }
+
+    // Handle Mongoose cast errors
+    if (err.name === 'CastError') {
+      return res.status(400).json({ 
+        message: "Invalid ID format",
+        field: err.path,
+        value: err.value,
+      });
+    }
+
+    // Generic error response with more details
+    res.status(400).json({ 
+      message: "Invalid order data",
+      error: err.message,
+      type: err.name,
+    });
   }
 };
