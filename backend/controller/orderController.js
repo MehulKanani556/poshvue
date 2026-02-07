@@ -122,6 +122,10 @@ exports.create = async (req, res) => {
       tax: item.tax || 0,
     }));
 
+    // Build shippingInfo for Shiprocket from checkout payload (customerName, address, pincode, etc.)
+    const nameParts = (req.body.customerName || req.body.fullName || '').trim().split(/\s+/);
+    const firstName = nameParts[0] || 'Customer';
+    const lastName = nameParts.slice(1).join(' ') || '';
     const payload = {
       ...req.body,
       items: normalizedItems,
@@ -129,8 +133,18 @@ exports.create = async (req, res) => {
       paymentMethod: req.body.paymentMethod || 'card',
       paymentStatus: req.body.paymentStatus || 'pending',
       status: req.body.status || 'pending',
-      // Set order_date in proper format if not provided
       order_date: req.body.order_date || new Date().toISOString().replace('T', ' ').split('.')[0],
+      shippingInfo: {
+        firstName,
+        lastName,
+        email: req.body.customerEmail || req.body.shippingInfo?.email || '',
+        phone: req.body.customerPhone || req.body.phone || req.body.shippingInfo?.phone || '',
+        address: req.body.address || req.body.shippingInfo?.address || '',
+        city: req.body.city || req.body.shippingInfo?.city || '',
+        state: req.body.state || req.body.shippingInfo?.state || '',
+        country: req.body.country || req.body.shippingInfo?.country || 'India',
+        pincode: req.body.pincode || req.body.shippingInfo?.pincode || '',
+      },
     };
 
     // Calculate totals if not provided

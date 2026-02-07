@@ -112,29 +112,32 @@ exports.createShipmentForOrder = async (order) => {
 
     const shippingInfo = order.shippingInfo || {};
     const dimension = order.dimension || { length: 10, breadth: 10, height: 5, weight: 0.5 };
+    const pincode = (shippingInfo.pincode || order.pincode || '').toString().trim();
+    const billingPincode = /^\d{6}$/.test(pincode) ? pincode : '400001';
+    const phone = (shippingInfo.phone || order.customerPhone || '').toString().replace(/\D/g, '').slice(0, 10) || '9999999999';
 
     const payload = {
       order_id: String(order._id),
-      order_date: order.order_date || new Date(order.createdAt || Date.now()).toISOString().replace('T', ' ').split('.')[0],
+      order_date: order.order_date || new Date(order.createdAt || Date.now()).toISOString().split('T')[0],
       pickup_location: process.env.SHIPROCKET_PICKUP || 'Primary',
-      channel_id: '',
+      channel_id: process.env.SHIPROCKET_CHANNEL_ID || '',
       billing_customer_name: shippingInfo.firstName || order.customerName || 'Customer',
       billing_last_name: shippingInfo.lastName || '',
-      billing_address: shippingInfo.address || order.address || 'NA',
-      billing_city: shippingInfo.city || 'Mumbai',
-      billing_pincode: shippingInfo.pincode || '400001',
-      billing_state: shippingInfo.state || 'Maharashtra',
+      billing_address: (shippingInfo.address || order.address || 'NA').toString().slice(0, 200),
+      billing_city: (shippingInfo.city || 'Mumbai').toString().slice(0, 50),
+      billing_pincode: billingPincode,
+      billing_state: (shippingInfo.state || 'Maharashtra').toString().slice(0, 50),
       billing_country: shippingInfo.country || 'India',
-      billing_email: shippingInfo.email || order.customerEmail || '',
-      billing_phone: shippingInfo.phone || order.customerPhone || '',
+      billing_email: (shippingInfo.email || order.customerEmail || '').toString().trim() || 'no-email@placeholder.in',
+      billing_phone: phone,
       shipping_is_billing: true,
       order_items: items,
       payment_method: order.paymentStatus === 'completed' ? 'Prepaid' : 'COD',
-      sub_total: order.subTotal || order.total || 0,
-      length: dimension.length || 10,
-      breadth: dimension.breadth || 10,
-      height: dimension.height || 5,
-      weight: dimension.weight || 0.5,
+      sub_total: Number(order.subTotal || order.total || 0),
+      length: Number(dimension.length || 10),
+      breadth: Number(dimension.breadth || 10),
+      height: Number(dimension.height || 5),
+      weight: Number(dimension.weight || 0.5),
     };
 
     const res = await axios.post(
@@ -150,6 +153,10 @@ exports.createShipmentForOrder = async (order) => {
 
     console.log('[Shiprocket] Order creation response:', res.data);
 
+    if (res.data.status_code === 0) {
+      console.error('[Shiprocket] API returned status_code 0:', res.data.message || res.data);
+      return null;
+    }
     if (!res.data.order_id || !res.data.shipment_id) {
       console.error('[Shiprocket] Invalid response: Missing order_id or shipment_id');
       return null;
