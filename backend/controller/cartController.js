@@ -18,9 +18,9 @@ exports.getCart = async (req, res) => {
 /* ADD TO CART */
 exports.addToCart = async (req, res) => {
   try {
-    const { productId, qty = 1, size, color } = req.body;
+    const { productId, qty = 2, size, color } = req.body;
 
-    const selectedSize = size || null;
+    const selectedSize = null;
     const selectedColor = color || null;
 
     // validate product & stock
@@ -33,7 +33,7 @@ exports.addToCart = async (req, res) => {
     }
 
     let cart = await Cart.findOne({ user: req.user.id });
-
+    console.log('vfghudfg')
     if (!cart) {
       // new cart: just ensure requested qty <= stock
       if (qty > product.stock) {

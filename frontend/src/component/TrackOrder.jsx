@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, Button, Card, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Form,  Card, Alert } from 'react-bootstrap';
 import { 
   FaSearch, 
   FaBox, 
@@ -12,7 +12,7 @@ import {
 } from 'react-icons/fa';
 import { trackOrder } from '../api/client';
 import client from '../api/client';
-import Loader from './Loader';
+
 
 const TrackOrder = () => {
   const [orderId, setOrderId] = useState('');
@@ -126,7 +126,7 @@ const TrackOrder = () => {
                       className="rounded-0 d_input_focus"
                       value={orderId}
                       onChange={(e) => handleOrderSelect(e.target.value)}
-                    >
+                    >  
                       <option value="">-- Select an order to track --</option>
                       {userOrders.map((order) => (
                         <option key={order._id} value={order._id}>
@@ -293,6 +293,7 @@ const TrackOrder = () => {
 
                   {/* Visual Stepper */}
                   <div className="d_stepper_container mt-4">
+                    
                     {allSteps.map((step, index) => {
                       const isCompleted = currentStatus && step.step <= currentStatus.step;
                       const isCurrent = currentStatus && step.step === currentStatus.step;
