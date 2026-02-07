@@ -285,6 +285,12 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
 
       console.log("Order created:", orderRes.data.item);
 
+      const shiprocketMsg = orderRes.data.shiprocketError || orderRes.data.error || orderRes.data.message;
+      if (shiprocketMsg) {
+        console.warn("Shiprocket error:", shiprocketMsg);
+        alert("Order placed successfully, but shipping could not be created: " + shiprocketMsg);
+      }
+
       // Clear cart
       try {
         await axios.delete(

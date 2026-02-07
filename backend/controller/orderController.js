@@ -176,37 +176,39 @@ exports.create = async (req, res) => {
     console.log('[Order] Created order:', item._id);
 
     // Automatically create Shiprocket shipment if payment is completed
+    let shiprocketError = null;
     if (item.paymentStatus === "completed" || item.status === "paid") {
       console.log('[Order] Payment confirmed, initiating Shiprocket shipment creation...');
       try {
         const shipData = await createShipmentForOrder(item);
-        if (shipData) {
-          console.log('[Order] Shiprocket shipment created:', {
-            shipmentId: shipData.shipmentId,
-            orderId: shipData.orderId,
-            awbCode: shipData.awbCode,
-            courierName: shipData.courierName,
-          });
-          await updateOrderWithShipmentData(item, shipData);
-          await item.save();
-          console.log('[Order] Order updated with shipment data');
-        } else {
-          console.warn('[Order] Shiprocket shipment creation returned null');
-        }
+        console.log('[Order] Shiprocket shipment created:', {
+          shipmentId: shipData.shipmentId,
+          orderId: shipData.orderId,
+          awbCode: shipData.awbCode,
+          courierName: shipData.courierName,
+        });
+        await updateOrderWithShipmentData(item, shipData);
+        await item.save();
+        console.log('[Order] Order updated with shipment data');
       } catch (e) {
         console.error("[Order] Shiprocket integration error:", {
           orderId: item._id,
           message: e.message,
           stack: e.stack,
         });
-        // Don't fail the order creation if Shiprocket fails
-        // The order is still valid, just not yet sent to shiprocket
+        shiprocketError = e.message || 'Shiprocket order creation failed. Order saved but not sent to Shiprocket.';
       }
     } else {
       console.log('[Order] Payment not yet completed, shipment will be created when status changes to paid/shipped');
     }
 
-    res.status(201).json({ item });
+    const response = { item };
+    if (shiprocketError) {
+      response.shiprocketError = shiprocketError;
+      response.message = shiprocketError;
+      response.error = shiprocketError;
+    }
+    res.status(201).json(response);
   } catch (err) {
     console.error("Order create error details:", {
       message: err.message,
@@ -272,30 +274,30 @@ exports.updateStatus = async (req, res) => {
       hasShipment: !!item.shipmentId,
     });
 
-    // Create Shiprocket shipment if transitioning to shipped
+    let shiprocketError = null;
     if ((status === "shipped" || status === "processing") && !item.shipmentId && item.paymentStatus === "completed") {
       console.log('[Order] Creating Shiprocket shipment for status change...');
       try {
         const shipData = await createShipmentForOrder(item);
-        if (shipData) {
-          console.log('[Order] Shiprocket shipment created on status change:', {
-            shipmentId: shipData.shipmentId,
-            awbCode: shipData.awbCode,
-          });
-          await updateOrderWithShipmentData(item, shipData);
-          await item.save();
-        } else {
-          console.warn('[Order] Shiprocket shipment creation returned null');
-        }
-      } catch (e) {
-        console.error("[Order] Shiprocket error on status change:", {
-          orderId: item._id,
-          message: e.message,
+        console.log('[Order] Shiprocket shipment created on status change:', {
+          shipmentId: shipData.shipmentId,
+          awbCode: shipData.awbCode,
         });
+        await updateOrderWithShipmentData(item, shipData);
+        await item.save();
+      } catch (e) {
+        console.error("[Order] Shiprocket error on status change:", { orderId: item._id, message: e.message });
+        shiprocketError = e.message || 'Shiprocket shipment creation failed.';
       }
     }
 
-    res.json({ item });
+    const response = { item };
+    if (shiprocketError) {
+      response.shiprocketError = shiprocketError;
+      response.message = shiprocketError;
+      response.error = shiprocketError;
+    }
+    res.json(response);
   } catch (err) {
     console.error("Update status error:", err);
     res.status(400).json({ message: "Invalid status" });
