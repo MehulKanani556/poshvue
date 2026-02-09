@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 import "../../styles/x_admin.css";
 import client from "../../api/client";
 
@@ -8,6 +9,7 @@ function Login({ onLogin }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -77,16 +79,34 @@ function Login({ onLogin }) {
             <label htmlFor="password" className="x_form-label">
               Password
             </label>
-            <input
-              type="password"
-              id="password"
-              className="x_form-control"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-            />
+            <div style={{ position: "relative", width: "100%" }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                id="password"
+                className="x_form-control"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+                style={{ paddingRight: "36px", width: "100%", boxSizing: "border-box" }}
+              />
+              <span
+                onClick={() => setShowPassword((p) => !p)}
+                style={{
+                  position: "absolute",
+                  right: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  cursor: "pointer",
+                  color: "#666",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+              </span>
+            </div>
           </div>
 
           <button

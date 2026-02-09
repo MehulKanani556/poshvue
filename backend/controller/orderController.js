@@ -1,10 +1,11 @@
 const mongoose = require("mongoose");
-const { Order } = require("../model");
+const { Order, Product, Country } = require("../model");
 const {
   createShipmentForOrder,
   updateOrderWithShipmentData,
   getShipmentTracking,
   getOrderByShiprocketId,
+  calculateShippingCharges,
 } = require("../services/shiprocket");
 
 /**
@@ -225,6 +226,8 @@ exports.trackOrder = async (req, res) => {
         address: order.shippingInfo?.address || order.address,
         shippingInfo: order.shippingInfo,
         total: order.subTotal || order.total,
+        shippingCharges: order.shippingCharges,
+        isInternational: order.isInternational,
         items: order.items,
         paymentMethod: order.paymentMethod,
         paymentStatus: order.paymentStatus,
@@ -302,28 +305,49 @@ exports.create = async (req, res) => {
       order_date: req.body.order_date || new Date().toISOString().replace('T', ' ').split('.')[0],
     };
 
-    // Calculate totals if not provided
-    if (!payload.subTotal) {
-      payload.subTotal = normalizedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    }
+  // Calculate totals if not provided
+  if (!payload.subTotal) {
+    payload.subTotal = normalizedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  }
 
-    if (!payload.total) {
-      payload.total = payload.subTotal + (payload.tax || 0) - (payload.discount || 0);
-    }
+  // Aggregate dimensions and weight from products
+  let totalLength = 0;
+  let totalBreadth = 0;
+  let totalHeight = 0;
+  let totalWeight = 0;
 
-    // Default values for optional but recommended fields
-    if (!payload.discount) {
-      payload.discount = 0;
+  for (const item of normalizedItems) {
+    const product = await Product.findById(item.product);
+    if (product) {
+      totalLength += (product.length || 0) * item.quantity;
+      totalBreadth += (product.breadth || 0) * item.quantity;
+      totalHeight += (product.height || 0) * item.quantity;
+      totalWeight += (product.weight || 0) * item.quantity;
     }
+  }
 
-    if (!payload.dimension) {
-      payload.dimension = {
-        length: 10,
-        breadth: 10,
-        height: 5,
-        weight: 0.5,
-      };
-    }
+  payload.dimension = {
+    length: Math.max(10, totalLength),
+    breadth: Math.max(10, totalBreadth),
+    height: Math.max(5, totalHeight),
+    weight: Math.max(0.5, totalWeight),
+  };
+
+  if (!payload.total) {
+    payload.total = payload.subTotal + (payload.tax || 0) - (payload.discount || 0);
+  }
+
+  // Default values for optional but recommended fields
+  if (!payload.discount) {
+    payload.discount = 0;
+  }
+
+  // Calculate shipping charges
+  const { shippingCharges, isInternational } = await calculateShippingCharges(payload);
+  payload.shippingCharges = shippingCharges;
+  payload.isInternational = isInternational;
+  payload.total += shippingCharges;
+
 
     console.log('Normalized payload:', JSON.stringify(payload, null, 2));
 
@@ -404,5 +428,56 @@ exports.create = async (req, res) => {
       error: err.message,
       type: err.name,
     });
+  }
+};
+
+/**
+ * Calculate shipping charges based on items, address, and selected country.
+ * This endpoint serves the frontend for dynamic shipping calculation before order creation.
+ */
+exports.calculateShipping = async (req, res) => {
+  try {
+    const { cartItems, address, pincode, country } = req.body;
+
+    if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
+      return res.status(400).json({ message: "Cart items are required for shipping calculation." });
+    }
+    if (!address || !pincode || !country) {
+      return res.status(400).json({ message: "Address, pincode, and country are required for shipping calculation." });
+    }
+
+    let totalLength = 0;
+    let totalBreadth = 0;
+    let totalHeight = 0;
+    let totalWeight = 0;
+
+    for (const item of cartItems) {
+      const product = await Product.findById(item.productId);
+      if (product) {
+        totalLength += (product.length || 0) * item.quantity;
+        totalBreadth += (product.breadth || 0) * item.quantity;
+        totalHeight += (product.height || 0) * item.quantity;
+        totalWeight += (product.weight || 0) * item.quantity;
+      }
+    }
+
+    const dimension = {
+      length: Math.max(10, totalLength),
+      breadth: Math.max(10, totalBreadth),
+      height: Math.max(5, totalHeight),
+      weight: Math.max(0.5, totalWeight),
+    };
+
+    const destinationCountryCode = country?.code || "IN";
+    const isInternational = destinationCountryCode.toLowerCase() !== 'in';
+
+    const { shippingCharges } = await calculateShippingCharges(
+      { shippingInfo: { pincode: pincode, country: country?.name }, dimension, isInternational }
+    );
+
+    res.json({ charges: shippingCharges, international: isInternational });
+  } catch (err) {
+    console.error("Calculate shipping error:", err);
+    res.status(500).json({ message: "Failed to calculate shipping charges." });
   }
 };

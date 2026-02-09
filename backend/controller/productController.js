@@ -5,7 +5,7 @@ const writeFile = promisify(fs.writeFile);
 const mkdir = promisify(fs.mkdir);
 const unlink = promisify(fs.unlink);
 
-const { Product, Category } = require('../model');
+const { Product, Category, ShippingPolicy } = require('../model');
 
 /* -------------------- Helpers -------------------- */
 

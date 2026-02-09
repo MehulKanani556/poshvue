@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 import client from "../api/client";
 import "../styles/h_style.css";
 
@@ -14,6 +15,8 @@ function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Step 1: Request OTP
   const handleRequestOTP = async (e) => {
@@ -298,40 +301,74 @@ function ForgotPassword() {
               <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
                 New Password
               </label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password"
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  border: "1px solid #ddd",
-                  borderRadius: "4px",
-                  fontSize: "14px",
-                  boxSizing: "border-box",
-                }}
-              />
+              <div style={{ position: "relative", width: "100%" }}>
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  style={{
+                    width: "100%",
+                    padding: "10px 36px 10px 10px",
+                    border: "1px solid #ddd",
+                    borderRadius: "4px",
+                    fontSize: "14px",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <span
+                  onClick={() => setShowNewPassword((p) => !p)}
+                  style={{
+                    position: "absolute",
+                    right: "10px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    cursor: "pointer",
+                    color: "#666",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  {showNewPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                </span>
+              </div>
             </div>
 
             <div style={{ marginBottom: "20px" }}>
               <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
                 Confirm Password
               </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  border: "1px solid #ddd",
-                  borderRadius: "4px",
-                  fontSize: "14px",
-                  boxSizing: "border-box",
-                }}
-              />
+              <div style={{ position: "relative", width: "100%" }}>
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  style={{
+                    width: "100%",
+                    padding: "10px 36px 10px 10px",
+                    border: "1px solid #ddd",
+                    borderRadius: "4px",
+                    fontSize: "14px",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <span
+                  onClick={() => setShowConfirmPassword((p) => !p)}
+                  style={{
+                    position: "absolute",
+                    right: "10px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    cursor: "pointer",
+                    color: "#666",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                </span>
+              </div>
             </div>
 
             {error && <p style={{ color: "#d32f2f", marginBottom: "15px", fontSize: "14px" }}>{error}</p>}

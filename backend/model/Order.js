@@ -94,6 +94,8 @@ const OrderSchema = new mongoose.Schema(
     customerPhone: String,
     items: { type: [OrderItemSchema], required: true },
     total: { type: Number, required: true },
+    shippingCharges: { type: Number, default: 0 },
+    isInternational: { type: Boolean, default: false },
     status: {
       type: String,
       enum: [
@@ -139,6 +141,8 @@ const OrderSchema = new mongoose.Schema(
 
     trackingNumber: String,
     trackingUrl: String,
+    shippingCharges: { type: Number, default: 0 },
+    isInternational: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
