@@ -162,6 +162,11 @@ exports.removeFromCart = async (req, res) => {
 /* CLEAR CART AFTER ORDER */
 exports.clearCart = async (req, res) => {
   try {
+    // Support guest checkout: if no authenticated user, treat as no-op
+    if (!req.user || !req.user.id) {
+      return res.json({ items: [] });
+    }
+
     const cart = await Cart.findOneAndUpdate(
       { user: req.user.id },
       { $set: { items: [] } },

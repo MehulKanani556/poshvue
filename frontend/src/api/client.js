@@ -125,5 +125,19 @@ export const createPaymentIntent = (data) => client.post("/payment/create-intent
 // Verify payment
 export const verifyPayment = (data) => client.post("/payment/verify", data);
 
-export default client;
+// Razorpay: create order
+export const createRazorpayOrder = (data) => client.post("/payment/razorpay/order", data);
 
+// Razorpay: verify signature
+export const verifyRazorpaySignature = (data) => client.post("/payment/razorpay/verify", data);
+
+// Razorpay: validate VPA
+export const validateVpa = (data) => client.post("/payment/razorpay/validate-vpa", data);
+
+// Razorpay: create UPI collect payment (S2S)
+export const createUpiCollectPayment = (data) => client.post("/payment/razorpay/collect", data);
+
+// Razorpay: fetch payments for an order
+export const getRazorpayOrderPayments = (orderId) => client.get(`/payment/razorpay/order/${orderId}/payments`);
+
+export default client;

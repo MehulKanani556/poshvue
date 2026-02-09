@@ -2079,3 +2079,25 @@
     width: 50px;
   }
 }
+
+/* --------------- checkout  */
+
+
+/* 🔒 Disabled Effect */
+.z_chck_pay_btn:disabled,
+.z_chck_pay_btn.btn-disabled {
+      width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 25px;
+    background: #0a2845;
+    color: #fff;
+    opacity: 0.7;
+    font-size: 16px;
+}
+
+/* ✨ Hover only when enabled */
+.z_chck_pay_btn:not(:disabled):hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}

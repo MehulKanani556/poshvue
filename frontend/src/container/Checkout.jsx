@@ -7,7 +7,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements, PaymentElement } from "@stripe/react-stripe-js";
 import { useCurrency } from "../context/CurrencyContext";
 import client from "../api/client";
-import { createPaymentIntent, verifyPayment } from "../api/client";
+import { createPaymentIntent, verifyPayment, createRazorpayOrder, validateVpa, createUpiCollectPayment, getRazorpayOrderPayments } from "../api/client";
 
 const STRIPE_PUBLISHABLE_KEY = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || "";
 const HAS_STRIPE = !!STRIPE_PUBLISHABLE_KEY;
@@ -40,9 +40,35 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
   const [useManualAddress, setUseManualAddress] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("card");
   const [upiId, setUpiId] = useState("");
+  const [isCardComplete, setIsCardComplete] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+  // Clear shown payment error when switching method or editing UPI
+  useEffect(() => {
+    setPaymentError("");
+  }, [selectedPaymentMethod, upiId]);
 
+  // Helper: load Razorpay checkout script
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
+        return resolve(true);
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
   // Check if country is India
   const isIndia = selectedCountry?.code === "IN";
+
+  // Enforce country-based payment rules: Only UPI + Card for India, Card-only otherwise
+  useEffect(() => {
+    if (!isIndia && selectedPaymentMethod !== "card") {
+      setSelectedPaymentMethod("card");
+    }
+  }, [isIndia, selectedPaymentMethod]);
 
   const billingValidationSchema = Yup.object({
     fullName: Yup.string().min(2, "Name too short").required("Full name is required"),
@@ -66,125 +92,119 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
         return;
       }
 
-      if (!HAS_STRIPE) {
-        alert("Payment gateway is not configured. Please contact support.");
-        setLoading(false);
-        return;
-      }
-
       let paymentIntentId = null;
       let paymentStatus = "pending";
       const currency = selectedCountry?.currency?.toLowerCase() || "inr";
 
       // Handle different payment methods
       if (selectedPaymentMethod === "upi") {
-        // UPI Payment
-        if (!upiId.trim()) {
-          alert("Please enter your UPI ID");
-          setLoading(false);
-          return;
-        }
-
+        // UPI via Razorpay (server-side collect) - no modal
         try {
-          const piRes = await createPaymentIntent({
-            amount: total,
-            currency: currency,
-            paymentMethod: "upi",
-          });
-
-          const clientSecret = piRes.data.clientSecret;
-
-          // Confirm UPI payment
-          const { paymentIntent, error } = await stripe.confirmPayment({
-            clientSecret,
-            confirmParams: {
-              payment_method_data: {
-                type: "upi",
-                upi: {
-                  vpa: upiId.trim(),
-                },
-              },
-              return_url: `${window.location.origin}/TrackOrder`,
-            },
-          });
-
-          if (error) {
-            console.error("UPI payment error:", error);
-            alert(error.message || "UPI payment failed");
+          if (!upiId) {
+            setPaymentError("Please enter a UPI ID (e.g., yourname@bank)");
             setLoading(false);
             return;
           }
 
-          // For UPI, payment might be pending - check status
-          if (paymentIntent.status === "succeeded") {
-            paymentStatus = "completed";
-            paymentIntentId = paymentIntent.id;
-          } else if (paymentIntent.status === "requires_action") {
-            // UPI requires user action - redirect or show QR
-            paymentIntentId = paymentIntent.id;
-            // Check payment status after a delay
-            setTimeout(async () => {
-              try {
-                const verifyRes = await verifyPayment({ paymentIntentId });
-                if (verifyRes.data.status === "succeeded") {
-                  paymentStatus = "completed";
-                  await createOrder(values, paymentIntentId, paymentStatus);
-                }
-              } catch (verifyErr) {
-                console.error("Payment verification error:", verifyErr);
-              }
-            }, 3000);
+          // Create Razorpay order on backend
+          const orderRes = await createRazorpayOrder({ amount: total, currency: "INR" });
+          const { orderId } = orderRes.data;
+
+          // Validate VPA on server
+          try {
+            console.log('[Frontend] Validating VPA:', upiId);
+            const vpaRes = await validateVpa({ vpa: upiId });
+            console.log('[Frontend] VPA validation response:', vpaRes.data);
+          } catch (vErr) {
+            console.error('VPA validation error:', vErr);
+            const msg = vErr.response?.data?.message || vErr.message || 'Invalid UPI ID';
+            setPaymentError(msg);
+            setLoading(false);
+            return;
           }
+
+          // Create UPI collect payment (S2S) - sends collect request to customer's UPI app
+          console.log('[Frontend] Initiating UPI collect for order:', orderId);
+          await createUpiCollectPayment({
+            orderId,
+            amount: total,
+            vpa: upiId,
+            email: values.email,
+            contact: values.phone,
+            description: 'Order Payment',
+            notes: { purpose: 'Checkout UPI payment' },
+          });
+
+          // Start polling for payment status
+          const start = Date.now();
+          const timeoutMs = 120000; // 2 minutes
+          const pollIntervalMs = 3000;
+
+          const poll = async () => {
+            try {
+              const paymentsRes = await getRazorpayOrderPayments(orderId);
+              const items = paymentsRes.data?.items || paymentsRes.data || [];
+              const latest = Array.isArray(items) ? items[0] : null;
+
+              if (latest && (latest.status === "captured" || latest.status === "authorized")) {
+                paymentStatus = "completed";
+                paymentIntentId = latest.id || latest.razorpay_payment_id;
+                await createOrder(values, paymentIntentId, paymentStatus);
+                setLoading(false);
+                return true;
+              }
+
+              if (latest && (latest.status === "failed" || latest.status === "declined" || latest.status === "cancelled")) {
+                setPaymentError("Payment failed or cancelled. Please try again.");
+                setLoading(false);
+                return true;
+              }
+
+              if (Date.now() - start >= timeoutMs) {
+                setPaymentError("Payment timed out. Please check your UPI app and try again.");
+                setLoading(false);
+                return true;
+              }
+
+              return false;
+            } catch (pollErr) {
+              console.error("Polling error:", pollErr);
+              if (Date.now() - start >= timeoutMs) {
+                setPaymentError("Unable to confirm payment. Please try again.");
+                setLoading(false);
+                return true;
+              }
+              return false;
+            }
+          };
+
+          const schedule = async () => {
+            const done = await poll();
+            if (!done) setTimeout(schedule, pollIntervalMs);
+          };
+
+          // Inform user to approve the collect request in their UPI app
+          setPaymentError("A UPI collect request has been sent to your UPI app. Please approve it to complete the payment.");
+          schedule();
+          return; // exit, order will be created upon successful capture
         } catch (upiErr) {
-          console.error("UPI payment error:", upiErr);
-          alert(upiErr.response?.data?.message || "UPI payment failed");
+          console.error("UPI collect error:", upiErr);
+          setPaymentError(upiErr.response?.data?.message || "UPI payment failed");
           setLoading(false);
           return;
         }
       } else if (selectedPaymentMethod === "netbanking") {
-        // NetBanking Payment
-        try {
-          const piRes = await createPaymentIntent({
-            amount: total,
-            currency: currency,
-            paymentMethod: "netbanking",
-          });
-
-          const clientSecret = piRes.data.clientSecret;
-
-          const { paymentIntent, error } = await stripe.confirmPayment({
-            clientSecret,
-            confirmParams: {
-              payment_method_data: {
-                type: "netbanking",
-              },
-              return_url: `${window.location.origin}/TrackOrder`,
-            },
-          });
-
-          if (error) {
-            console.error("NetBanking payment error:", error);
-            alert(error.message || "NetBanking payment failed");
-            setLoading(false);
-            return;
-          }
-
-          if (paymentIntent.status === "succeeded") {
-            paymentStatus = "completed";
-            paymentIntentId = paymentIntent.id;
-          } else if (paymentIntent.status === "requires_action") {
-            paymentIntentId = paymentIntent.id;
-            // Wait for redirect back from bank
-            return;
-          }
-        } catch (nbErr) {
-          console.error("NetBanking payment error:", nbErr);
-          alert(nbErr.response?.data?.message || "NetBanking payment failed");
+        // NetBanking is not available per country rules
+        alert("NetBanking is not available. Please select Card.");
+        setLoading(false);
+        return;
+      } else {
+        // Card Payment (Stripe)
+        if (!HAS_STRIPE) {
+          alert("Card payment gateway is not configured. Please contact support.");
           setLoading(false);
           return;
         }
-      } else {
-        // Card Payment (default)
         if (!stripe || !elements) {
           alert("Payment form is not ready yet. Please wait a moment and try again.");
           setLoading(false);
@@ -225,29 +245,27 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
             return;
           }
 
-          if (paymentIntent.status !== "succeeded") {
-            alert("Payment not completed. Status: " + paymentIntent.status);
+          if (paymentIntent?.status === "succeeded") {
+            paymentStatus = "completed";
+            paymentIntentId = paymentIntent.id;
+            await createOrder(values, paymentIntentId, paymentStatus);
+            setLoading(false);
+          } else {
+            alert("Payment did not succeed. Please try again.");
             setLoading(false);
             return;
           }
-
-          paymentIntentId = paymentIntent.id;
-          paymentStatus = "completed";
         } catch (cardErr) {
           console.error("Card payment error:", cardErr);
-          alert(cardErr.response?.data?.message || "Card payment failed");
+          alert(cardErr.message || "Payment failed");
           setLoading(false);
           return;
         }
       }
-
-      // Create order after successful payment
-      await createOrder(values, paymentIntentId, paymentStatus);
-
     } catch (err) {
-      console.error("Checkout error:", err);
-      alert(err.response?.data?.message || "Something went wrong during checkout");
+      console.error("Payment submission error:", err);
       setLoading(false);
+      return;
     }
   };
 
@@ -321,6 +339,13 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
       enableReinitialize={true}
       validationSchema={billingValidationSchema}
       onSubmit={(values) => {
+        // Block flow until payment details are filled
+        if (selectedPaymentMethod === "card") {
+          if (!isCardComplete) {
+            alert("Please enter complete card details");
+            return;
+          }
+        }
         setPendingValues(values);
         setShowConfirm(true);
       }}
@@ -454,17 +479,6 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
                 <input
                   type="radio"
                   name="paymentMethod"
-                  value="netbanking"
-                  checked={selectedPaymentMethod === "netbanking"}
-                  onChange={(e) => setSelectedPaymentMethod(e.target.value)}
-                  style={{ marginRight: "8px" }}
-                />
-                <span>NetBanking</span>
-              </label>
-              <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                <input
-                  type="radio"
-                  name="paymentMethod"
                   value="card"
                   checked={selectedPaymentMethod === "card"}
                   onChange={(e) => setSelectedPaymentMethod(e.target.value)}
@@ -489,6 +503,9 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
               <small style={{ color: "#666", display: "block", marginTop: "5px" }}>
                 Enter your UPI ID (e.g., yourname@paytm, yourname@phonepe)
               </small>
+              {paymentError && (
+                <div className="text-danger small mt-2">{paymentError}</div>
+              )}
             </div>
           )}
 
@@ -497,7 +514,7 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
             <div className="z_chck_form_group mt-3">
               <label>Card Details</label>
               <div className="z_chck_card_element">
-                <CardElement options={{ hidePostalCode: true }} />
+                <CardElement options={{ hidePostalCode: true }} onChange={(e) => setIsCardComplete(!!e.complete)} />
               </div>
             </div>
           )}
@@ -505,7 +522,10 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
           <button 
             type="submit" 
             className="z_chck_pay_btn mt-3" 
-            disabled={loading || !HAS_STRIPE || (selectedPaymentMethod === "card" && !stripe)}
+            disabled={
+              loading ||
+              (selectedPaymentMethod === "card" && (!HAS_STRIPE || !stripe || !isCardComplete))
+            }
           >
             {loading ? "Processing..." : "Pay & Place Order"}
           </button>

@@ -30,7 +30,13 @@ function Orders() {
       const response = await client.get(`/commerce/orders?${params.toString()}`);
       
       let orders = response.data.items || [];
-      
+      console.log('Admin: fetched orders count:', orders.length);
+      const upiOrders = orders.filter(o => (o.paymentMethod || '').toLowerCase() === 'upi');
+      if (upiOrders.length) {
+        console.log('Admin: UPI orders summary:', upiOrders.map(o => ({ id: o._id, paymentStatus: o.paymentStatus, total: o.total })));
+      } else {
+        console.log('Admin: No UPI orders found in current fetch');
+      }
       // Filter by date if provided
       if (date) {
         orders = orders.filter(order => {

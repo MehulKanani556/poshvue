@@ -2,12 +2,12 @@ const express = require('express');
 const router = express.Router();
 const order = require('../controller/orderController');
 const coupon = require('../controller/couponController');
-const { auth, requireRole } = require('../middleware/auth');
+const { auth, optionalAuth, requireRole } = require('../middleware/auth');
 
 // Orders
 router.get('/orders', auth, requireRole('admin'), order.list); // admin list
-router.get('/orders/:id', auth, order.get); // customer/admin view
-router.post('/orders', auth, order.create); // customer create
+router.get('/orders/:id', optionalAuth, order.get); // customer/admin view (optional auth)
+router.post('/orders', optionalAuth, order.create); // customer create (guest supported)
 router.put('/orders/:id/status', auth, requireRole('admin'), order.updateStatus);
 router.get("/orders/:userId", auth, requireRole('admin','user'), order.getOrdersByUser);
 router.post('/orders/track', order.trackOrder); // Public endpoint to track order
