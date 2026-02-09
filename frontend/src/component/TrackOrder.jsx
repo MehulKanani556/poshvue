@@ -438,7 +438,7 @@ const TrackOrder = () => {
                           </div>
                         )}
                         {orderData.order.trackingUrl && (
-                          <a href={orderData.order.trackingUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary mt-2">
+                          <a href={`https://shiprocket.co/tracking/order/${orderId}?company_id=1105857`} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary mt-2">
                             Track on Shiprocket
                           </a>
                         )}

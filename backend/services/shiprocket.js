@@ -242,8 +242,10 @@ exports.createShipmentForOrder = async (order) => {
       console.error("[Shiprocket] API returned status_code 0:", apiMsg);
       throw new Error(`Shiprocket: ${apiMsg}`);
     }
-    const orderId = data.order_id ?? res.data.order_id;
+    const orderId = data.channel_order_id ?? res.data.channel_order_id;
     const shipmentId = data.shipment_id ?? res.data.shipment_id;
+
+    console.log(orderId,shipmentId,"dfjhbgjhdfg")
     if (!orderId || !shipmentId) {
       const msg =
         "Shiprocket did not return order_id or shipment_id. Check pickup location and address.";

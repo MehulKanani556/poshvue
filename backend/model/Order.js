@@ -131,10 +131,10 @@ const OrderSchema = new mongoose.Schema(
       default: 'pending',
     },
 
-    orderId: Number, // Shiprocket order id
+    orderId: String, // Shiprocket order id
     order_date: String,
     shipmentDetail: ShipmentDetailSchema,
-    shipmentId: Number,
+    shipmentId: String,
 
     returnOrderDetail: ReturnOrderDetailSchema,
     returnShipmentId: Number,

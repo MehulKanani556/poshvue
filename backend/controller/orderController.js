@@ -366,8 +366,8 @@ exports.create = async (req, res) => {
         }
 
         // Attach shipment info to payload so order is created with shipment details
-        payload.shipmentId = shipData.shipmentId || shipData.orderId || shipData.awbCode;
-        payload.trackingNumber = shipData.awbCode || shipData.trackingNumber || payload.shipmentId;
+        payload.shipmentId = shipData.channel_order_id || shipData.orderId || shipData.awbCode;
+        payload.trackingNumber = shipData.awbCode || shipData.channel_order_id || payload.shipmentId;
         payload.courierName = shipData.courierName || shipData.courier || null;
         payload.shipmentDetail = shipData;
         console.log('[Order] Shiprocket shipment created (pre-save):', {
