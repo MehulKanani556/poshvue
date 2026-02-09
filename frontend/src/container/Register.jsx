@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 import client from "../api/client";
 
 /* =======================
@@ -48,6 +49,9 @@ function Register() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const otpRef = useRef([]);
   const modalRef = useRef(null);
 
@@ -296,12 +300,30 @@ function Register() {
 
               {(mode === "login" || mode === "register") && (
                 <>
-                  <Field
-                    type="password"
-                    name="password"
-                    placeholder="Password"
-                    className="z_auth_input"
-                  />
+                  <div style={{ position: "relative", width: "100%" }}>
+                    <Field
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      placeholder="Password"
+                      className="z_auth_input"
+                      style={{ paddingRight: "36px", width: "100%", boxSizing: "border-box" }}
+                    />
+                    <span
+                      onClick={() => setShowPassword((p) => !p)}
+                      style={{
+                        position: "absolute",
+                        right: "10px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        cursor: "pointer",
+                        color: "inherit",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                    </span>
+                  </div>
                   <ErrorMessage
                     name="password"
                     component="div"
@@ -359,24 +381,60 @@ function Register() {
 
               {mode === "reset" && (
                 <>
-                  <Field
-                    type="password"
-                    name="newPassword"
-                    placeholder="New Password"
-                    className="z_auth_input"
-                  />
+                  <div style={{ position: "relative", width: "100%" }}>
+                    <Field
+                      type={showNewPassword ? "text" : "password"}
+                      name="newPassword"
+                      placeholder="New Password"
+                      className="z_auth_input"
+                      style={{ paddingRight: "36px", width: "100%", boxSizing: "border-box" }}
+                    />
+                    <span
+                      onClick={() => setShowNewPassword((p) => !p)}
+                      style={{
+                        position: "absolute",
+                        right: "10px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        cursor: "pointer",
+                        color: "inherit",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      {showNewPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                    </span>
+                  </div>
                   <ErrorMessage
                     name="newPassword"
                     component="div"
                     className="z_error"
                   />
 
-                  <Field
-                    type="password"
-                    name="confirmPassword"
-                    placeholder="Confirm Password"
-                    className="z_auth_input"
-                  />
+                  <div style={{ position: "relative", width: "100%" }}>
+                    <Field
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      placeholder="Confirm Password"
+                      className="z_auth_input"
+                      style={{ paddingRight: "36px", width: "100%", boxSizing: "border-box" }}
+                    />
+                    <span
+                      onClick={() => setShowConfirmPassword((p) => !p)}
+                      style={{
+                        position: "absolute",
+                        right: "10px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        cursor: "pointer",
+                        color: "inherit",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                    </span>
+                  </div>
                   <ErrorMessage
                     name="confirmPassword"
                     component="div"

@@ -15,6 +15,7 @@ import { MdDeleteOutline } from "react-icons/md";
 import { MdCamera } from "react-icons/md";
 import { MdEdit } from "react-icons/md";
 import { MdContentCopy } from "react-icons/md";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 import Tooltip from "bootstrap/js/dist/tooltip";
 import client from "../api/client";
 
@@ -45,6 +46,9 @@ function Profile() {
   });
 
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const token = localStorage.getItem("userToken");
 
   /* ================= FETCH PROFILE ================= */
@@ -307,6 +311,17 @@ function Profile() {
 
   const handleViewOrderDetails = (orderId) => {
     setOpenOrderId(openOrderId === orderId ? null : orderId);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await client.post("/auth/logout");
+    } catch (err) {
+      // ignore errors
+    }
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("userInfo");
+    navigate("/");
   };
   console.log("COUPONS:", coupons);
   console.log("orders:", orders);
@@ -796,32 +811,86 @@ function Profile() {
                       <Form onSubmit={handlePasswordChange}>
                         <Form.Group className="mb-3">
                           <Form.Label>Current Password</Form.Label>
-                          <Form.Control
-                            type="password"
-                            name="currentPassword"
-                            value={passwordData.currentPassword}
-                            onChange={handlePasswordInput}
-                          />
+                          <div style={{ position: "relative", width: "100%" }}>
+                            <Form.Control
+                              type={showCurrentPassword ? "text" : "password"}
+                              name="currentPassword"
+                              value={passwordData.currentPassword}
+                              onChange={handlePasswordInput}
+                              style={{ paddingRight: "36px" }}
+                            />
+                            <span
+                              onClick={() => setShowCurrentPassword((p) => !p)}
+                              style={{
+                                position: "absolute",
+                                right: "10px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                cursor: "pointer",
+                                color: "#666",
+                                display: "flex",
+                                alignItems: "center",
+                              }}
+                            >
+                              {showCurrentPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                            </span>
+                          </div>
                         </Form.Group>
 
                         <Form.Group className="mb-3">
                           <Form.Label>New Password</Form.Label>
-                          <Form.Control
-                            type="password"
-                            name="newPassword"
-                            value={passwordData.newPassword}
-                            onChange={handlePasswordInput}
-                          />
+                          <div style={{ position: "relative", width: "100%" }}>
+                            <Form.Control
+                              type={showNewPassword ? "text" : "password"}
+                              name="newPassword"
+                              value={passwordData.newPassword}
+                              onChange={handlePasswordInput}
+                              style={{ paddingRight: "36px" }}
+                            />
+                            <span
+                              onClick={() => setShowNewPassword((p) => !p)}
+                              style={{
+                                position: "absolute",
+                                right: "10px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                cursor: "pointer",
+                                color: "#666",
+                                display: "flex",
+                                alignItems: "center",
+                              }}
+                            >
+                              {showNewPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                            </span>
+                          </div>
                         </Form.Group>
 
                         <Form.Group className="mb-3">
                           <Form.Label>Confirm Password</Form.Label>
-                          <Form.Control
-                            type="password"
-                            name="confirmPassword"
-                            value={passwordData.confirmPassword}
-                            onChange={handlePasswordInput}
-                          />
+                          <div style={{ position: "relative", width: "100%" }}>
+                            <Form.Control
+                              type={showConfirmPassword ? "text" : "password"}
+                              name="confirmPassword"
+                              value={passwordData.confirmPassword}
+                              onChange={handlePasswordInput}
+                              style={{ paddingRight: "36px" }}
+                            />
+                            <span
+                              onClick={() => setShowConfirmPassword((p) => !p)}
+                              style={{
+                                position: "absolute",
+                                right: "10px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                cursor: "pointer",
+                                color: "#666",
+                                display: "flex",
+                                alignItems: "center",
+                              }}
+                            >
+                              {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                            </span>
+                          </div>
                         </Form.Group>
 
                         <button
@@ -840,7 +909,13 @@ function Profile() {
                     <div className="z_prof_card p-4">
                       <h4 className="z_prof_title mb-3">Logout</h4>
                       <p>Click below to logout from your account.</p>
-                      <button className="z_cart_empty_btn">Logout</button>
+                      <button
+                        type="button"
+                        className="z_cart_empty_btn"
+                        onClick={handleLogout}
+                      >
+                        Logout
+                      </button>
                     </div>
                   </Tab.Pane>
                 </Tab.Content>
