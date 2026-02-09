@@ -578,6 +578,8 @@ function Checkout() {
   const [subTotal, setSubTotal] = useState(state?.subTotal || 0);
   const [discount, setDiscount] = useState(state?.discount || 0);
   const [deliveryFee, setDeliveryFee] = useState(state?.deliveryFee || 0);
+  const [shippingCharges, setShippingCharges] = useState(state?.shippingCharges || 0);
+  const [isInternational, setIsInternational] = useState(state?.isInternational || false);
   const [total, setTotal] = useState(state?.total || 0);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
@@ -594,7 +596,7 @@ function Checkout() {
           ? (st * appliedCoupon.amount / 100) 
           : appliedCoupon.amount) : 0;
         const delivery = 50;
-        const tot = st - disc + delivery;
+        const tot = st - disc + delivery + shippingCharges;
         setSubTotal(st);
         setDiscount(disc);
         setDeliveryFee(delivery);
@@ -630,12 +632,12 @@ function Checkout() {
           0
         );
         const delivery = 50;
-        const tot = st + delivery;
+      const tot = st + delivery + shippingCharges;
 
-        setSubTotal(st);
-        setDiscount(0);
-        setDeliveryFee(delivery);
-        setTotal(tot);
+      setSubTotal(st);
+      setDiscount(0);
+      setDeliveryFee(delivery);
+      setTotal(tot);
       } catch (err) {
         console.error("Error fetching cart for checkout:", err);
         navigate("/Cart");
@@ -680,13 +682,15 @@ function Checkout() {
                 cartItems={cartItems}
                 subTotal={subTotal}
                 discount={discount}
-                deliveryFee={deliveryFee}
+                deliveryFee={shippingCharges}
                 total={total}
                 appliedCoupon={appliedCoupon}
                 addresses={addresses}
                 selectedAddress={selectedAddress}
                 setSelectedAddress={setSelectedAddress}
                 selectedCountry={selectedCountry}
+                shippingCharges={shippingCharges}
+                isInternational={isInternational}
               />
             </Elements>
           </div>
@@ -720,8 +724,8 @@ function Checkout() {
             )}
 
             <div className="z_chck_summary_item">
-              <span>Delivery Fee</span>
-              <span>{formatPrice(deliveryFee)}</span>
+              <span>Shipping ({isInternational ? "International" : "Domestic"})</span>
+              <span>{formatPrice(shippingCharges)}</span>
             </div>
 
             <div className="z_chck_summary_total">

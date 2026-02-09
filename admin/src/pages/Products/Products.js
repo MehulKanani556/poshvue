@@ -40,6 +40,10 @@ function Products() {
     work: "",
     stock: "",
     status: "Active",
+    length: "",
+    breadth: "",
+    height: "",
+    weight: "",
   });
   const [editingId, setEditingId] = useState(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -213,6 +217,10 @@ function Products() {
       work: product.work ?? "",
       stock: product.stock ?? "",
       status: product.active === false ? "Inactive" : "Active",
+      length: product.length ?? "",
+      breadth: product.breadth ?? "",
+      height: product.height ?? "",
+      weight: product.weight ?? "",
     };
 
     // determine readable category name for the select (handles populated objects or ids)
@@ -279,6 +287,10 @@ function Products() {
       work: "",
       stock: "",
       status: "Active",
+      length: "",
+      breadth: "",
+      height: "",
+      weight: "",
     });
     setEditingId(null);
     setShowModal(false);
@@ -824,18 +836,85 @@ function Products() {
                   />
                 </div>
 
+              <div className="x_form-group">
+                <label className="x_form-label">Work/Design Details</label>
+                <input
+                  type="text"
+                  name="work"
+                  className="x_form-control"
+                  value={formData.work}
+                  onChange={handleInputChange}
+                  placeholder="e.g., Embroidered, Printed, Solid"
+                />
+              </div>
+
+              {/* Package Dimensions for Shipping */}
+              <div
+                style={{
+                  borderTop: "1px solid #ddd",
+                  paddingTop: "15px",
+                  marginTop: "15px",
+                }}
+              >
+                <h4 style={{ marginBottom: "12px" }}>Package Dimensions (for Shipping)</h4>
+
                 <div className="x_form-group">
-                  <label className="x_form-label">Work/Design Details</label>
+                  <label className="x_form-label">Length (cm)</label>
                   <input
-                    type="text"
-                    name="work"
+                    type="number"
+                    name="length"
                     className="x_form-control"
-                    value={formData.work}
+                    value={formData.length}
                     onChange={handleInputChange}
-                    placeholder="e.g., Embroidered, Printed, Solid"
+                    placeholder="e.g., 10"
+                    min="0"
+                    step="0.1"
+                  />
+                </div>
+
+                <div className="x_form-group">
+                  <label className="x_form-label">Breadth (cm)</label>
+                  <input
+                    type="number"
+                    name="breadth"
+                    className="x_form-control"
+                    value={formData.breadth}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 10"
+                    min="0"
+                    step="0.1"
+                  />
+                </div>
+
+                <div className="x_form-group">
+                  <label className="x_form-label">Height (cm)</label>
+                  <input
+                    type="number"
+                    name="height"
+                    className="x_form-control"
+                    value={formData.height}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 5"
+                    min="0"
+                    step="0.1"
+                  />
+                </div>
+
+                <div className="x_form-group">
+                  <label className="x_form-label">Weight (kg)</label>
+                  <input
+                    type="number"
+                    name="weight"
+                    className="x_form-control"
+                    value={formData.weight}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 0.5"
+                    min="0"
+                    step="0.01"
                   />
                 </div>
               </div>
+            </div>
             </div>
 
             <div className="x_modal-footer">

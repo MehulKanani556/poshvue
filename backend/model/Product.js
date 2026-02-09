@@ -30,6 +30,10 @@ const ProductSchema = new mongoose.Schema(
     washCare: { type: String },
     productType: { type: String },
     work: { type: String },
+    length: { type: Number, default: 0 },
+    breadth: { type: Number, default: 0 },
+    height: { type: Number, default: 0 },
+    weight: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Container, Row, Col, Form,  Card, Alert } from 'react-bootstrap';
 import { 
   FaSearch, 
@@ -92,18 +92,128 @@ const TrackOrder = () => {
     }
   };
 
-  const currentStatus = orderData?.order ? statusSteps[orderData.order.status] : null;
-  const allSteps = [
-    statusSteps.pending,
-    statusSteps.paid,
-    statusSteps.processing,
-    statusSteps.shipped,
-    statusSteps.out_for_delivery,
-    statusSteps.delivered,
-  ];
+  // Fetch Shiprocket tracking details when we have an order with an AWB/tracking number
+  const fetchShiprocketTracking = useCallback(async (trackingNumber) => {
+    if (!trackingNumber) return null;
+    try {
+      // Expect backend route that proxies Shiprocket API:
+      // GET /commerce/shiprocket/track/:awb
+      const res = await client.get(`/commerce/shiprocket/track/${encodeURIComponent(trackingNumber)}`);
+      return res.data;
+    } catch (err) {
+      console.warn("Failed to fetch Shiprocket tracking:", err);
+      return null;
+    }
+  }, []);
 
-  return (
-    <div className="d_track_wrapper py-5">
+  useEffect(() => {
+    if (!orderData?.order) return;
+    const awb = orderData.order.trackingNumber || orderData.order.awb || orderData.order.tracking_no;
+    if (!awb) return;
+
+    // only fetch if trackingInfo is not already present
+    if (!orderData.trackingInfo) {
+      (async () => {
+        const tracking = await fetchShiprocketTracking(awb);
+        if (tracking) {
+          setOrderData((prev) => ({ ...prev, trackingInfo: tracking }));
+        }
+      })();
+    }
+  }, [orderData, fetchShiprocketTracking]);
+
+  // Normalize Shiprocket tracking data into a flat scans array for rendering
+  const getTrackingScans = (data) => {
+    if (!data) return [];
+    // Shiprocket payloads vary — try several paths
+    const track =
+      data?.tracking_data?.shipment_track?.[0] ||
+      data?.tracking_data?.[0] ||
+      data?.data?.tracking_data?.[0] ||
+      data?.tracking || data;
+
+    // shipment_track_activities or scan arrays
+    const scans =
+      track?.tracking_data?.shipment_track_activities ||
+      track?.scan ||
+      track?.tracking_data?.scan ||
+      track?.activities ||
+      [];
+
+    // Normalize each scan item to have date, time, activity, location
+    return (scans || []).map((s) => {
+      // Shiprocket sometimes returns timestamp or date/time combined
+      const timestamp = s.timestamp || s.date || s.activity_date || s.activity_timestamp;
+      let date = "";
+      let time = "";
+      if (timestamp) {
+        const d = new Date(timestamp);
+        if (!isNaN(d)) {
+          date = d.toLocaleDateString();
+          time = d.toLocaleTimeString();
+        } else {
+          // if string like "2021-08-01 10:00:00"
+          const parts = String(timestamp).split(" ");
+          date = parts[0] || "";
+          time = parts[1] || "";
+        }
+      }
+
+      return {
+        activity: s.activity || s.status || s.description || s.scan_description || s.name || "Update",
+        date,
+        time,
+        location: s.location || s.city || s.scan_location || s.warehouse || "",
+        raw: s,
+      };
+    });
+  };
+
+  // derive current status — prefer Shiprocket/current tracking info, fallback to order.status
+  const getNormalizedStatusKey = (raw) => {
+    if (!raw) return null;
+    const s = String(raw).toLowerCase();
+    if (s.includes("cancel") || s.includes("canceled") || s.includes("cancelled")) return "cancelled";
+    if (s.includes("delivered")) return "delivered";
+    if (s.includes("out") && s.includes("delivery")) return "out_for_delivery";
+    if (s.includes("out_for_delivery") || s.includes("out_for")) return "out_for_delivery";
+    if (s.includes("ship") || s.includes("shipped") || s.includes("in_transit") || s.includes("transit")) return "shipped";
+    if (s.includes("process") || s.includes("processing") || s.includes("packed") || s.includes("ready")) return "processing";
+    if (s.includes("paid") || s.includes("payment")) return "paid";
+    if (s.includes("created") || s.includes("placed") || s.includes("pending") || s.includes("order placed")) return "pending";
+    return null;
+  };
+
+  const shipStatusRaw = (() => {
+    if (!orderData?.trackingInfo) return null;
+    const t = orderData.trackingInfo?.tracking_data?.[0] ||
+              orderData.trackingInfo?.tracking_data?.shipment_track?.[0] ||
+              orderData.trackingInfo?.data ||
+              orderData.trackingInfo;
+    return t?.current_status || t?.status || orderData.trackingInfo?.status || null;
+  })();
+
+  const shipStatusKey = getNormalizedStatusKey(shipStatusRaw);
+  const isCancelled = (orderData?.order?.status === "cancelled") || shipStatusKey === "cancelled";
+
+  const currentStatus = isCancelled
+    ? statusSteps.cancelled
+    : shipStatusKey
+    ? statusSteps[shipStatusKey] || null
+    : orderData?.order
+    ? statusSteps[orderData.order.status]
+    : null;
+   const allSteps = [
+     statusSteps.pending,
+     statusSteps.paid,
+     statusSteps.processing,
+     statusSteps.shipped,
+     statusSteps.out_for_delivery,
+     statusSteps.delivered,
+   ];
+ 
+   return (
+     <div className="d_track_wrapper py-5">
       <Container>
         {/* Header */}
         <Row className="justify-content-center text-center mb-md-4 mb-3">
@@ -244,14 +354,14 @@ const TrackOrder = () => {
                       </Col>
                       {orderData.order.trackingNumber && (
                         <Col md={6} className="mb-2">
-                          <strong>Tracking Number:</strong> {orderData.order.trackingNumber}
+                          <strong>AWB / Tracking Number:</strong> {orderData.order.trackingNumber}
                         </Col>
                       )}
                       {orderData.order.trackingUrl && (
                         <Col md={6} className="mb-2">
-                          <strong>Tracking URL:</strong>{' '}
-                          <a href={orderData.order.trackingUrl} target="_blank" rel="noopener noreferrer">
-                            View Tracking
+                          <strong>Track on Shiprocket:</strong>{' '}
+                          <a href={orderData.order.trackingUrl} target="_blank" rel="noopener noreferrer" className="text-decoration-underline">
+                            View Live Tracking →
                           </a>
                         </Col>
                       )}
@@ -273,7 +383,7 @@ const TrackOrder = () => {
                         {orderData.order.items?.map((item, index) => (
                           <tr key={index}>
                             <td>
-                              {item.name}
+                              {item.name || item.title || item.product?.name || item.product?.title || "Item"}
                               {item.size && ` (Size: ${item.size})`}
                               {item.color && ` (Color: ${item.color})`}
                             </td>
@@ -291,40 +401,96 @@ const TrackOrder = () => {
                     </table>
                   </div>
 
-                  {/* Visual Stepper */}
-                  <div className="d_stepper_container mt-4">
-                    
-                    {allSteps.map((step, index) => {
-                      const isCompleted = currentStatus && step.step <= currentStatus.step;
-                      const isCurrent = currentStatus && step.step === currentStatus.step;
-                      
-                      return (
-                        <div 
-                          key={index} 
-                          className={`d_step_item ${isCompleted ? 'active' : ''} ${isCurrent ? 'current' : ''}`}
-                        >
-                          <div className="d_step_icon">
-                            {step.icon}
+                  {/* Shiprocket Tracking Scans */}
+                  {orderData.trackingInfo && (() => {
+                    const scans = getTrackingScans(orderData.trackingInfo);
+                    const trackSummary =
+                      orderData.trackingInfo?.tracking_data?.[0] ||
+                      orderData.trackingInfo?.tracking_data?.shipment_track?.[0] ||
+                      orderData.trackingInfo?.data ||
+                      {};
+
+                    const status = trackSummary?.current_status || trackSummary?.status || orderData.trackingInfo?.status || "";
+                    if (scans.length === 0 && !status) return null;
+                    return (
+                      <div className="mb-4">
+                        <h6 className="fw-bold mb-3">Shiprocket Tracking</h6>
+                        {status && (
+                          <p className="mb-2"><strong>Current Status:</strong> {String(status)}</p>
+                        )}
+                        {scans.length > 0 && (
+                          <div className="d_stepper_container">
+                            {scans.map((scan, idx) => (
+                              <div key={idx} className="d_step_item active">
+                                <div className="d_step_icon"><FaMapMarkerAlt /></div>
+                                <div className="d_step_content">
+                                  <h6 className="mb-0">{scan.activity}</h6>
+                                  <small className="text-muted">
+                                    {scan.date} {scan.time}
+                                    {scan.location && ` • ${scan.location}`}
+                                  </small>
+                                  {/* optional raw payload for debugging */}
+                                  {/* <pre style={{fontSize:12, marginTop:6}}>{JSON.stringify(scan.raw, null, 2)}</pre> */}
+                                </div>
+                                {idx !== scans.length - 1 && <div className="d_step_line active" />}
+                              </div>
+                            ))}
                           </div>
-                          <div className="d_step_content">
-                            <h6 className="mb-0 fw-bold">{step.label}</h6>
-                            {isCurrent && (
-                              <small className="text-success">Current Status</small>
+                        )}
+                        {orderData.order.trackingUrl && (
+                          <a href={orderData.order.trackingUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary mt-2">
+                            Track on Shiprocket
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Visual Stepper */}
+                  {isCancelled ? (
+                    <div className="d_stepper_container mt-4">
+                      <div className="d_step_item cancelled current">
+                        <div className="d_step_icon">
+                          <FaCheckCircle />
+                        </div>
+                        <div className="d_step_content">
+                          <h6 className="mb-0 fw-bold">Cancelled</h6>
+                          <small className="text-danger">Order Cancelled</small>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="d_stepper_container mt-4">
+                      {allSteps.map((step, index) => {
+                        const isCompleted = currentStatus && step.step <= currentStatus.step;
+                        const isCurrent = currentStatus && step.step === currentStatus.step;
+                        
+                        return (
+                          <div
+                            key={index}
+                            className={`d_step_item ${isCompleted ? "active" : ""} ${isCurrent ? "current" : ""}`}
+                          >
+                            <div className="d_step_icon">{step.icon}</div>
+                            <div className="d_step_content">
+                              <h6 className="mb-0 fw-bold">{step.label}</h6>
+                              {isCurrent && <small className="text-success">Current Status</small>}
+                            </div>
+                            {index !== allSteps.length - 1 && (
+                              <div className={`d_step_line ${isCompleted ? "active" : ""}`} />
                             )}
                           </div>
-                          {index !== allSteps.length - 1 && <div className={`d_step_line ${isCompleted ? 'active' : ''}`} />}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
-        )}
-      </Container>
-
-      <style>{`
+                        );
+                      })}
+                    </div>
+                  )}
+                 </Card.Body>
+               </Card>
+             </Col>
+           </Row>
+         )}
+       </Container>
+ 
+       <style>{`
         .d_track_wrapper {
           background-color: #fcfaf8;
         }
@@ -394,6 +560,15 @@ const TrackOrder = () => {
           color: white;
           box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.2);
         }
+        /* cancelled styling */
+        .d_step_item.cancelled .d_step_icon {
+          background: #dc3545;
+          color: #fff;
+          box-shadow: none;
+        }
+        .d_step_item.cancelled .d_step_content small {
+          color: #dc3545;
+        }
         .d_step_line {
           position: absolute;
           left: 19px;
@@ -420,8 +595,8 @@ const TrackOrder = () => {
           }
         }
       `}</style>
-    </div>
-  );
-};
-
-export default TrackOrder;
+     </div>
+   );
+ };
+ 
+ export default TrackOrder;
