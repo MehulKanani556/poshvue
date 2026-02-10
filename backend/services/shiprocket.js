@@ -402,6 +402,33 @@ exports.getShipmentTracking = async (shipmentId) => {
 };
 
 /**
+ * Get shipment tracking by AWB code from Shiprocket
+ * Shiprocket API: /courier/track/awb/{awb}
+ */
+exports.getAwbTracking = async (awb) => {
+  try {
+    const token = await getToken();
+    if (!token || !awb) return null;
+
+    const awbCode = String(awb).trim();
+    if (!awbCode) return null;
+
+    console.log(`[Shiprocket] Fetching tracking for AWB ${awbCode}...`);
+
+    const res = await axios.get(`${SHIPROCKET_URL}/courier/track/awb/${encodeURIComponent(awbCode)}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return res.data;
+  } catch (err) {
+    console.error("[Shiprocket] AWB tracking failed:", err.message);
+    return null;
+  }
+};
+
+/**
  * Get order by Shiprocket order ID
  */
 exports.getOrderByShiprocketId = async (shiprocketOrderId) => {

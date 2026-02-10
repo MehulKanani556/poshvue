@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Container, Row, Col, Form,  Card, Alert } from 'react-bootstrap';
 import { 
   FaSearch, 
@@ -8,11 +8,163 @@ import {
   FaMapMarkerAlt, 
   FaHandSparkles,
   FaCreditCard,
-  FaSpinner
+  FaSpinner,
+  FaTruck,
+  FaWarehouse,
+  FaClipboardList,
+  FaCarAlt
 } from 'react-icons/fa';
 import { trackOrder } from '../../api/client';
 import client from '../../api/client';
 
+// Dummy Shiprocket payload (dev fallback when backend tracking is unavailable)
+const DUMMY_SHIPROCKET_TRACKING = {
+  tracking_data: {
+    track_status: 1,
+    shipment_status: 7,
+    shipment_track: [
+      {
+        id: 236612717,
+        awb_code: "141123221084922",
+        courier_company_id: 51,
+        shipment_id: 236612717,
+        order_id: 237157589,
+        pickup_date: "2022-07-18 20:28:00",
+        delivered_date: "2022-07-19 11:37:00",
+        weight: "0.30",
+        packages: 1,
+        current_status: "Delivered",
+        delivered_to: "Chittoor",
+        destination: "Chittoor",
+        consignee_name: "",
+        origin: "Banglore",
+        courier_agent_details: null,
+        courier_name: "Xpressbees Surface",
+        edd: null,
+        pod: "Available",
+        pod_status:
+          " https://s3-ap-southeast-1.amazonaws.com/kr-shipmultichannel/courier/51/pod/141123221084922.png ",
+      },
+    ],
+    shipment_track_activities: [
+      {
+        date: "2022-07-19 11:37:00",
+        status: "DLVD",
+        activity: "Delivered",
+        location: "MADANPALLI, Madanapalli, ANDHRA PRADESH",
+        "sr-status": "7",
+        "sr-status-label": "DELIVERED",
+      },
+      {
+        date: "2022-07-19 08:57:00",
+        status: "OFD",
+        activity:
+          "Out for Delivery Out for delivery: 383439-Nandinayani Reddy Bhaskara Sitics Logistics  (356231) (383439)-PDS22200085719383439-FromMob , MobileNo:- 9963133564",
+        location: "MADANPALLI, Madanapalli, ANDHRA PRADESH",
+        "sr-status": "17",
+        "sr-status-label": "OUT FOR DELIVERY",
+      },
+      {
+        date: "2022-07-19 07:33:00",
+        status: "RAD",
+        activity: "Reached at Destination Shipment BagOut From Bag : nxbg03894488",
+        location: "MADANPALLI, Madanapalli, ANDHRA PRADESH",
+        "sr-status": "38",
+        "sr-status-label": "REACHED AT DESTINATION HUB",
+      },
+      {
+        date: "2022-07-18 21:02:00",
+        status: "IT",
+        activity: "InTransit Shipment added in Bag nxbg03894488",
+        location: "BLR/FC1, BANGALORE, KARNATAKA",
+        "sr-status": "18",
+        "sr-status-label": "IN TRANSIT",
+      },
+      {
+        date: "2022-07-18 20:28:00",
+        status: "PKD",
+        activity: "Picked Shipment InScan from Manifest",
+        location: "BLR/FC1, BANGALORE, KARNATAKA",
+        "sr-status": "6",
+        "sr-status-label": "SHIPPED",
+      },
+      {
+        date: "2022-07-18 13:50:00",
+        status: "PUD",
+        activity: "PickDone ",
+        location: "RTO/CHD, BANGALORE, KARNATAKA",
+        "sr-status": "42",
+        "sr-status-label": "PICKED UP",
+      },
+      {
+        date: "2022-07-18 10:04:00",
+        status: "OFP",
+        activity: "Out for Pickup ",
+        location: "RTO/CHD, BANGALORE, KARNATAKA",
+        "sr-status": "19",
+        "sr-status-label": "OUT FOR PICKUP",
+      },
+      {
+        date: "2022-07-18 09:51:00",
+        status: "DRC",
+        activity: "Pending Manifest Data Received",
+        location: "RTO/CHD, BANGALORE, KARNATAKA",
+        "sr-status": "NA",
+        "sr-status-label": "NA",
+      },
+    ],
+    track_url: " https://shiprocket.co//tracking/141123221084922 ",
+    etd: "2022-07-20 19:28:00",
+    qc_response: {
+      qc_image: "",
+      qc_failed_reason: "",
+    },
+  },
+};
+
+// Extract milestone dates from Shiprocket tracking data
+const getShiprocketMilestones = (trackingData) => {
+  if (!trackingData) return null;
+
+  const activities =
+    trackingData?.tracking_data?.shipment_track_activities ||
+    trackingData?.tracking_data?.shipment_track?.[0]?.shipment_track_activities ||
+    trackingData?.tracking_data?.[0]?.shipment_track_activities ||
+    trackingData?.data?.tracking_data?.shipment_track_activities ||
+    [];
+
+  const milestones = {};
+
+  (activities || []).forEach((activity) => {
+    const status = String(activity.status || activity.activity || "").toLowerCase();
+    const timestamp = activity.date || activity.activity_date;
+
+    if (!timestamp) return;
+
+    try {
+      const d = new Date(timestamp);
+      if (!isNaN(d)) {
+        const date = d.toLocaleDateString();
+        const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+        // Match status to milestone
+        if ((status.includes("shipped") || status.includes("pkd")) && !milestones.shipped) {
+          milestones.shipped = { date, time, activity: activity.activity };
+        }
+        if ((status.includes("out") || status.includes("ofd")) && !milestones.out_for_delivery) {
+          milestones.out_for_delivery = { date, time, activity: activity.activity };
+        }
+        if ((status.includes("delivered") || status.includes("dlvd")) && !milestones.delivered) {
+          milestones.delivered = { date, time, activity: activity.activity };
+        }
+      }
+    } catch (err) {
+      // ignore parsing errors
+    }
+  });
+
+  return Object.keys(milestones).length > 0 ? milestones : null;
+};
 
 const TrackOrder = () => {
   const [orderId, setOrderId] = useState('');
@@ -22,6 +174,7 @@ const TrackOrder = () => {
   const [error, setError] = useState(null);
   const [userOrders, setUserOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [showDetailedJourney, setShowDetailedJourney] = useState(false);
 
   // Status mapping for tracking steps
   // Fetch user orders on component mount
@@ -102,6 +255,10 @@ const TrackOrder = () => {
       return res.data;
     } catch (err) {
       console.warn("Failed to fetch Shiprocket tracking:", err);
+      // Dev fallback so UI can be built/tested without live backend.
+      if (process.env.NODE_ENV !== "production") {
+        return DUMMY_SHIPROCKET_TRACKING;
+      }
       return null;
     }
   }, []);
@@ -125,19 +282,19 @@ const TrackOrder = () => {
   // Normalize Shiprocket tracking data into a flat scans array for rendering
   const getTrackingScans = (data) => {
     if (!data) return [];
-    // Shiprocket payloads vary — try several paths
-    const track =
-      data?.tracking_data?.shipment_track?.[0] ||
-      data?.tracking_data?.[0] ||
-      data?.data?.tracking_data?.[0] ||
-      data?.tracking || data;
 
-    // shipment_track_activities or scan arrays
+    // Shiprocket payloads vary — try several paths (awb/shipments)
     const scans =
-      track?.tracking_data?.shipment_track_activities ||
-      track?.scan ||
-      track?.tracking_data?.scan ||
-      track?.activities ||
+      data?.tracking_data?.shipment_track_activities ||
+      data?.tracking_data?.shipment_track?.[0]?.shipment_track_activities ||
+      data?.tracking_data?.[0]?.shipment_track_activities ||
+      data?.data?.tracking_data?.shipment_track_activities ||
+      data?.data?.tracking_data?.[0]?.shipment_track_activities ||
+      data?.tracking?.tracking_data?.shipment_track_activities ||
+      data?.tracking?.shipment_track_activities ||
+      data?.scan ||
+      data?.tracking_data?.scan ||
+      data?.activities ||
       [];
 
     // Normalize each scan item to have date, time, activity, location
@@ -211,6 +368,39 @@ const TrackOrder = () => {
      statusSteps.out_for_delivery,
      statusSteps.delivered,
    ];
+
+  const shipMilestones = useMemo(() => {
+    if (!orderData?.trackingInfo) return null;
+    return getShiprocketMilestones(orderData.trackingInfo);
+  }, [orderData?.trackingInfo]);
+
+  const stepMeta = useMemo(() => {
+    const createdAt = orderData?.order?.createdAt ? new Date(orderData.order.createdAt) : null;
+    const pendingMeta =
+      createdAt && !isNaN(createdAt)
+        ? { date: createdAt.toLocaleDateString(), time: createdAt.toLocaleTimeString() }
+        : null;
+
+    return {
+      pending: pendingMeta,
+      paid: null,
+      processing: null,
+      shipped: shipMilestones?.shipped || null,
+      out_for_delivery: shipMilestones?.out_for_delivery || null,
+      delivered: shipMilestones?.delivered || null,
+    };
+  }, [orderData?.order?.createdAt, shipMilestones]);
+
+  // Get appropriate icon for activity
+  const getActivityIcon = (activity) => {
+    const actStr = String(activity).toLowerCase();
+    if (actStr.includes('deliver') || actStr.includes('dlvd')) return <FaCheckCircle />;
+    if (actStr.includes('out') || actStr.includes('ofd')) return <FaCarAlt />;
+    if (actStr.includes('reach') || actStr.includes('rad') || actStr.includes('hub')) return <FaWarehouse />;
+    if (actStr.includes('transit') || actStr.includes('it') || actStr.includes('bag')) return <FaTruck />;
+    if (actStr.includes('pick') || actStr.includes('pkd') || actStr.includes('pud')) return <FaClipboardList />;
+    return <FaMapMarkerAlt />;
+  };
  
    return (
      <div className="d_track_wrapper py-5">
@@ -226,7 +416,7 @@ const TrackOrder = () => {
         {/* Search Bar */}
         <Row className="justify-content-center mb-5">
           <Col md={6}>
-            <Card className="d_search_card border-0 shadow-sm p-4 rounded-0">
+            <Card className="d_search_card border-0 shadow-sm p-md-4 p-2 rounded-0">
               <Form onSubmit={handleTrack}>
                 {/* Order Selection Dropdown */}
                 {userOrders.length > 0 && (
@@ -332,7 +522,7 @@ const TrackOrder = () => {
                     </span>
                   </div>
                 </Card.Header>
-                <Card.Body className="p-4">
+                <Card.Body className="p-md-4 p-2">
                   {/* Order Details */}
                   <div className="mb-4">
                     <h6 className="fw-bold mb-3">Order Details</h6>
@@ -401,7 +591,7 @@ const TrackOrder = () => {
                     </table>
                   </div>
 
-                  {/* Shiprocket Tracking Scans */}
+                  {/* Shiprocket Tracking Activities - Detailed Timeline */}
                   {orderData.trackingInfo && (() => {
                     const scans = getTrackingScans(orderData.trackingInfo);
                     const trackSummary =
@@ -411,36 +601,167 @@ const TrackOrder = () => {
                       {};
 
                     const status = trackSummary?.current_status || trackSummary?.status || orderData.trackingInfo?.status || "";
+                    const awbCode = trackSummary?.awb_code || orderData.order?.trackingNumber || "";
+                    const courierName = trackSummary?.courier_name || "";
+                    const displayedScans = showDetailedJourney ? scans : scans.slice(0, 5);
+                    
                     if (scans.length === 0 && !status) return null;
+                    
                     return (
-                      <div className="mb-4">
-                        <h6 className="fw-bold mb-3">Shiprocket Tracking</h6>
+                      <div className="mb-4" style={{
+                        background: "linear-gradient(135deg, #f8fef8 0%, #f0f9f0 100%)",
+                        borderRadius: "12px",
+                        padding: "20px",
+                        border: "1px solid #d4f0d4",
+                        boxShadow: "0 2px 8px rgba(40, 167, 69, 0.1)"
+                      }}>
+                        <div className="d-flex justify-content-between align-items-center mb-4">
+                          <div>
+                            <h5 className="fw-bold mb-1" style={{ color: "#0a2845", fontSize: "18px" }}>📦 Shipment Tracking Details</h5>
+                            <small className="text-muted">Real-time updates from Shiprocket</small>
+                          </div>
+                          {scans.length > 5 && (
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              style={{
+                                background: showDetailedJourney ? "#dc3545" : "#28a745",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "6px",
+                                padding: "6px 16px",
+                                fontSize: "13px",
+                                fontWeight: 600,
+                                transition: "all 0.3s"
+                              }}
+                              onClick={() => setShowDetailedJourney((v) => !v)}
+                            >
+                              {showDetailedJourney ? `✕ Show Less` : `+ View All (${scans.length})`}
+                            </button>
+                          )}
+                        </div>
+
                         {status && (
-                          <p className="mb-2"><strong>Current Status:</strong> {String(status)}</p>
-                        )}
-                        {scans.length > 0 && (
-                          <div className="d_stepper_container">
-                            {scans.map((scan, idx) => (
-                              <div key={idx} className="d_step_item active">
-                                <div className="d_step_icon"><FaMapMarkerAlt /></div>
-                                <div className="d_step_content">
-                                  <h6 className="mb-0">{scan.activity}</h6>
-                                  <small className="text-muted">
-                                    {scan.date} {scan.time}
-                                    {scan.location && ` • ${scan.location}`}
-                                  </small>
-                                  {/* optional raw payload for debugging */}
-                                  {/* <pre style={{fontSize:12, marginTop:6}}>{JSON.stringify(scan.raw, null, 2)}</pre> */}
-                                </div>
-                                {idx !== scans.length - 1 && <div className="d_step_line active" />}
+                          <div className="mb-3" style={{
+                            padding: "12px 14px",
+                            backgroundColor: "white",
+                            borderRadius: "8px",
+                            borderLeft: "4px solid #28a745",
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "16px"
+                          }}>
+                            <div>
+                              <small className="text-muted d-block mb-1">Current Status:</small>
+                              <p className="mb-0 fw-bold text-success" style={{ fontSize: "15px" }}>{String(status)}</p>
+                            </div>
+                            {awbCode && (
+                              <div>
+                                <small className="text-muted d-block mb-1">AWB Code:</small>
+                                <p className="mb-0 fw-bold" style={{ fontSize: "15px", fontFamily: "monospace" }}>{awbCode}</p>
                               </div>
-                            ))}
+                            )}
                           </div>
                         )}
+
+                        {courierName && (
+                          <div className="mt-3" style={{
+                            padding: "12px 14px",
+                            backgroundColor: "white",
+                            borderRadius: "8px",
+                            borderLeft: "4px solid #0a2845"
+                          }}>
+                            <small className="text-muted d-block mb-1">Courier Service:</small>
+                            <p className="mb-0 fw-bold" style={{ fontSize: "15px", color: "#0a2845" }}>{courierName}</p>
+                          </div>
+                        )}
+
+                        {scans.length > 0 && (
+                          <div className="mt-4">
+                            <h6 className="fw-bold mb-3" style={{ color: "#0a2845", fontSize: "15px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Activity Timeline</h6>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+                              {displayedScans.map((scan, idx, arr) => (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    display: "flex",
+                                    gap: "16px",
+                                    padding: "16px",
+                                    backgroundColor: "white",
+                                    borderLeft: "3px solid #28a745",
+                                    borderRadius: idx === 0 ? "8px 8px 0 0" : (idx === arr.length - 1 ? "0 0 8px 8px" : "0"),
+                                    borderTop: idx === 0 ? "none" : "1px solid #e9ecef"
+                                  }}
+                                >
+                                  <div style={{
+                                    width: "40px",
+                                    height: "40px",
+                                    minWidth: "40px",
+                                    backgroundColor: "#28a745",
+                                    borderRadius: "50%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: "white",
+                                    fontSize: "18px",
+                                    boxShadow: "0 2px 6px rgba(40, 167, 69, 0.25)"
+                                  }}>
+                                    {getActivityIcon(scan.activity)}
+                                  </div>
+                                  <div style={{ flex: 1,wordBreak: 'break-word'} }>
+                                    <h6 className="mb-1" style={{ fontSize: "14px", fontWeight: 600, color: "#0a2845" }}>
+                                      {scan.activity}
+                                    </h6>
+                                    <small className="text-muted d-block" style={{ fontSize: "12px", marginBottom: "4px" }}>
+                                      🕐 {scan.date} {scan.time}
+                                    </small>
+                                    {scan.location && (
+                                      <small className="text-muted d-block" style={{ fontSize: "12px", color: "#6c757d" }}>
+                                        📍 {scan.location}
+                                      </small>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            {scans.length > 5 && !showDetailedJourney && (
+                              <div className="text-center mt-3">
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-link" 
+                                  onClick={() => setShowDetailedJourney(true)}
+                                  style={{ color: "#28a745", fontWeight: 600, textDecoration: "none" }}
+                                >
+                                  + Show {scans.length - 5} more updates
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {orderData.order.trackingUrl && (
-                          <a href={orderData.order.trackingUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary mt-2">
-                            Track on Shiprocket
-                          </a>
+                          <div className="mt-4 text-center">
+                            <a
+                              href={orderData.order.trackingUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn"
+                              style={{
+                                background: "#0a2845",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "6px",
+                                padding: "8px 16px",
+                                fontSize: "13px",
+                                fontWeight: 600,
+                                transition: "all 0.3s"
+                              }}
+                              onMouseEnter={(e) => e.target.style.background = "#2b4d6e"}
+                              onMouseLeave={(e) => e.target.style.background = "#0a2845"}
+                            >
+                              🔗 Track Live on Shiprocket
+                            </a>
+                          </div>
                         )}
                       </div>
                     );
@@ -464,6 +785,26 @@ const TrackOrder = () => {
                       {allSteps.map((step, index) => {
                         const isCompleted = currentStatus && step.step <= currentStatus.step;
                         const isCurrent = currentStatus && step.step === currentStatus.step;
+                        const key =
+                          step === statusSteps.pending
+                            ? "pending"
+                            : step === statusSteps.paid
+                            ? "paid"
+                            : step === statusSteps.processing
+                            ? "processing"
+                            : step === statusSteps.shipped
+                            ? "shipped"
+                            : step === statusSteps.out_for_delivery
+                            ? "out_for_delivery"
+                            : step === statusSteps.delivered
+                            ? "delivered"
+                            : null;
+
+                        const meta = key ? stepMeta?.[key] : null;
+                        const metaDate = meta?.date || "";
+                        const metaTime = meta?.time || "";
+                        const metaActivity = meta?.activity || meta?.raw?.activity || "";
+                        const metaLocation = meta?.location || meta?.raw?.location || "";
                         
                         return (
                           <div
@@ -474,6 +815,23 @@ const TrackOrder = () => {
                             <div className="d_step_content">
                               <h6 className="mb-0 fw-bold">{step.label}</h6>
                               {isCurrent && <small className="text-success">Current Status</small>}
+                              {(metaDate || metaTime || metaActivity || metaLocation) && (
+                                <div style={{ marginTop: 4 }}>
+                                  {(metaDate || metaTime) && (
+                                    <small className="text-muted d-block">
+                                      {metaDate} {metaTime}
+                                    </small>
+                                  )}
+                                  {metaActivity && (
+                                    <small className="text-muted d-block">{metaActivity}</small>
+                                  )}
+                                  {metaLocation && (
+                                    <small className="text-muted d-block">
+                                      Location: <strong>{metaLocation}</strong>
+                                    </small>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             {index !== allSteps.length - 1 && (
                               <div className={`d_step_line ${isCompleted ? "active" : ""}`} />
@@ -540,8 +898,8 @@ const TrackOrder = () => {
           position: relative;
         }
         .d_step_icon {
-          width: 40px;
-          height: 40px;
+          width: 40px !important;
+          height: 40px !important;
           background: #eee;
           border-radius: 50%;
           display: flex;
@@ -582,13 +940,14 @@ const TrackOrder = () => {
           background: #d4af37;
         }
         .d_step_content {
+        width : 77%;
           padding-top: 5px;
         }
 
         @media (max-width: 768px) {
           .d_step_icon {
-            width: 35px;
-            height: 35px;
+            width: 35px !important;
+            height: 35px !important;
           }
           .d_step_line {
             left: 16px;
