@@ -15,6 +15,8 @@ function fileToDataUrl(file) {
 function Products() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [countries, setCountries] = useState([]);
+  const [countryPrices, setCountryPrices] = useState({}); // { [countryId]: { price, discountPercent, salePrice } }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -23,13 +25,10 @@ function Products() {
   const [formData, setFormData] = useState({
     id: null,
     name: "",
-    images: [], // items are either string (existing URL/base64) or { file, preview }
+    images: [],
     colors: [],
     sizes: [],
     category: "",
-    price: "",
-    discountPercent: 0,
-    salePrice: "",
     rating: "",
     description: "",
     fabric: "",
@@ -77,14 +76,16 @@ function Products() {
       try {
         setLoading(true);
         setError("");
-        const [prodRes, catRes] = await Promise.all([
+        const [prodRes, catRes, countryRes] = await Promise.all([
           client.get("/catalog/products"),
           client.get("/catalog/categories"),
+          client.get("/country/active"),
         ]);
         if (!mounted) return;
         // client returns { data } shape
         const prodData = prodRes.data?.items ?? prodRes.data ?? [];
         const catData = catRes.data?.items ?? catRes.data ?? [];
+        const countryData = countryRes.data?.items ?? countryRes.data ?? [];
 
         // ensure arrays and normalize images/colors
         const normalizedProducts = (Array.isArray(prodData) ? prodData : []).map((p) => ({
@@ -95,6 +96,7 @@ function Products() {
 
         setProducts(normalizedProducts);
         setCategories(Array.isArray(catData) ? catData : []);
+        setCountries(Array.isArray(countryData) ? countryData : []);
       } catch (err) {
         setError(err.message || "Failed to load products");
       } finally {
@@ -130,20 +132,6 @@ function Products() {
       return;
     }
 
-    if (name === "price" || name === "discountPercent") {
-      const rawPrice = name === "price" ? parseFloat(value || 0) : parseFloat(formData.price || 0);
-      const rawDiscount = name === "discountPercent" ? parseFloat(value || 0) : parseFloat(formData.discountPercent || 0);
-      const priceVal = name === "price" ? rawPrice : parseFloat(formData.price || 0);
-      const discountVal = name === "discountPercent" ? rawDiscount : parseFloat(formData.discountPercent || 0);
-      const salePrice = priceVal - (priceVal * discountVal) / 100;
-      setFormData((prev) => ({
-        ...prev,
-        [name]: name === "price" ? rawPrice : rawDiscount,
-        salePrice: Number.isFinite(salePrice) ? salePrice.toFixed(2) : "",
-      }));
-      return;
-    }
-
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -166,6 +154,37 @@ function Products() {
     setFormData((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
   };
 
+  const handleCountryPriceChange = (countryId, field, value) => {
+    setCountryPrices((prev) => {
+      const prevEntry = prev[countryId] || { price: "", discountPercent: 0, salePrice: "" };
+      let priceVal = parseFloat(prevEntry.price || 0);
+      let discountVal = parseFloat(prevEntry.discountPercent || 0);
+      let saleVal = prevEntry.salePrice === "" ? "" : parseFloat(prevEntry.salePrice);
+
+      if (field === "price") {
+        priceVal = parseFloat(value || 0);
+      } else if (field === "discountPercent") {
+        discountVal = parseFloat(value || 0);
+      } else if (field === "salePrice") {
+        saleVal = parseFloat(value || 0);
+      }
+
+      const computedSale = Number.isFinite(priceVal)
+        ? Number((priceVal - priceVal * (discountVal / 100)).toFixed(2))
+        : "";
+
+      return {
+        ...prev,
+        [countryId]: {
+          ...prevEntry,
+          price: priceVal,
+          discountPercent: discountVal,
+          salePrice: field === "salePrice" ? saleVal : computedSale,
+        },
+      };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -181,6 +200,23 @@ function Products() {
 
       // send category as name (backend resolveCategory will convert)
       if (!payload.name && payload.title) payload.name = payload.title;
+
+      // Country-wise pricing payload
+      const pricesPayload = Object.entries(countryPrices)
+        .map(([cid, val]) => ({
+          country: cid,
+          price: Number(val.price || 0),
+          discountPercent: Number(val.discountPercent || 0),
+          salePrice: Number.isFinite(Number(val.salePrice))
+            ? Number(val.salePrice)
+            : Number(
+                (Number(val.price || 0) -
+                  Number(val.price || 0) * (Number(val.discountPercent || 0) / 100)).toFixed(2)
+              ),
+        }))
+        .filter((row) => row.country && Number.isFinite(row.price));
+      payload.pricesByCountry = pricesPayload;
+
       const path = editingId ? `/catalog/products/${editingId}` : `/catalog/products`;
       const res = editingId ? await client.put(path, payload) : await client.post(path, payload);
       const item = res.data?.item ?? res.data;
@@ -204,9 +240,6 @@ function Products() {
       colors: Array.isArray(product.colors) ? product.colors.slice() : [],
       sizes: Array.isArray(product.sizes) ? product.sizes.slice() : [],
       category: "",
-      price: product.price ?? "",
-      discountPercent: product.discountPercent ?? 0,
-      salePrice: product.salePrice ?? "",
       rating: product.rating ?? "",
       description: product.description ?? "",
       fabric: product.fabric ?? "",
@@ -238,6 +271,22 @@ function Products() {
       // fallback when backend returns `category` field
       editing.category = typeof product.category === "object" ? (product.category.name || product.category.title || "") : product.category;
     }
+
+    // Prefill country-wise pricing
+    const initialCountryPrices = {};
+    if (Array.isArray(product.pricesByCountry)) {
+      product.pricesByCountry.forEach((row) => {
+        const cid = (row.country && (row.country._id || row.country)) || null;
+        if (cid) {
+          initialCountryPrices[String(cid)] = {
+            price: row.price ?? "",
+            discountPercent: row.discountPercent ?? 0,
+            salePrice: row.salePrice ?? "",
+          };
+        }
+      });
+    }
+    setCountryPrices(initialCountryPrices);
 
     setFormData(editing);
     setEditingId(product._id || product.id);
@@ -274,9 +323,6 @@ function Products() {
       colors: [],
       sizes: [],
       category: "",
-      price: "",
-      discountPercent: 0,
-      salePrice: "",
       rating: "",
       description: "",
       fabric: "",
@@ -653,7 +699,7 @@ function Products() {
                 }}
               >
                 <h4 style={{ marginBottom: "12px" }}>Pricing & Offers</h4>
-
+{/* 
                 <div className="x_form-group">
                   <label className="x_form-label">Price (Base) *</label>
                   <input
@@ -713,7 +759,56 @@ function Products() {
                     max="5"
                     step="0.1"
                   />
-                </div>
+                </div> */}
+              </div>
+
+              {/* Country-wise Pricing & Offers */}
+              <div className="x_form-group">
+                <label className="x_form-label">Country-wise Pricing & Offers</label>
+                {countries.length === 0 && (
+                  <div style={{ fontSize: "12px", color: "#666" }}>
+                    No active countries found. Please add countries in Countries page.
+                  </div>
+                )}
+                {countries.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {countries.map((c) => {
+                      const cid = String(c._id);
+                      const row = countryPrices[cid] || { price: "", discountPercent: 0, salePrice: "" };
+                      return (
+                        <div key={cid} style={{ display: "grid", gridTemplateColumns: "160px 1fr 1fr 1fr", gap: "10px", alignItems: "center" }}>
+                          <div style={{ fontWeight: 600, color: "#2b4d6e" }}>
+                            {c.name} ({c.currencySymbol})
+                          </div>
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="Price"
+                            className="x_form-control"
+                            value={row.price}
+                            onChange={(e) => handleCountryPriceChange(cid, "price", e.target.value)}
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="Discount %"
+                            className="x_form-control"
+                            value={row.discountPercent}
+                            onChange={(e) => handleCountryPriceChange(cid, "discountPercent", e.target.value)}
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="Sale Price"
+                            className="x_form-control"
+                            value={row.salePrice}
+                            onChange={(e) => handleCountryPriceChange(cid, "salePrice", e.target.value)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Stock & Status */}
@@ -1042,19 +1137,8 @@ function Products() {
                   <td>
                     <div style={{ lineHeight: "1.2" }}>
                       <div style={{ fontWeight: "700", color: "#2b4d6e" }}>
-                        ${product.salePrice}
+                        —
                       </div>
-                      {product.discountPercent > 0 && (
-                        <div
-                          style={{
-                            fontSize: "11px",
-                            color: "#999",
-                            textDecoration: "line-through",
-                          }}
-                        >
-                          ${product.price}
-                        </div>
-                      )}
                     </div>
                   </td>
 

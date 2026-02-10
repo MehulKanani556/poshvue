@@ -1,3 +1,4 @@
+// ProductSchema definition (removing commented fields)
 const mongoose = require('mongoose');
 
 const ColorSchema = new mongoose.Schema(
@@ -13,9 +14,6 @@ const ProductSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     sku: { type: String, unique: true, sparse: true },
     description: { type: String },
-    price: { type: Number, required: true },
-    salePrice: { type: Number },
-    discountPercent: { type: Number, default: 0 },
     images: [{ type: String }],
     colors: { type: [ColorSchema], default: [] },
     // available size options for this product (e.g. ["36","38","40"])
@@ -34,6 +32,13 @@ const ProductSchema = new mongoose.Schema(
     breadth: { type: Number, default: 0 },
     height: { type: Number, default: 0 },
     weight: { type: Number, default: 0 },
+    // Country-wise pricing
+    pricesByCountry: [{
+      country: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', required: true },
+      price: { type: Number, required: true },
+      discountPercent: { type: Number, default: 0 },
+      salePrice: { type: Number },
+    }],
   },
   { timestamps: true }
 );
