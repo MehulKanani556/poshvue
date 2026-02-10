@@ -9,10 +9,28 @@ import { useCurrency } from "../../context/CurrencyContext";
 
 function Cart() {
   const navigate = useNavigate();
-  const { formatPrice, selectedCountry } = useCurrency();
+  const { formatPrice, getConvertedPrice, selectedCountry } = useCurrency();
+
+  // Helper function to format numeric values with current currency
+  const formatCurrency = (amount) => {
+    if (!selectedCountry || amount === null || amount === undefined) return "—";
+    const n = Number(amount);
+    if (!Number.isFinite(n)) return String(amount);
+    const formatted = n.toLocaleString("en-IN", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+    return `${selectedCountry.currencySymbol}${formatted}`;
+  };
 
   // Cart items state
   const [cartItems, setCartItems] = useState([]);
+  
+  // Coupon state - initialize early to avoid initialization issues
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponError, setCouponError] = useState("");
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
   
   // Listen for country changes and force re-render
   useEffect(() => {
@@ -156,15 +174,9 @@ function Cart() {
     toast.info("Coupon removed");
   };
 
-  // Coupon state
-  const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState(null);
-  const [couponError, setCouponError] = useState("");
-  const [validatingCoupon, setValidatingCoupon] = useState(false);
-
-  // Totals - Fixed: Use salePrice if available, otherwise price
+  // Totals - Use getConvertedPrice for location-based pricing
   const subTotal = cartItems.reduce(
-    (acc, item) => acc + ((item.product?.salePrice || item.product?.price) || 0) * (item.quantity || 0),
+    (acc, item) => acc + getConvertedPrice(item.product, 'salePrice') * (item.quantity || 0),
     0
   );
   
@@ -252,7 +264,7 @@ function Cart() {
                       </button>
                     </div>
 
-                    <div className="z_cart_price">{formatPrice((item.product.salePrice || item.product.price) * item.quantity)}</div>
+                    <div className="z_cart_price">{selectedCountry?.currencySymbol || '₹'}{(getConvertedPrice(item.product, 'salePrice') * (item.quantity || 0)).toLocaleString('en-IN')}</div>
 
                     <div>
                     <button
@@ -344,24 +356,24 @@ function Cart() {
 
               <div className="z_cart_summary_row">
                 <span>Sub Total</span>
-                <span>{formatPrice(subTotal)}</span>
+                <span>{selectedCountry?.currencySymbol || '₹'}{subTotal.toLocaleString('en-IN')}</span>
               </div>
 
               {appliedCoupon && (
                 <div className="z_cart_summary_row">
                   <span>Discount ({appliedCoupon.code})</span>
-                  <span>- ${discount.toFixed(2)} USD</span>
+                  <span>-{selectedCountry?.currencySymbol || '₹'}{discount.toLocaleString('en-IN')}</span>
                 </div>
               )}
 
               <div className="z_cart_summary_row">
                 <span>Delivery fee</span>
-                <span>{formatPrice(deliveryFee)}</span>
+                <span>{selectedCountry?.currencySymbol || '₹'}{deliveryFee.toLocaleString('en-IN')}</span>
               </div>
 
               <div className="z_cart_summary_row z_cart_grand">
                 <span>Total</span>
-                <span>{formatPrice(total)}</span>
+                <span>{selectedCountry?.currencySymbol || '₹'}{total.toLocaleString('en-IN')}</span>
               </div>
 
               <p className="z_cart_note">
@@ -376,7 +388,7 @@ function Cart() {
                       cartItems,
                       subTotal,
                       discount,
-                      deliveryFee,
+                      shippingCharges: deliveryFee,
                       total,
                       appliedCoupon,
                     },

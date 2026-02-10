@@ -562,10 +562,10 @@ const SalePage = () => {
                     />
                     <div className="d_price-inputs d-flex justify-content-between mt-2">
                       <div className="d_price-box small">
-                        {formatPrice(2000)}
+                        {selectedCountry?.currencySymbol || '₹'}{(2000).toLocaleString('en-IN')}
                       </div>
                       <div className="d_price-box small">
-                        {formatPrice(priceRange)}
+                        {selectedCountry?.currencySymbol || '₹'}{priceRange.toLocaleString('en-IN')}
                       </div>
                     </div>
                   </div>
@@ -918,7 +918,7 @@ const SalePage = () => {
                           (typeof product.salePrice === "number" ? product.salePrice : product.price)?.toLocaleString?.() ||
                           product.price
                         } */}
-                        {formatPrice(product.salePrice || product.price)}
+                        {formatPrice(product, 'salePrice')}
                       </div>
                     </div>
                   </div>

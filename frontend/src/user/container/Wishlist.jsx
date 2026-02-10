@@ -152,7 +152,7 @@ function Wishlist(props) {
 
                         <div className="d_product-info">
                           <h6 className="d_product-name">{p.title}</h6>
-                          <p className="d_product-price">{formatPrice(p.salePrice || p.price)}</p>
+                          <p className="d_product-price">{formatPrice(p, 'salePrice')}</p>
 
                         </div>
                       </div>

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import client from "../../api/client";
+import { useCurrency } from "../../context/CurrencyContext";
 import Loader from "./Loader";
 
 const SearchPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { formatPrice } = useCurrency();
     const queryParams = new URLSearchParams(location.search);
     const searchTerm = queryParams.get('q') || '';
 
@@ -102,23 +104,11 @@ const SearchPage = () => {
                                     {product.title}
                                 </h3>
                                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                    {product.salePrice ? (
-                                        <>
-                                            <span style={{ color: "#e53935", fontWeight: "bold", fontSize: "18px" }}>
-                                                ₹{product.salePrice}
-                                            </span>
-                                            {product.price && product.price > product.salePrice && (
-                                                <span style={{ textDecoration: "line-through", color: "#999" }}>
-                                                    ₹{product.price}
-                                                </span>
-                                            )}
-                                        </>
-                                    ) : (
-                                        product.price && (
-                                            <span style={{ fontWeight: "bold", fontSize: "18px" }}>
-                                                ₹{product.price}
-                                            </span>
-                                        )
+                                    {formatPrice(product, 'salePrice')}
+                                    {product.price && product.price > product.salePrice && (
+                                        <span style={{ textDecoration: "line-through", color: "#999", marginLeft: "8px" }}>
+                                            {formatPrice(product, 'price')}
+                                        </span>
                                     )}
                                 </div>
                             </div>
