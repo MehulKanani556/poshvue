@@ -640,7 +640,7 @@ function Checkout() {
     window.addEventListener("countryChanged", handleCountryChange);
     return () =>
       window.removeEventListener("countryChanged", handleCountryChange);
-  }, [cartItems, appliedCoupon, getConvertedPrice, shippingCharges]);
+}, [cartItems, getConvertedPrice, shippingCharges]);
   
   const [appliedCoupon, setAppliedCoupon] = useState(state?.appliedCoupon || null);
 
