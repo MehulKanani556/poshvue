@@ -75,10 +75,16 @@ export const getOrder = (orderId) => client.get(`/commerce/orders/${orderId}`);
 
 export const createPaymentIntent = (data) => client.post("/payment/create-intent", data);
 export const verifyPayment = (data) => client.post("/payment/verify", data);
-export const createRazorpayOrder = (data) => client.post("/payment/razorpay/order", data);
-export const verifyRazorpaySignature = (data) => client.post("/payment/razorpay/verify", data);
+// export const createRazorpayOrder = (data) => client.post("/payment/razorpay/order", data);
+// export const verifyRazorpaySignature = (data) => client.post("/payment/razorpay/verify", data);
 export const validateVpa = (data) => client.post("/payment/razorpay/validate-vpa", data);
 export const createUpiCollectPayment = (data) => client.post("/payment/razorpay/collect", data);
-export const getRazorpayOrderPayments = (orderId) => client.get(`/payment/razorpay/order/${orderId}/payments`);
+// Cashfree UPI
+export const createCashfreeOrder = (data) =>
+  client.post('/payment/cashfree/order', data);
+
+export const getCashfreeOrder = (orderId) =>
+  client.get(`/payment/cashfree/order/${orderId}`);
+// export const getRazorpayOrderPayments = (orderId) => client.get(`/payment/razorpay/order/${orderId}/payments`);
 
 export default client;

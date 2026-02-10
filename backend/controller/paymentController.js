@@ -7,6 +7,12 @@ const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
 const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
 
+const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID || '';
+const CASHFREE_SECRET = process.env.CASHFREE_SECRET || '';
+const CASHFREE_ENV = (process.env.CASHFREE_ENV || 'sandbox').toLowerCase();
+const CASHFREE_API_BASE =
+  CASHFREE_ENV === 'production' ? 'https://api.cashfree.com' : 'https://sandbox.cashfree.com';
+
 if (!stripeSecretKey) {
   console.warn('STRIPE_SECRET_KEY is not set. Payment intents will not work until it is configured.');
 }
@@ -42,7 +48,7 @@ exports.createPaymentIntent = async (req, res) => {
 
     const paymentIntent = await stripe.paymentIntents.create(createParams);
 
-    return res.json({ 
+    return res.json({
       clientSecret: paymentIntent.client_secret,
       paymentMethod: paymentMethod,
       amount: amount,
@@ -81,170 +87,92 @@ exports.verifyPayment = async (req, res) => {
   }
 };
 
-// Razorpay: Create order for UPI payments
-exports.createRazorpayOrder = async (req, res) => {
+const CASHFREE_BASE = process.env.CASHFREE_ENV === 'PROD'
+  ? 'https://api.cashfree.com/pg/orders'
+  : 'https://sandbox.cashfree.com/pg/orders';
+
+exports.createCashfreeOrder = async (req, res) => {
   try {
-    if (!razorpay) {
-      return res.status(500).json({ message: 'Razorpay is not configured on the server.' });
+    const { amount, customerName, customerEmail, customerPhone } = req.body;
+
+    if (!amount || !customerName || !customerEmail || !customerPhone) {
+      return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    const { amount, currency = 'INR', receipt } = req.body;
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ message: 'Invalid amount' });
-    }
+    const orderId = `pv_${Date.now()}`;
 
-    const options = {
-      amount: Math.round(amount * 100),
-      currency: 'INR',
-      receipt: receipt || `rcpt_${Date.now()}`,
-      payment_capture: 1,
-      notes: {
-        purpose: 'Checkout UPI payment'
-      }
+    const headers = {
+      'x-client-id': process.env.CASHFREE_APP_ID,
+      'x-client-secret': process.env.CASHFREE_SECRET,
+      'x-api-version': '2023-08-01',
+      'Content-Type': 'application/json',
     };
 
-    const order = await razorpay.orders.create(options);
-    return res.json({ orderId: order.id, keyId: razorpayKeyId, amount: amount, currency: 'INR' });
-  } catch (err) {
-    console.error('Error creating Razorpay order:', err);
-    return res.status(500).json({ message: 'Failed to create Razorpay order: ' + err.message });
-  }
-};
-
-// Razorpay: Verify payment signature after client checkout
-exports.verifyRazorpaySignature = async (req, res) => {
-  try {
-    const { orderId, paymentId, signature } = req.body;
-    if (!orderId || !paymentId || !signature) {
-      return res.status(400).json({ message: 'orderId, paymentId and signature are required' });
-    }
-
-    const hmac = crypto.createHmac('sha256', razorpayKeySecret);
-    hmac.update(`${orderId}|${paymentId}`);
-    const expectedSignature = hmac.digest('hex');
-
-    const verified = expectedSignature === signature;
-    return res.json({ verified });
-  } catch (err) {
-    console.error('Error verifying Razorpay signature:', err);
-    return res.status(500).json({ message: 'Failed to verify Razorpay signature' });
-  }
-};
-
-
-// Razorpay: Validate VPA for UPI Collect flow
-exports.validateVpa = async (req, res) => {
-  try {
-    if (!razorpay) {
-      console.error('validateVpa: Razorpay not configured');
-      return res.status(500).json({ message: 'Razorpay is not configured on the server.' });
-    }
-    const { vpa } = req.body;
-    console.log('validateVpa: incoming VPA:', vpa);
-    if (!vpa) {
-      return res.status(400).json({ message: 'VPA is required' });
-    }
-
-    // Use Razorpay REST API to validate VPA
-    const rpRes = await axios.post(
-      'http://localhost:5000/api/payment/razorpay/validate-vpa',
-      { vpa },
-      {
-        auth: { username: razorpayKeyId, password: razorpayKeySecret },
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
-    console.log('validateVpa: response data:', rpRes.data);
-// -    return res.json(rpRes.data);
-// +    return res.json({ success: true, message: 'VPA validated', data: rpRes.data });
-  } catch (err) {
-    console.error('Error validating VPA:', err?.response?.data || err.message || err);
-    const status = err?.response?.status || 500;
-    const message = err?.response?.data?.error?.description || err?.response?.data?.message || err.message || 'Failed to validate VPA';
-    return res.status(status).json({ message });
-  }
-};
-
-// Razorpay: Create UPI Collect payment S2S (no modal)
-exports.createUpiCollectPayment = async (req, res) => {
-  try {
-    if (!razorpay) {
-      console.error('createUpiCollectPayment: Razorpay not configured');
-      return res.status(500).json({ message: 'Razorpay is not configured on the server.' });
-    }
-    const { orderId, amount, vpa, email, contact, expiryMinutes = 5, description, notes } = req.body;
-    console.log('createUpiCollectPayment: incoming payload', { orderId, amount, vpa, email, contact, expiryMinutes, description, notes });
-    if (!orderId || !amount || amount <= 0 || !vpa) {
-      return res.status(400).json({ message: 'orderId, amount and vpa are required' });
-    }
-    const paise = Math.round(Number(amount) * 100);
     const payload = {
-      amount: paise,
-      currency: 'INR',
       order_id: orderId,
-      email,
-      contact,
-      method: 'upi',
-      description: description || 'UPI Collect Payment',
-      notes: notes || { purpose: 'UPI collect' },
-      upi: {
-        flow: 'collect',
-        vpa,
-        expiry_time: expiryMinutes,
+      order_amount: Number(amount),
+      order_currency: 'INR',
+      customer_details: {
+        customer_id: req.user?._id?.toString() || orderId,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
       },
+      // Restrict to UPI only for this order
+      payment_methods: 'upi',
     };
-    console.log('createUpiCollectPayment: request payload to Razorpay', payload);
 
-    // Attempt via SDK; if not available, fallback to REST
-    let created;
-    if (razorpay.payments && typeof razorpay.payments.createUpi === 'function') {
-      created = await razorpay.payments.createUpi(payload);
-    } else {
-      const rpRes = await axios.post(
-        'https://api.razorpay.com/v1/payments/create',
-        payload,
-        {
-          auth: { username: razorpayKeyId, password: razorpayKeySecret },
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-      created = rpRes.data;
+    const cfRes = await axios.post(CASHFREE_BASE.replace('/pg/orders', '') + '/pg/orders', payload, { headers });
+
+    const paymentSessionId = cfRes?.data?.payment_session_id;
+    if (!paymentSessionId) {
+      return res.status(502).json({ message: 'Cashfree did not return payment_session_id', data: cfRes?.data });
     }
-    console.log('createUpiCollectPayment: created response', created);
+
     return res.json({
-      message: 'UPI collect initiated. Please approve the request in your UPI app.',
-      paymentId: created?.razorpay_payment_id || created?.id,
-      status: created?.status || 'created',
+      ok: true,
       orderId,
-      amount,
-      raw: created,
+      paymentSessionId,
+      cashfree: cfRes.data,
     });
   } catch (err) {
-    console.error('Error creating UPI collect payment:', err?.response?.data || err.message || err);
-    const status = err?.response?.status || 500;
-    const message = err?.response?.data?.error?.description || err?.response?.data?.message || err.message || 'Failed to create UPI collect payment';
-    return res.status(status).json({ message });
+    console.error('Cashfree order creation error:', err?.response?.data || err.message);
+    return res.status(500).json({
+      message: 'Failed to create Cashfree order',
+      error: err?.response?.data || err.message,
+    });
   }
 };
 
-// Razorpay: Fetch payments for an order (polling)
-exports.getRazorpayOrderPayments = async (req, res) => {
+exports.fetchCashfreeOrder = async (req, res) => {
   try {
-    if (!razorpay) {
-      return res.status(500).json({ message: 'Razorpay is not configured on the server.' });
-    }
     const { orderId } = req.params;
-    console.log('getRazorpayOrderPayments: fetching payments for orderId', orderId);
     if (!orderId) {
       return res.status(400).json({ message: 'orderId is required' });
     }
-    const payments = await razorpay.orders.fetchPayments(orderId);
-    console.log('getRazorpayOrderPayments: payments response statuses:', (payments.items || []).map(p => ({ id: p.id, status: p.status })));
-    return res.json(payments);
+
+    const headers = {
+      'x-client-id': process.env.CASHFREE_APP_ID,
+      'x-client-secret': process.env.CASHFREE_SECRET,
+      'x-api-version': '2023-08-01',
+    };
+
+    const url = `${CASHFREE_BASE}/${orderId}`;
+    const cfRes = await axios.get(url, { headers });
+
+    return res.json({ ok: true, order: cfRes.data });
   } catch (err) {
-    console.error('Error fetching Razorpay order payments:', err);
-    return res.status(500).json({ message: 'Failed to fetch Razorpay order payments: ' + err.message });
+    console.error('Cashfree fetch order error:', err?.response?.data || err.message);
+    return res.status(500).json({
+      message: 'Failed to fetch Cashfree order',
+      error: err?.response?.data || err.message,
+    });
   }
 };
+
+
+
+
+
 
 

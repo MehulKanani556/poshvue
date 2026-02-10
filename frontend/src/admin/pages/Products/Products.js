@@ -48,6 +48,7 @@ function Products() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [selectedColorHex, setSelectedColorHex] = useState("#0a2845000");
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedPriceCountryId, setSelectedPriceCountryId] = useState("");
   const ITEMS_PER_PAGE = 10;
 
   const totalPages = Math.ceil(products.length / ITEMS_PER_PAGE);
@@ -96,7 +97,14 @@ function Products() {
 
         setProducts(normalizedProducts);
         setCategories(Array.isArray(catData) ? catData : []);
-        setCountries(Array.isArray(countryData) ? countryData : []);
+        const countryList = Array.isArray(countryData) ? countryData : [];
+        setCountries(countryList);
+        // Default selected price country: isDefault one or first active
+        setSelectedPriceCountryId((prev) => {
+          if (prev) return prev;
+          const defaultCountry = countryList.find((c) => c.isDefault) || countryList[0];
+          return defaultCountry ? String(defaultCountry._id) : "";
+        });
       } catch (err) {
         setError(err.message || "Failed to load products");
       } finally {
@@ -210,9 +218,9 @@ function Products() {
           salePrice: Number.isFinite(Number(val.salePrice))
             ? Number(val.salePrice)
             : Number(
-                (Number(val.price || 0) -
-                  Number(val.price || 0) * (Number(val.discountPercent || 0) / 100)).toFixed(2)
-              ),
+              (Number(val.price || 0) -
+                Number(val.price || 0) * (Number(val.discountPercent || 0) / 100)).toFixed(2)
+            ),
         }))
         .filter((row) => row.country && Number.isFinite(row.price));
       payload.pricesByCountry = pricesPayload;
@@ -364,6 +372,21 @@ function Products() {
     return product.category || "";
   }
 
+  /** Get price for a product in the selected country from pricesByCountry */
+  function getPriceForCountry(product, countryId) {
+    if (!countryId || !product.pricesByCountry || !Array.isArray(product.pricesByCountry)) return null;
+    const id = String(countryId);
+    const entry = product.pricesByCountry.find((p) => {
+      const c = p.country;
+      const cid = c && (typeof c === "object" ? c._id : c);
+      return cid && String(cid) === id;
+    });
+    return entry ? { price: entry.price, salePrice: entry.salePrice } : null;
+  }
+
+  const selectedCountry = countries.find((c) => String(c._id) === selectedPriceCountryId);
+  const selectedCurrencySymbol = selectedCountry ? selectedCountry.currencySymbol : "";
+
   return (
     <div>
       {/* Loading / Error state */}
@@ -381,7 +404,7 @@ function Products() {
           marginBottom: "20px",
         }}
       >
-        <h1 style={{ fontSize: "24px", fontWeight: 700, margin: 0, color: '#2b4d6e'  }}>
+        <h1 style={{ fontSize: "24px", fontWeight: 700, margin: 0, color: '#2b4d6e' }}>
           Products
         </h1>
         <button
@@ -699,67 +722,7 @@ function Products() {
                 }}
               >
                 <h4 style={{ marginBottom: "12px" }}>Pricing & Offers</h4>
-{/* 
-                <div className="x_form-group">
-                  <label className="x_form-label">Price (Base) *</label>
-                  <input
-                    type="number"
-                    name="price"
-                    className="x_form-control"
-                    value={formData.price}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 99.99"
-                    step="0.01"
-                    required
-                  />
-                </div>
 
-                <div className="x_form-group">
-                  <label className="x_form-label">Discount % (Optional)</label>
-                  <input
-                    type="number"
-                    name="discountPercent"
-                    className="x_form-control"
-                    value={formData.discountPercent}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 10"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                  />
-                  <small style={{ color: "#666" }}>
-                    Sale price will auto-calculate
-                  </small>
-                </div>
-
-                <div className="x_form-group">
-                  <label className="x_form-label">
-                    Sale Price (Auto-calculated)
-                  </label>
-                  <input
-                    type="number"
-                    name="salePrice"
-                    className="x_form-control"
-                    value={formData.salePrice}
-                    disabled
-                    placeholder="Auto-calculated"
-                  />
-                </div>
-
-                <div className="x_form-group">
-                  <label className="x_form-label">Rating (Optional)</label>
-                  <input
-                    type="number"
-                    name="rating"
-                    className="x_form-control"
-                    value={formData.rating}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 4.5"
-                    min="0"
-                    max="5"
-                    step="0.1"
-                  />
-                </div> */}
               </div>
 
               {/* Country-wise Pricing & Offers */}
@@ -793,8 +756,14 @@ function Products() {
                             step="0.01"
                             placeholder="Discount %"
                             className="x_form-control"
-                            value={row.discountPercent}
-                            onChange={(e) => handleCountryPriceChange(cid, "discountPercent", e.target.value)}
+                            value={row.discountPercent === 0 ? "" : row.discountPercent}
+                            onChange={(e) =>
+                              handleCountryPriceChange(
+                                cid,
+                                "discountPercent",
+                                e.target.value
+                              )
+                            }
                           />
                           <input
                             type="number"
@@ -931,85 +900,85 @@ function Products() {
                   />
                 </div>
 
-              <div className="x_form-group">
-                <label className="x_form-label">Work/Design Details</label>
-                <input
-                  type="text"
-                  name="work"
-                  className="x_form-control"
-                  value={formData.work}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Embroidered, Printed, Solid"
-                />
+                <div className="x_form-group">
+                  <label className="x_form-label">Work/Design Details</label>
+                  <input
+                    type="text"
+                    name="work"
+                    className="x_form-control"
+                    value={formData.work}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Embroidered, Printed, Solid"
+                  />
+                </div>
+
+                {/* Package Dimensions for Shipping */}
+                <div
+                  style={{
+                    borderTop: "1px solid #ddd",
+                    paddingTop: "15px",
+                    marginTop: "15px",
+                  }}
+                >
+                  <h4 style={{ marginBottom: "12px" }}>Package Dimensions (for Shipping)</h4>
+
+                  <div className="x_form-group">
+                    <label className="x_form-label">Length (cm)</label>
+                    <input
+                      type="number"
+                      name="length"
+                      className="x_form-control"
+                      value={formData.length}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 10"
+                      min="0"
+                      step="0.1"
+                    />
+                  </div>
+
+                  <div className="x_form-group">
+                    <label className="x_form-label">Breadth (cm)</label>
+                    <input
+                      type="number"
+                      name="breadth"
+                      className="x_form-control"
+                      value={formData.breadth}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 10"
+                      min="0"
+                      step="0.1"
+                    />
+                  </div>
+
+                  <div className="x_form-group">
+                    <label className="x_form-label">Height (cm)</label>
+                    <input
+                      type="number"
+                      name="height"
+                      className="x_form-control"
+                      value={formData.height}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 5"
+                      min="0"
+                      step="0.1"
+                    />
+                  </div>
+
+                  <div className="x_form-group">
+                    <label className="x_form-label">Weight (kg)</label>
+                    <input
+                      type="number"
+                      name="weight"
+                      className="x_form-control"
+                      value={formData.weight}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 0.5"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
               </div>
-
-              {/* Package Dimensions for Shipping */}
-              <div
-                style={{
-                  borderTop: "1px solid #ddd",
-                  paddingTop: "15px",
-                  marginTop: "15px",
-                }}
-              >
-                <h4 style={{ marginBottom: "12px" }}>Package Dimensions (for Shipping)</h4>
-
-                <div className="x_form-group">
-                  <label className="x_form-label">Length (cm)</label>
-                  <input
-                    type="number"
-                    name="length"
-                    className="x_form-control"
-                    value={formData.length}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 10"
-                    min="0"
-                    step="0.1"
-                  />
-                </div>
-
-                <div className="x_form-group">
-                  <label className="x_form-label">Breadth (cm)</label>
-                  <input
-                    type="number"
-                    name="breadth"
-                    className="x_form-control"
-                    value={formData.breadth}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 10"
-                    min="0"
-                    step="0.1"
-                  />
-                </div>
-
-                <div className="x_form-group">
-                  <label className="x_form-label">Height (cm)</label>
-                  <input
-                    type="number"
-                    name="height"
-                    className="x_form-control"
-                    value={formData.height}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 5"
-                    min="0"
-                    step="0.1"
-                  />
-                </div>
-
-                <div className="x_form-group">
-                  <label className="x_form-label">Weight (kg)</label>
-                  <input
-                    type="number"
-                    name="weight"
-                    className="x_form-control"
-                    value={formData.weight}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 0.5"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-              </div>
-            </div>
             </div>
 
             <div className="x_modal-footer">
@@ -1082,6 +1051,29 @@ function Products() {
            background-color: #fcfcfc;
        }
        
+       .aa-select {
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        font-size: 12px;
+        min-width: 140px;
+        background-color: #fff;
+        color: #0a2845 !important;
+        transition: all 0.2s ease;
+      }
+
+      /* Hover */
+      .aa-select:hover {
+        border-color: #0c345a !important;
+      }
+
+      /* Focus / Active */
+      .aa-select:focus {
+        outline: none;
+        border-color: #0a2845 !important;
+        box-shadow: 0 0 0 2px rgba(10, 40, 69, 0.25);
+      }
+
        @media (max-width: 1350px) and (min-width: 769px) {
            .x_table-wrapper {
            max-width: calc(100vw - 360px); 
@@ -1098,7 +1090,27 @@ function Products() {
                 <tr>
                   <th>Product</th>
                   <th>Category</th>
-                  <th>Price</th>
+                  <th>
+                    <div style={{ display: "flex", gap: "6px", alignItems: "flex-start" }}>
+                      <span>Price</span>
+                      <select
+                        className="aa-select"
+                        value={selectedPriceCountryId}
+                        onChange={(e) => setSelectedPriceCountryId(e.target.value)}
+                      >
+                        <option value="" disabled hidden>
+                          --- Select country ---
+                        </option>
+
+                        {countries.map((c) => (
+                          <option key={c._id} value={String(c._id)}>
+                            {c.name} ({c.currencySymbol})
+                          </option>
+                        ))}
+                      </select>
+
+                    </div>
+                  </th>
                   <th>Stock</th>
                   <th>Status</th>
                   <th>Colors</th>
@@ -1136,9 +1148,20 @@ function Products() {
                   {/* Price */}
                   <td>
                     <div style={{ lineHeight: "1.2" }}>
-                      <div style={{ fontWeight: "700", color: "#2b4d6e" }}>
-                        —
-                      </div>
+                      {(() => {
+                        const priceInfo = getPriceForCountry(product, selectedPriceCountryId);
+                        if (!priceInfo) {
+                          return (
+                            <div style={{ fontWeight: "500", color: "#888" }}>—</div>
+                          );
+                        }
+                        const displayPrice = priceInfo.salePrice != null ? priceInfo.salePrice : priceInfo.price;
+                        return (
+                          <div style={{ fontWeight: "700", color: "#2b4d6e" }}>
+                            {selectedCurrencySymbol}{typeof displayPrice === "number" ? displayPrice.toFixed(2) : displayPrice}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </td>
 
@@ -1184,12 +1207,12 @@ function Products() {
                   {/* Actions */}
                   <td style={{ textAlign: "center" }}>
                     <div
+                      className="td_btnrm"
                       style={{
                         display: "flex",
                         justifyContent: "center",
                         gap: "12px",
                       }}
-                      className="td_btnrm"
                     >
                       <button
                         onClick={() => handleEdit(product)}
