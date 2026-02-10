@@ -3,6 +3,7 @@ const router = express.Router();
 const order = require('../controller/orderController');
 const coupon = require('../controller/couponController');
 const { auth, optionalAuth, requireRole } = require('../middleware/auth');
+const shiprocketRoutes = require('./shiprocket');
 
 // Orders
 router.get('/orders', auth, requireRole('admin'), order.list); // admin list
@@ -11,6 +12,10 @@ router.post('/orders', optionalAuth, order.create); // customer create (guest su
 router.put('/orders/:id/status', auth, requireRole('admin'), order.updateStatus);
 router.get("/orders/:userId", auth, requireRole('admin','user'), order.getOrdersByUser);
 router.post('/orders/track', order.trackOrder); // Public endpoint to track order
+
+// Backward-compatible alias for frontend calls:
+// Frontend uses /commerce/shiprocket/track/:awb
+router.use('/shiprocket', shiprocketRoutes);
 
 
 // Coupons

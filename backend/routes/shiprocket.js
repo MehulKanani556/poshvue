@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { Order } = require('../model');
-const { getShipmentTracking, updateShipmentStatus } = require('../services/shiprocket');
-const { auth, requireRole } = require('../middleware/auth');
+const { getShipmentTracking, getAwbTracking, updateShipmentStatus } = require('../services/shiprocket');
+const { auth, optionalAuth, requireRole } = require('../middleware/auth');
 
 /**
  * ====================================
@@ -173,6 +173,35 @@ router.get('/tracking/:shipmentId', auth, async (req, res) => {
     console.error('[Tracking] Error:', err);
     res.status(500).json({ 
       message: 'Failed to fetch tracking',
+      error: err.message,
+    });
+  }
+});
+
+/**
+ * ====================================
+ * GET SHIPMENT TRACKING BY AWB (Public/Optional Auth)
+ * ====================================
+ * This is mainly used by frontend tracking UI.
+ * Returns raw Shiprocket payload (includes tracking_data).
+ */
+router.get('/track/:awb', optionalAuth, async (req, res) => {
+  try {
+    const { awb } = req.params;
+    if (!awb) return res.status(400).json({ message: 'AWB required' });
+
+    const tracking = await getAwbTracking(awb);
+    if (!tracking) {
+      return res.status(504).json({
+        message: 'Could not fetch tracking data from Shiprocket',
+      });
+    }
+
+    res.json(tracking);
+  } catch (err) {
+    console.error('[AWB-Tracking] Error:', err);
+    res.status(500).json({
+      message: 'Failed to fetch AWB tracking',
       error: err.message,
     });
   }

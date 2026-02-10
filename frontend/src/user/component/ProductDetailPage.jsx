@@ -574,10 +574,10 @@ const ProductDetailPage = () => {
                 <p className="g3-product-subtitle">{displayProduct.subtitle}</p>
                 <div className="g3-price-container mt-3">
                   <span className="g3-price-now">
-                    {formatPrice(displayProduct.priceNow)}
+                    {formatPrice(product, 'salePrice')}
                   </span>
                   <span className="g3-price-was ms-3">
-                    {formatPrice(displayProduct.priceWas)}
+                    {formatPrice(product, 'price')}
                   </span>
                   <span className="g3-discount-pill ms-2">
                     {displayProduct.discountLabel || ""}

@@ -274,7 +274,7 @@ function SimiliarPro({ items, productId, category }) {
                   </div>
                   <div className="d_product-info">
                     <div className="d_product-name text-truncate">{product.name || product.title}</div>
-                    <div className="d_product-price">{formatPrice(product.salePrice || product.price)}</div>
+                    <div className="d_product-price">{formatPrice(product, 'salePrice')}</div>
                   </div>
                 </div>
               </div>
