@@ -29,11 +29,10 @@ function AddressSync({ selectedAddress, useManualAddress }) {
   return null;
 }
 
-function CheckoutForm({ cartItems, subTotal, selectedCountry, discount, deliveryFee, total, appliedCoupon, addresses, selectedAddress, setSelectedAddress }) {
+function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appliedCoupon, addresses, selectedAddress, setSelectedAddress }) {
   const navigate = useNavigate();
   const stripe = useStripe();
   const elements = useElements();
-  const { formatPrice } = useCurrency();
   const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingValues, setPendingValues] = useState(null);
@@ -41,6 +40,8 @@ function CheckoutForm({ cartItems, subTotal, selectedCountry, discount, delivery
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("card");
   const [upiId, setUpiId] = useState("");
   const [paymentError, setPaymentError] = useState("");
+  
+   const { formatPrice, getConvertedPrice, selectedCountry } = useCurrency();
   useEffect(() => {
     setPaymentError("");
   }, [selectedPaymentMethod, upiId]);
@@ -141,8 +142,8 @@ function CheckoutForm({ cartItems, subTotal, selectedCountry, discount, delivery
       // Handle different payment methods
       if (selectedPaymentMethod === "upi") {
         await handlePayUPI();
-        setLoading(false);
-        return; // ensure card flow does not run
+        // setLoading(false);
+        // return; // ensure card flow does not run
       } else if (selectedPaymentMethod === "netbanking") {
         // NetBanking Payment
         try {
@@ -260,7 +261,7 @@ function CheckoutForm({ cartItems, subTotal, selectedCountry, discount, delivery
       const orderItems = cartItems.map((item) => ({
         product: item.product._id,
         title: item.product.title,
-        price: item.product.salePrice || item.product.price,
+        price: getConvertedPrice(item.product, 'salePrice'),
         quantity: item.quantity,
         size: item.size || null,
         color: item.color || null,
@@ -577,7 +578,6 @@ function CheckoutForm({ cartItems, subTotal, selectedCountry, discount, delivery
 function Checkout() {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const { formatPrice, selectedCountry } = useCurrency();
 
   const [cartItems, setCartItems] = useState(state?.cartItems || []);
   const [subTotal, setSubTotal] = useState(state?.subTotal || 0);
@@ -587,6 +587,8 @@ function Checkout() {
   const [isInternational, setIsInternational] = useState(state?.isInternational || false);
   const [total, setTotal] = useState(state?.total || 0);
   const [addresses, setAddresses] = useState([]);
+  
+   const { formatPrice, getConvertedPrice, selectedCountry } = useCurrency();
   const [selectedAddress, setSelectedAddress] = useState(null);
 
   // Listen for country changes and force re-render
@@ -594,24 +596,25 @@ function Checkout() {
     const handleCountryChange = () => {
       if (cartItems.length > 0) {
         const st = cartItems.reduce(
-          (acc, item) => acc + ((item.product?.salePrice || item.product?.price) || 0) * (item.quantity || 0),
+          (acc, item) => acc + getConvertedPrice(item.product, 'salePrice') * (item.quantity || 0),
           0
         );
-        const disc = appliedCoupon ? (appliedCoupon.discountType === 'percent'
-          ? (st * appliedCoupon.amount / 100)
+        const disc = appliedCoupon ? (appliedCoupon.discountType === 'percent' 
+          ? (st * appliedCoupon.amount) / 100
           : appliedCoupon.amount) : 0;
         const delivery = 50;
         const tot = st - disc + delivery + shippingCharges;
         setSubTotal(st);
         setDiscount(disc);
         setDeliveryFee(delivery);
+        setShippingCharges(shippingCharges);
         setTotal(tot);
       }
     };
     window.addEventListener("countryChanged", handleCountryChange);
     return () =>
       window.removeEventListener("countryChanged", handleCountryChange);
-  }, [cartItems]);
+}, [cartItems, getConvertedPrice, shippingCharges]);
 
   const [appliedCoupon, setAppliedCoupon] = useState(state?.appliedCoupon || null);
 
@@ -633,16 +636,17 @@ function Checkout() {
         setCartItems(items);
 
         const st = items.reduce(
-          (acc, item) => acc + ((item.product?.salePrice || item.product?.price) || 0) * (item.quantity || 0),
+          (acc, item) => acc + getConvertedPrice(item.product, 'salePrice') * (item.quantity || 0),
           0
         );
         const delivery = 50;
-        const tot = st + delivery + shippingCharges;
+      const tot = st + delivery + shippingCharges;
 
-        setSubTotal(st);
-        setDiscount(0);
-        setDeliveryFee(delivery);
-        setTotal(tot);
+      setSubTotal(st);
+      setDiscount(0);
+      setDeliveryFee(delivery);
+      setShippingCharges(shippingCharges);
+      setTotal(tot);
       } catch (err) {
         console.error("Error fetching cart for checkout:", err);
         navigate("/Cart");
@@ -650,7 +654,7 @@ function Checkout() {
     };
 
     fetchCart();
-  }, [state, navigate]);
+  }, [state, navigate, getConvertedPrice, shippingCharges]);
 
   // Fetch addresses for checkout
   useEffect(() => {
@@ -701,7 +705,7 @@ function Checkout() {
           </div>
 
           {/* ================= Order Summary ================= */}
-          <div className="z_chck_summary">
+        <div className="z_chck_summary">
             <h3>Order Summary</h3>
 
             {cartItems.map((item) => (
@@ -712,30 +716,30 @@ function Checkout() {
                 <span>
                   {item.product.title} x {item.quantity}
                 </span>
-                <span>{formatPrice(((item.product.salePrice || item.product.price) * item.quantity))}</span>
+                <span>{selectedCountry?.currencySymbol || '₹'}{(getConvertedPrice(item.product, 'salePrice') * (item.quantity || 0)).toLocaleString('en-IN')}</span>
               </div>
             ))}
 
             <div className="z_chck_summary_item">
               <span>Subtotal</span>
-              <span>{formatPrice(subTotal)}</span>
+              <span>{selectedCountry?.currencySymbol || '₹'}{subTotal.toLocaleString('en-IN')}</span>
             </div>
 
             {appliedCoupon && discount > 0 && (
               <div className="z_chck_summary_item">
                 <span>Discount ({appliedCoupon.code})</span>
-                <span>- {formatPrice(discount)}</span>
+                <span>-{selectedCountry?.currencySymbol || '₹'}{discount.toLocaleString('en-IN')}</span>
               </div>
             )}
 
             <div className="z_chck_summary_item">
               <span>Shipping ({isInternational ? "International" : "Domestic"})</span>
-              <span>{formatPrice(shippingCharges)}</span>
+              <span>{selectedCountry?.currencySymbol || '₹'}{shippingCharges.toLocaleString('en-IN')}</span>
             </div>
 
             <div className="z_chck_summary_total">
               <span>Total</span>
-              <span>{formatPrice(total)}</span>
+              <span>{selectedCountry?.currencySymbol || '₹'}{total.toLocaleString('en-IN')}</span>
             </div>
           </div>
         </div>

@@ -118,6 +118,10 @@ exports.createCashfreeOrder = async (req, res) => {
 
     const orderId = `pv_${Date.now()}`;
 
+    // ✅ Generate shipment & tracking
+    const shipmentId = Date.now(); 
+    const trackingNumber = shipmentId.toString();
+
     const headers = {
       'x-client-id': CASHFREE_APP_ID,
       'x-client-secret': CASHFREE_SECRET,
@@ -135,12 +139,16 @@ exports.createCashfreeOrder = async (req, res) => {
         customer_email: customerEmail,
         customer_phone: customerPhone,
       },
-      payment_methods: 'upi', // only UPI
+      paymentIntentId: orderId,
+      shipmentId,        // ✅ added
+      trackingNumber, 
+      payment_methods: 'upi',
     };
 
     const cfRes = await axios.post(CASHFREE_BASE, payload, { headers });
 
     const paymentSessionId = cfRes?.data?.payment_session_id;
+
     if (!paymentSessionId) {
       return res.status(502).json({
         message: 'Cashfree did not return payment_session_id',
@@ -151,9 +159,12 @@ exports.createCashfreeOrder = async (req, res) => {
     return res.json({
       ok: true,
       orderId,
+      shipmentId,        // ✅ added
+      trackingNumber,    // ✅ added
       paymentSessionId,
       cashfree: cfRes.data,
     });
+
   } catch (err) {
     console.error('Cashfree create error:', err?.response?.data || err.message);
     return res.status(500).json({
@@ -162,6 +173,7 @@ exports.createCashfreeOrder = async (req, res) => {
     });
   }
 };
+
 
 // =====================================================
 // CASHFREE - FETCH ORDER STATUS
