@@ -32,17 +32,47 @@ function Cart() {
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponError, setCouponError] = useState("");
   const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [subTotal, setSubTotal] = useState(0);
+  const [discount, setDiscount] = useState(0);
+  const [deliveryFee, setDeliveryFee] = useState(0);
+  const [total, setTotal] = useState(0);
 
   // Listen for country changes and force re-render
+  // useEffect(() => {
+  //   const handleCountryChange = () => {
+  //     // Force re-render by updating a state or re-fetching cart
+  //     setCartItems((prev) => [...prev]);
+  //   };
+  //   window.addEventListener("countryChanged", handleCountryChange);
+  //   return () =>
+  //     window.removeEventListener("countryChanged", handleCountryChange);
+  // }, []);
+
   useEffect(() => {
-    const handleCountryChange = () => {
-      // Force re-render by updating a state or re-fetching cart
-      setCartItems((prev) => [...prev]);
-    };
-    window.addEventListener("countryChanged", handleCountryChange);
-    return () =>
-      window.removeEventListener("countryChanged", handleCountryChange);
-  }, []);
+    const st = cartItems.reduce(
+      (acc, item) =>
+        acc +
+        getConvertedPrice(item.product, "salePrice") * (item.quantity || 0),
+      0,
+    );
+
+    const disc = appliedCoupon
+      ? appliedCoupon.discountType === "percent"
+        ? (st * appliedCoupon.amount) / 100
+        : appliedCoupon.amount
+      : 0;
+
+    const delivery = 50;
+
+    const tot = st - disc + delivery;
+
+    setSubTotal(st);
+    setDiscount(disc);
+    setDeliveryFee(delivery);
+    setTotal(tot);
+  }, [cartItems, appliedCoupon, selectedCountry]);
+
   useEffect(() => {
     const fetchCart = async () => {
       const token = localStorage.getItem("userToken");
@@ -63,6 +93,16 @@ function Cart() {
       }
     };
     fetchCart();
+
+    // fetch active coupons for dropdown
+    (async () => {
+      try {
+        const res = await client.get("/commerce/coupons/active");
+        setAvailableCoupons(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error("Failed to fetch coupons for cart:", err);
+      }
+    })();
   }, []);
 
   // Update quantity for a specific variant (product + size + color)
@@ -173,16 +213,16 @@ function Cart() {
   };
 
   // Totals - Use getConvertedPrice for location-based pricing
-  const subTotal = cartItems.reduce(
-    (acc, item) =>
-      acc + getConvertedPrice(item.product, "salePrice") * (item.quantity || 0),
-    0,
-  );
+  // const subTotal = cartItems.reduce(
+  //   (acc, item) =>
+  //     acc + getConvertedPrice(item.product, "salePrice") * (item.quantity || 0),
+  //   0,
+  // );
 
-  // Discount from coupon (not automatic 10%)
-  const discount = appliedCoupon?.discountAmount || 0;
-  const deliveryFee = cartItems.length > 0 ? 50 : 0;
-  const total = subTotal - discount + deliveryFee;
+  // // Discount from coupon (not automatic 10%)
+  // const discount = appliedCoupon?.discountAmount || 0;
+  // const deliveryFee = cartItems.length > 0 ? 50 : 0;
+  // const total = subTotal - discount + deliveryFee;
 
   if (cartItems.length === 0) {
     return (
@@ -309,6 +349,7 @@ function Cart() {
                       backgroundColor: "#d4edda",
                       borderRadius: "4px",
                       marginBottom: "10px",
+                      width: "100%",
                     }}
                   >
                     <div
@@ -341,6 +382,22 @@ function Cart() {
                   </div>
                 ) : (
                   <>
+                    {availableCoupons && availableCoupons.length > 0 && (
+                      <select
+                        className="z_cart_coupon_select_dropdown"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value)}
+                        style={{ width: "100%", marginBottom: 8, padding: 8 }}
+                      >
+                        <option value="">Select coupon</option>
+                        {availableCoupons.map((c) => (
+                          <option key={c._id || c.code} value={c.code}>
+                            {c.code}
+                            {/* {c.conditions ? ` — ${c.conditions}` : ""} */}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     <input
                       type="text"
                       className="z_cart_coupon_select"
@@ -424,7 +481,7 @@ function Cart() {
                       cartItems,
                       subTotal,
                       discount,
-                      shippingCharges: deliveryFee,
+                      deliveryFee,
                       total,
                       appliedCoupon,
                     },

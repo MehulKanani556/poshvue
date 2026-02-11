@@ -1,4 +1,4 @@
-const { Coupon } = require('../model');
+const { Coupon, Cart, Order, Product } = require('../model');
 
 function mapAdminToCoupon(payload) {
   const body = { ...payload };
@@ -38,6 +38,22 @@ function mapAdminToCoupon(payload) {
   if (body.conditions !== undefined) {
     if (body.conditions === null) delete body.conditions;
     else body.conditions = String(body.conditions).trim();
+  }
+  // rules: validate and normalize rules array if provided
+  if (Array.isArray(body.rules)) {
+    body.rules = body.rules
+      .filter(r => r && r.type) // only include rules with a type
+      .map(r => ({
+        type: String(r.type).trim(),
+        value: r.value !== undefined ? r.value : null,
+        productId: r.productId ? String(r.productId).trim() : undefined,
+        categories: Array.isArray(r.categories) ? r.categories.map(c => String(c).trim()) : undefined,
+        products: Array.isArray(r.products) ? r.products.map(p => String(p).trim()) : undefined,
+        from: r.from ? new Date(r.from) : undefined,
+        to: r.to ? new Date(r.to) : undefined,
+        name: r.name ? String(r.name).trim() : undefined,
+      }))
+      .filter(r => Object.keys(r).length > 1); // exclude rules with only type
   }
   return body;
 }
@@ -97,6 +113,10 @@ exports.get = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const body = mapAdminToCoupon(req.body);
+    // Require admin to provide a condition or rules when creating a coupon
+    if (!body.conditions || String(body.conditions).trim() === "") {
+      return res.status(400).json({ message: 'Condition / Notes is required when creating a coupon' });
+    }
     const item = await Coupon.create(body);
     return res.status(201).json({ item });
   } catch (err) {
@@ -107,7 +127,11 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const body = mapAdminToCoupon(req.body);
-    const item = await Coupon.findByIdAndUpdate(req.params.id, body, { new: true });
+    // Update the coupon by id (admin edit)
+    const item = await Coupon.findByIdAndUpdate(req.params.id, body, {
+      new: true,
+      runValidators: true,
+    });
     if (!item) return res.status(404).json({ message: 'Not found' });
     return res.json({ item });
   } catch (err) {
@@ -128,63 +152,230 @@ exports.remove = async (req, res) => {
 // Validate coupon by code
 exports.validate = async (req, res) => {
   try {
-    const { code, subtotal } = req.body;
+    const { code } = req.body;
+    let { subtotal } = req.body;
 
     if (!code) {
-      return res.status(400).json({ message: 'Coupon code is required' });
+      return res.status(400).json({ message: "Coupon code is required" });
+    }
+
+    // Normalize subtotal
+    let subtotalNum = 0;
+    if (typeof subtotal === "string") {
+      subtotalNum = Number(subtotal.replace(/[^0-9.]/g, "")) || 0;
+    } else {
+      subtotalNum = Number(subtotal) || 0;
     }
 
     const coupon = await Coupon.findOne({
       code: code.toUpperCase().trim(),
-      active: true
+      active: true,
     });
 
     if (!coupon) {
-      return res.status(404).json({ message: 'Invalid coupon code' });
+      return res.status(404).json({ message: "Invalid coupon code" });
     }
 
     const now = new Date();
 
-    // Check if coupon has expired
+    // Expiry check
     if (coupon.endDate && new Date(coupon.endDate) < now) {
-      return res.status(400).json({ message: 'Coupon has expired' });
+      return res.status(400).json({ message: "Coupon expired" });
     }
 
-    // Check if coupon has started
     if (coupon.startDate && new Date(coupon.startDate) > now) {
-      return res.status(400).json({ message: 'Coupon is not yet active' });
+      return res.status(400).json({ message: "Coupon not active yet" });
     }
 
-    // Check if max uses reached
     if (coupon.maxUses > 0 && coupon.used >= coupon.maxUses) {
-      return res.status(400).json({ message: 'Coupon usage limit reached' });
+      return res.status(400).json({ message: "Coupon usage limit reached" });
+    }
+
+    // Fetch cart securely
+    let cartItems = [];
+    let cartProductIds = [];
+    let cartCategoryIds = [];
+
+    if (req.user?.id) {
+      const cart = await Cart.findOne({ user: req.user.id })
+        .populate({ path: "items.product", select: "_id categories" });
+
+      if (cart?.items?.length) {
+        cartItems = cart.items;
+        cartProductIds = cart.items.map(i => String(i.product._id));
+        cartCategoryIds = cart.items.flatMap(i =>
+          (i.product.categories || []).map(String)
+        );
+      }
+    }
+
+    const ctx = {
+      subtotal: subtotalNum,
+      cartItems,
+      cartProductIds,
+      cartCategoryIds,
+      userId: req.user?.id || null,
+      getUserOrdersCount: async (uid) =>
+        uid ? await Order.countDocuments({ user: uid }) : 0,
+      getUserCouponUsageCount: async (uid) =>
+        uid
+          ? await Order.countDocuments({ user: uid, couponCode: coupon.code })
+          : 0,
+    };
+
+    const ruleCheck = await validateCouponRules(coupon, ctx);
+    if (!ruleCheck.ok) {
+      return res.status(400).json({ message: ruleCheck.message });
     }
 
     // Calculate discount
     let discountAmount = 0;
-    if (coupon.discountType === 'percent') {
-      discountAmount = (subtotal * coupon.amount) / 100;
+
+    if (coupon.discountType === "percent") {
+      discountAmount = (subtotalNum * coupon.amount) / 100;
     } else {
       discountAmount = coupon.amount;
     }
 
-    // Don't allow discount more than subtotal
-    if (discountAmount > subtotal) {
-      discountAmount = subtotal;
+    if (discountAmount > subtotalNum) {
+      discountAmount = subtotalNum;
     }
 
-    res.json({
+    // Get dynamic usage data
+    const userOrderCount = req.user?.id ? await ctx.getUserOrdersCount(req.user.id) : 0;
+    const userCouponUsageCount = req.user?.id ? await ctx.getUserCouponUsageCount(req.user.id) : 0;
+
+    return res.json({
       valid: true,
       coupon: {
         code: coupon.code,
         discountType: coupon.discountType,
         amount: coupon.amount,
-        conditions: coupon.conditions || "",
-        discountAmount: discountAmount
-      }
+        discountAmount,
+      },
+      usage: {
+        totalUses: coupon.used,
+        maxUses: coupon.maxUses,
+        userUsageCount: userCouponUsageCount,
+        userOrderCount: userOrderCount,
+      },
     });
+
   } catch (err) {
-    console.error('Validate coupon error:', err);
-    return res.status(500).json({ message: 'Server error' });
+    console.error("Coupon validation error:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 };
+
+async function validateCouponRules(coupon, ctx) {
+  const rules = coupon.rules || [];
+
+  for (const r of rules) {
+    switch (r.type) {
+
+      case "minSubtotal":
+        if (ctx.subtotal < Number(r.value || 0)) {
+          return { ok: false, message: `Minimum cart value ₹${r.value} required` };
+        }
+        break;
+
+      case "firstTimeUser":
+        if (r.value === true) {
+          const count = await ctx.getUserOrdersCount(ctx.userId);
+          if (count > 0) {
+            return { ok: false, message: "Valid only for first-time users" };
+          }
+        }
+        break;
+
+      case "allowedCategories":
+        if (!ctx.cartCategoryIds.some(cid => r.categories?.includes(cid))) {
+          return { ok: false, message: "Coupon valid only for selected categories" };
+        }
+        break;
+
+      case "excludedCategories":
+        if (ctx.cartCategoryIds.some(cid => r.categories?.includes(cid))) {
+          return { ok: false, message: "Coupon not valid for selected category items" };
+        }
+        break;
+
+      case "requiredProducts":
+        if (!r.products?.every(p => ctx.cartProductIds.includes(String(p)))) {
+          return { ok: false, message: "Required product missing in cart" };
+        }
+        break;
+
+      case "maxUsesPerUser":
+        const used = await ctx.getUserCouponUsageCount(ctx.userId);
+        if (used >= Number(r.value || 0)) {
+          return { ok: false, message: "Coupon usage limit reached for user" };
+        }
+        break;
+
+      case "dateRange":
+        const now = new Date();
+        if (r.from && new Date(r.from) > now) {
+          return { ok: false, message: "Coupon not yet active" };
+        }
+        if (r.to && new Date(r.to) < now) {
+          return { ok: false, message: "Coupon expired" };
+        }
+        break;
+
+      case "minOrder":
+        const minOrderCount = await ctx.getUserOrdersCount(ctx.userId);
+        if (minOrderCount < Number(r.value || 0)) {
+          return { ok: false, message: `Minimum ${r.value} orders required to use this coupon` };
+        }
+        break;
+
+      case "maxOrder":
+        const maxOrderCount = await ctx.getUserOrdersCount(ctx.userId);
+        if (maxOrderCount >= Number(r.value || 0)) {
+          return { ok: false, message: `Coupon valid only for users with less than ${r.value} orders` };
+        }
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  return { ok: true };
+}
+
+// Increment coupon usage and auto-deactivate if limit reached
+exports.incrementCouponUsage = async (couponCode) => {
+  try {
+    const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim() });
+    if (!coupon) {
+      console.log(`Coupon not found: ${couponCode}`);
+      return { success: false, message: 'Coupon not found' };
+    }
+
+    // Increment usage count
+    coupon.used += 1;
+    
+    // Check if usage limit reached and deactivate if so
+    if (coupon.maxUses > 0 && coupon.used >= coupon.maxUses) {
+      coupon.active = false;
+      console.log(`Coupon ${couponCode} deactivated as usage limit reached (${coupon.used}/${coupon.maxUses})`);
+    }
+
+    await coupon.save();
+    
+    return { 
+      success: true, 
+      usage: coupon.used, 
+      maxUses: coupon.maxUses,
+      active: coupon.active,
+      deactivated: coupon.maxUses > 0 && coupon.used >= coupon.maxUses
+    };
+  } catch (err) {
+    console.error('Error incrementing coupon usage:', err);
+    return { success: false, message: 'Server error' };
+  }
+};
+
+

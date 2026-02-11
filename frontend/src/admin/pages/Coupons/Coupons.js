@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { FiEdit2, FiTrash2, FiPlus } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
 import Modal from "../../components/Modal";
+import RuleGenerator from "../../components/RuleGenerator";
 
 /*
   This component:
@@ -19,7 +20,6 @@ function Coupons() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [formData, setFormData] = useState({
-
     code: "",
     type: "percent",
     discount: "",
@@ -27,6 +27,7 @@ function Coupons() {
     expiryDate: "",
     conditions: "",
     status: "Active",
+    rules: [],
   });
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
@@ -87,6 +88,10 @@ function Coupons() {
     try {
       setError("");
       const payload = { ...formData };
+      // require condition on create/update
+      if (!String(payload.conditions || "").trim()) {
+        return setError('Condition / Notes is required');
+      }
       if (payload.discount !== undefined)
         payload.discount = Number(payload.discount);
       if (payload.maxUses !== undefined)
@@ -126,6 +131,7 @@ function Coupons() {
         : "",
       conditions: coupon.conditions || "",
       status: coupon.active ? "Active" : "Inactive",
+      rules: Array.isArray(coupon.rules) ? coupon.rules : [],
     });
 
     setEditingId(coupon._id || coupon.id);
@@ -154,7 +160,6 @@ function Coupons() {
 
   function resetForm() {
     setFormData({
-
       code: "",
       type: "percent",
       discount: "",
@@ -162,6 +167,7 @@ function Coupons() {
       expiryDate: "",
       conditions: "",
       status: "Active",
+      rules: [],
     });
     setEditingId(null);
     setShowModal(false);
@@ -307,6 +313,12 @@ function Coupons() {
                     rows={3}
                   />
                 </div>
+
+                {/* Rule Generator Component */}
+                <RuleGenerator
+                  initialRules={formData.rules}
+                  onChange={(rules) => setFormData((prev) => ({ ...prev, rules }))}
+                />
               </div>
 
               <div className="x_modal-footer">

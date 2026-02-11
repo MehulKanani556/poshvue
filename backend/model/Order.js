@@ -143,6 +143,9 @@ const OrderSchema = new mongoose.Schema(
     trackingUrl: String,
     shippingCharges: { type: Number, default: 0 },
     isInternational: { type: Boolean, default: false },
+    
+    // Coupon related fields
+    couponCode: { type: String, default: null },
   },
   { timestamps: true }
 );
