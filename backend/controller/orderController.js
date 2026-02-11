@@ -4,6 +4,7 @@ const {
   createShipmentForOrder,
   updateOrderWithShipmentData,
   getShipmentTracking,
+  getAwbTracking,
   getOrderByShiprocketId,
   calculateShippingCharges,
 } = require("../services/shiprocket");
@@ -192,12 +193,32 @@ exports.trackOrder = async (req, res) => {
       return res.status(403).json({ message: "Email mismatch" });
 
     let trackingInfo = null;
-    if (order.shipmentId) {
-      try {
-        trackingInfo = await getShipmentTracking(order.shipmentId);
-      } catch (e) {
-        console.error("Tracking error:", e.message);
+    const awb = order.trackingNumber || order.awb_code;
+    try {
+      // Prefer AWB tracking — returns full shipment_track_activities; shipment ID tracking often does not
+      if (awb) {
+        trackingInfo = await getAwbTracking(awb);
       }
+      if (!trackingInfo && order.shipmentId) {
+        trackingInfo = await getShipmentTracking(order.shipmentId);
+        // If shipment response has no activities, try to get AWB from it and fetch full tracking
+        const hasActivities =
+          trackingInfo?.tracking_data?.shipment_track_activities?.length > 0 ||
+          trackingInfo?.tracking_data?.shipment_track?.[0]?.shipment_track_activities?.length > 0;
+        if (trackingInfo && !hasActivities) {
+          const awbFromShipment =
+            trackingInfo?.tracking_data?.shipment_track?.[0]?.awb_code ||
+            trackingInfo?.tracking_data?.awb_code;
+          if (awbFromShipment) {
+            const byAwb = await getAwbTracking(awbFromShipment);
+            if (byAwb?.tracking_data?.shipment_track_activities?.length > 0) {
+              trackingInfo = byAwb;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Tracking error:", e.message);
     }
 
     const statusMap = {
