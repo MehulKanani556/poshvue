@@ -3,15 +3,29 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Formik, Form, Field, ErrorMessage, useFormikContext } from "formik";
 import * as Yup from "yup";
 import axios from "axios";
+import { toast } from "react-toastify";
 import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements, PaymentElement } from "@stripe/react-stripe-js";
+import {
+  Elements,
+  CardElement,
+  useStripe,
+  useElements,
+  PaymentElement,
+} from "@stripe/react-stripe-js";
 import { useCurrency } from "../../context/CurrencyContext";
 import client from "../../api/client";
-import { createPaymentIntent,createCashfreeOrder, verifyPayment } from "../../api/client";
+import {
+  createPaymentIntent,
+  createCashfreeOrder,
+  verifyPayment,
+} from "../../api/client";
 
-const STRIPE_PUBLISHABLE_KEY = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || "";
+const STRIPE_PUBLISHABLE_KEY =
+  process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || "";
 const HAS_STRIPE = !!STRIPE_PUBLISHABLE_KEY;
-const stripePromise = HAS_STRIPE ? loadStripe(STRIPE_PUBLISHABLE_KEY) : Promise.resolve(null);
+const stripePromise = HAS_STRIPE
+  ? loadStripe(STRIPE_PUBLISHABLE_KEY)
+  : Promise.resolve(null);
 
 // Helper component to sync address selection with form
 function AddressSync({ selectedAddress, useManualAddress }) {
@@ -46,7 +60,6 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
     setPaymentError("");
   }, [selectedPaymentMethod, upiId]);
 
-
   // Check if country is India
   const isIndia = selectedCountry?.code === "IN";
 
@@ -73,9 +86,12 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
       console.log("email:", userInfo?.email);
       console.log("phone:", userInfo?.phone);
 
-      const customerName = selectedAddress?.name || userInfo?.name || "Customer";
-      const customerEmail = selectedAddress?.email || userInfo?.email || "customer@example.com";
-      const customerPhone = selectedAddress?.mobile || userInfo?.phone || "9999999999";
+      const customerName =
+        selectedAddress?.name || userInfo?.name || "Customer";
+      const customerEmail =
+        selectedAddress?.email || userInfo?.email || "customer@example.com";
+      const customerPhone =
+        selectedAddress?.mobile || userInfo?.phone || "9999999999";
       console.log("name:", userInfo?.name, customerName);
 
       const { data } = await createCashfreeOrder({
@@ -85,7 +101,6 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
         customerPhone,
       });
       console.log("amount:", data);
-
 
       if (!data?.ok) {
         console.error("Cashfree order failed:", data);
@@ -108,12 +123,18 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
   };
 
   const billingValidationSchema = Yup.object({
-    fullName: Yup.string().min(2, "Name too short").required("Full name is required"),
-    email: Yup.string().email("Invalid email address").required("Email is required"),
+    fullName: Yup.string()
+      .min(2, "Name too short")
+      .required("Full name is required"),
+    email: Yup.string()
+      .email("Invalid email address")
+      .required("Email is required"),
     phone: Yup.string()
       .matches(/^[0-9]{10}$/, "Phone must be 10 digits")
       .required("Phone number is required"),
-    address: Yup.string().min(10, "Address too short").required("Address is required"),
+    address: Yup.string()
+      .min(10, "Address too short")
+      .required("Address is required"),
     pincode: Yup.string()
       .matches(/^[0-9]{6}$/, "Pincode must be 6 digits")
       .required("Pincode is required"),
@@ -189,7 +210,9 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
       } else {
         // Card Payment (default)
         if (!stripe || !elements) {
-          alert("Payment form is not ready yet. Please wait a moment and try again.");
+          alert(
+            "Payment form is not ready yet. Please wait a moment and try again.",
+          );
           setLoading(false);
           return;
         }
@@ -210,16 +233,19 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
             return;
           }
 
-          const { paymentIntent, error } = await stripe.confirmCardPayment(clientSecret, {
-            payment_method: {
-              card: cardElement,
-              billing_details: {
-                name: values.fullName,
-                email: values.email,
-                phone: values.phone,
+          const { paymentIntent, error } = await stripe.confirmCardPayment(
+            clientSecret,
+            {
+              payment_method: {
+                card: cardElement,
+                billing_details: {
+                  name: values.fullName,
+                  email: values.email,
+                  phone: values.phone,
+                },
               },
             },
-          });
+          );
 
           if (error) {
             console.error("Card payment error:", error);
@@ -246,10 +272,11 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
 
       // Create order after successful payment
       await createOrder(values, paymentIntentId, paymentStatus);
-
     } catch (err) {
       console.error("Checkout error:", err);
-      alert(err.response?.data?.message || "Something went wrong during checkout");
+      alert(
+        err.response?.data?.message || "Something went wrong during checkout",
+      );
       setLoading(false);
     }
   };
@@ -283,22 +310,28 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
           paymentIntentId,
           couponCode: appliedCoupon?.code || null,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       console.log("Order created:", orderRes.data.item);
 
-      const shiprocketMsg = orderRes.data.shiprocketError || orderRes.data.error || orderRes.data.message;
+      const shiprocketMsg =
+        orderRes.data.shiprocketError ||
+        orderRes.data.error ||
+        orderRes.data.message;
       if (shiprocketMsg) {
         console.warn("Shiprocket error:", shiprocketMsg);
-        alert("Order placed successfully, but shipping could not be created: " + shiprocketMsg);
+        alert(
+          "Order placed successfully, but shipping could not be created: " +
+            shiprocketMsg,
+        );
       }
 
       // Clear cart
       try {
         await axios.delete(
           `${process.env.REACT_APP_API_URL || "http://localhost:5000/api"}/cart/clear`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
       } catch (clearErr) {
         console.error("Error clearing cart after order:", clearErr);
@@ -331,7 +364,10 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
       {({ setFieldValue, values }) => {
         return (
           <Form className="z_chck_form">
-            <AddressSync selectedAddress={selectedAddress} useManualAddress={useManualAddress} />
+            <AddressSync
+              selectedAddress={selectedAddress}
+              useManualAddress={useManualAddress}
+            />
             {/* Address Selection Section */}
             {addresses && addresses.length > 0 && (
               <div className="z_chck_form_group">
@@ -361,7 +397,9 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
                         <p className="mb-1">{addr.name}</p>
                         <p className="mb-1">{addr.address}</p>
                         <p className="mb-0">
-                          <small>{addr.mobile} | Pincode: {addr.pincode}</small>
+                          <small>
+                            {addr.mobile} | Pincode: {addr.pincode}
+                          </small>
                         </p>
                       </div>
                     </div>
@@ -380,7 +418,9 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
                       setFieldValue("pincode", "");
                     }}
                   >
-                    {useManualAddress ? "✓ Using Manual Address" : "Enter Manual Address"}
+                    {useManualAddress
+                      ? "✓ Using Manual Address"
+                      : "Enter Manual Address"}
                   </button>
                 </div>
               </div>
@@ -393,13 +433,21 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
                 name="fullName"
                 disabled={selectedAddress && !useManualAddress}
               />
-              <ErrorMessage name="fullName" component="small" className="text-danger" />
+              <ErrorMessage
+                name="fullName"
+                component="small"
+                className="text-danger"
+              />
             </div>
 
             <div className="z_chck_form_group">
               <label>Email</label>
               <Field type="email" name="email" />
-              <ErrorMessage name="email" component="small" className="text-danger" />
+              <ErrorMessage
+                name="email"
+                component="small"
+                className="text-danger"
+              />
             </div>
 
             <div className="z_chck_form_group">
@@ -409,7 +457,11 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
                 name="phone"
                 disabled={selectedAddress && !useManualAddress}
               />
-              <ErrorMessage name="phone" component="small" className="text-danger" />
+              <ErrorMessage
+                name="phone"
+                component="small"
+                className="text-danger"
+              />
             </div>
 
             <div className="z_chck_form_group">
@@ -421,7 +473,11 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
                 rows={3}
                 disabled={selectedAddress && !useManualAddress}
               />
-              <ErrorMessage name="address" component="small" className="text-danger" />
+              <ErrorMessage
+                name="address"
+                component="small"
+                className="text-danger"
+              />
             </div>
 
             <div className="z_chck_form_group">
@@ -433,15 +489,32 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
                 maxLength={6}
                 disabled={selectedAddress && !useManualAddress}
               />
-              <ErrorMessage name="pincode" component="small" className="text-danger" />
+              <ErrorMessage
+                name="pincode"
+                component="small"
+                className="text-danger"
+              />
             </div>
 
             {/* Payment Method Selection */}
             <div className="z_chck_form_group mt-3">
               <label>Payment Method</label>
-              <div className="payment-methods" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div
+                className="payment-methods"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                }}
+              >
                 {isIndia && (
-                  <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      cursor: "pointer",
+                    }}
+                  >
                     <input
                       type="radio"
                       name="paymentMethod"
@@ -453,7 +526,13 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
                     <span>UPI</span>
                   </label>
                 )}
-                <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    cursor: "pointer",
+                  }}
+                >
                   <input
                     type="radio"
                     name="paymentMethod"
@@ -464,7 +543,13 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
                   />
                   <span>NetBanking</span>
                 </label>
-                <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    cursor: "pointer",
+                  }}
+                >
                   <input
                     type="radio"
                     name="paymentMethod"
@@ -489,7 +574,9 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
                   onChange={(e) => setUpiId(e.target.value)}
                   style={{ width: "100%", padding: "8px", marginTop: "5px" }}
                 />
-                <small style={{ color: "#666", display: "block", marginTop: "5px" }}>
+                <small
+                  style={{ color: "#666", display: "block", marginTop: "5px" }}
+                >
                   Enter your UPI ID (e.g., yourname@paytm, yourname@phonepe)
                 </small>
                 {paymentError && (
@@ -511,7 +598,11 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
             <button
               type="submit"
               className="z_chck_pay_btn mt-3"
-              disabled={loading || !HAS_STRIPE || (selectedPaymentMethod === "card" && !stripe)}
+              disabled={
+                loading ||
+                !HAS_STRIPE ||
+                (selectedPaymentMethod === "card" && !stripe)
+              }
             >
               {loading ? "Processing..." : "Pay & Place Order"}
             </button>
@@ -523,10 +614,15 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
                   tabIndex="-1"
                   role="dialog"
                 >
-                  <div className="modal-dialog modal-dialog-centered" role="document">
+                  <div
+                    className="modal-dialog modal-dialog-centered"
+                    role="document"
+                  >
                     <div className="modal-content z_glass_modal">
                       <div className="modal-header">
-                        <h5 className="z_auth_title mb-0">Confirm your order</h5>
+                        <h5 className="z_auth_title mb-0">
+                          Confirm your order
+                        </h5>
                         <button
                           type="button"
                           className="btn-close btn-close-white"
@@ -535,9 +631,18 @@ function CheckoutForm({ cartItems, subTotal, discount, deliveryFee, total, appli
                         />
                       </div>
                       <div className="modal-body">
-                        <p>Are you sure you want to pay and place this order?</p>
-                        <p><b>Payment Method: {selectedPaymentMethod.toUpperCase()}</b></p>
-                        <p><b>Total: {formatPrice(total)}</b></p>
+                        <p>
+                          Are you sure you want to pay and place this order?
+                        </p>
+                        <p>
+                          <b>
+                            Payment Method:{" "}
+                            {selectedPaymentMethod.toUpperCase()}
+                          </b>
+                        </p>
+                        <p>
+                          <b>Total: {formatPrice(total)}</b>
+                        </p>
                       </div>
                       <div className="modal-footer">
                         <button
@@ -583,13 +688,21 @@ function Checkout() {
   const [subTotal, setSubTotal] = useState(state?.subTotal || 0);
   const [discount, setDiscount] = useState(state?.discount || 0);
   const [deliveryFee, setDeliveryFee] = useState(state?.deliveryFee || 0);
-  const [shippingCharges, setShippingCharges] = useState(state?.shippingCharges || 0);
-  const [isInternational, setIsInternational] = useState(state?.isInternational || false);
+  const [shippingCharges, setShippingCharges] = useState(
+    state?.shippingCharges || 0,
+  );
+  const [isInternational, setIsInternational] = useState(
+    state?.isInternational || false,
+  );
   const [total, setTotal] = useState(state?.total || 0);
   const [addresses, setAddresses] = useState([]);
   
    const { formatPrice, getConvertedPrice, selectedCountry } = useCurrency();
   const [selectedAddress, setSelectedAddress] = useState(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponError, setCouponError] = useState("");
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState([]);
 
   // Listen for country changes and force re-render
   useEffect(() => {
@@ -616,7 +729,9 @@ function Checkout() {
       window.removeEventListener("countryChanged", handleCountryChange);
 }, [cartItems, getConvertedPrice, shippingCharges]);
 
-  const [appliedCoupon, setAppliedCoupon] = useState(state?.appliedCoupon || null);
+  const [appliedCoupon, setAppliedCoupon] = useState(
+    state?.appliedCoupon || null,
+  );
 
   // Ensure product data is always available, even if user refreshes /Checkout
   useEffect(() => {
@@ -629,9 +744,12 @@ function Checkout() {
         return;
       }
       try {
-        const res = await axios.get(`${process.env.REACT_APP_API_URL || "http://localhost:5000/api"}/cart`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await axios.get(
+          `${process.env.REACT_APP_API_URL || "http://localhost:5000/api"}/cart`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         const items = res.data.items || [];
         setCartItems(items);
 
@@ -676,6 +794,74 @@ function Checkout() {
 
     fetchAddresses();
   }, []);
+
+  // Fetch available/active coupons for display
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await client.get("/commerce/coupons/active");
+        setAvailableCoupons(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error("Failed to fetch coupons:", err);
+      }
+    })();
+  }, []);
+
+  // Apply coupon (can pass code param to apply directly from available list)
+  const applyCoupon = async (codeParam) => {
+    const codeToUse = (codeParam || couponCode || "").trim();
+    if (!codeToUse) return setCouponError("Please enter a coupon code");
+    setValidatingCoupon(true);
+    setCouponError("");
+    try {
+      const res = await client.post("/commerce/coupons/validate", {
+        code: codeToUse,
+        subtotal: subTotal,
+      });
+      if (res.data && res.data.valid) {
+        setAppliedCoupon(res.data.coupon);
+        setCouponError("");
+        setCouponCode(res.data.coupon.code || "");
+        toast.success(`Coupon "${res.data.coupon.code}" applied`);
+      }
+    } catch (err) {
+      setCouponError(err.response?.data?.message || "Invalid coupon code");
+      setAppliedCoupon(null);
+      toast.error(err.response?.data?.message || "Invalid coupon code");
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError("");
+    toast.info("Coupon removed");
+  };
+
+  // Recalculate totals when cartItems or appliedCoupon changes
+  useEffect(() => {
+    const st = cartItems.reduce(
+      (acc, item) =>
+        acc +
+        (item.product?.salePrice || item.product?.price || 0) *
+          (item.quantity || 0),
+      0,
+    );
+    const disc = appliedCoupon
+      ? appliedCoupon.discountType === "percent"
+        ? (st * appliedCoupon.amount) / 100
+        : appliedCoupon.amount
+      : 0;
+    const delivery = 50;
+    const tot = st - disc + delivery + shippingCharges;
+
+    setSubTotal(st);
+    setDiscount(disc);
+    setDeliveryFee(delivery);
+    setTotal(tot);
+  }, [cartItems, appliedCoupon, shippingCharges]);
 
   return (
     <section className="z_chck_section">
@@ -723,6 +909,67 @@ function Checkout() {
             <div className="z_chck_summary_item">
               <span>Subtotal</span>
               <span>{selectedCountry?.currencySymbol || '₹'}{subTotal.toLocaleString('en-IN')}</span>
+            </div>
+
+            <div className="z_chck_coupon_section" style={{ margin: "12px 0" }}>
+              <label style={{ display: "block", marginBottom: 6 }}>
+                Have a coupon?
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  placeholder="Enter coupon code"
+                  style={{ flex: 1, padding: "8px" }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline-primary"
+                  onClick={() => applyCoupon()}
+                  disabled={validatingCoupon || !couponCode.trim()}
+                >
+                  {validatingCoupon ? "Checking..." : "Apply"}
+                </button>
+                {appliedCoupon && (
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={() => removeCoupon()}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              {couponError && (
+                <div style={{ color: "red", marginTop: 6 }}>{couponError}</div>
+              )}
+
+              {availableCoupons && availableCoupons.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <small style={{ color: "#666" }}>Available coupons:</small>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      flexWrap: "wrap",
+                      marginTop: 6,
+                    }}
+                  >
+                    {availableCoupons.map((c) => (
+                      <button
+                        key={c._id || c.id || c.code}
+                        type="button"
+                        className="btn btn-sm btn-light"
+                        onClick={() => applyCoupon(c.code)}
+                      >
+                        {c.code}
+                        {c.conditions ? ` — ${c.conditions}` : ""}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {appliedCoupon && discount > 0 && (
