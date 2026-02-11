@@ -263,13 +263,25 @@ const TrackOrder = () => {
     }
   }, []);
 
+  // Helper: check if tracking payload has any activity list
+  const trackingHasActivities = (info) => {
+    if (!info) return false;
+    const activities =
+      info?.tracking_data?.shipment_track_activities ||
+      info?.tracking_data?.shipment_track?.[0]?.shipment_track_activities ||
+      info?.data?.tracking_data?.shipment_track_activities ||
+      [];
+    return Array.isArray(activities) && activities.length > 0;
+  };
+
   useEffect(() => {
     if (!orderData?.order) return;
     const awb = orderData.order.trackingNumber || orderData.order.awb || orderData.order.tracking_no;
     if (!awb) return;
 
-    // only fetch if trackingInfo is not already present
-    if (!orderData.trackingInfo) {
+    // Fetch tracking when missing, or when present but missing shipment_track_activities (AWB endpoint returns full activities)
+    const needFetch = !orderData.trackingInfo || !trackingHasActivities(orderData.trackingInfo);
+    if (needFetch) {
       (async () => {
         const tracking = await fetchShiprocketTracking(awb);
         if (tracking) {
