@@ -7,7 +7,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements, PaymentElement } from "@stripe/react-stripe-js";
 import { useCurrency } from "../../context/CurrencyContext";
 import client from "../../api/client";
-import { createPaymentIntent, verifyPayment } from "../../api/client";
+import { createPaymentIntent,createCashfreeOrder, verifyPayment } from "../../api/client";
 
 const STRIPE_PUBLISHABLE_KEY = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || "";
 const HAS_STRIPE = !!STRIPE_PUBLISHABLE_KEY;
@@ -16,7 +16,7 @@ const stripePromise = HAS_STRIPE ? loadStripe(STRIPE_PUBLISHABLE_KEY) : Promise.
 // Helper component to sync address selection with form
 function AddressSync({ selectedAddress, useManualAddress }) {
   const { setFieldValue } = useFormikContext();
-  
+
   useEffect(() => {
     if (selectedAddress && !useManualAddress) {
       setFieldValue("fullName", selectedAddress.name);
@@ -29,7 +29,7 @@ function AddressSync({ selectedAddress, useManualAddress }) {
   return null;
 }
 
-function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryFee, total, appliedCoupon, addresses, selectedAddress, setSelectedAddress }) {
+function CheckoutForm({ cartItems, subTotal, selectedCountry, discount, deliveryFee, total, appliedCoupon, addresses, selectedAddress, setSelectedAddress }) {
   const navigate = useNavigate();
   const stripe = useStripe();
   const elements = useElements();
@@ -40,9 +40,71 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
   const [useManualAddress, setUseManualAddress] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("card");
   const [upiId, setUpiId] = useState("");
+  const [paymentError, setPaymentError] = useState("");
+  useEffect(() => {
+    setPaymentError("");
+  }, [selectedPaymentMethod, upiId]);
+
 
   // Check if country is India
   const isIndia = selectedCountry?.code === "IN";
+
+  const handlePayUPI = async () => {
+    try {
+      const amount = Number(total || 0);
+      if (!amount || amount <= 0) {
+        alert("Invalid amount");
+        return;
+      }
+      console.log("amount:", amount);
+
+      const userInfoRaw = localStorage.getItem("userInfo");
+      console.log("amount:", userInfoRaw);
+
+      let userInfo = {};
+      console.log("amount:", userInfo);
+
+      try {
+        userInfo = userInfoRaw ? JSON.parse(userInfoRaw) : {};
+      } catch {
+        userInfo = {};
+      }
+      console.log("email:", userInfo?.email);
+      console.log("phone:", userInfo?.phone);
+
+      const customerName = selectedAddress?.name || userInfo?.name || "Customer";
+      const customerEmail = selectedAddress?.email || userInfo?.email || "customer@example.com";
+      const customerPhone = selectedAddress?.mobile || userInfo?.phone || "9999999999";
+      console.log("name:", userInfo?.name, customerName);
+
+      const { data } = await createCashfreeOrder({
+        amount,
+        customerName,
+        customerEmail,
+        customerPhone,
+      });
+      console.log("amount:", data);
+
+
+      if (!data?.ok) {
+        console.error("Cashfree order failed:", data);
+        alert("Cashfree order failed");
+        return;
+      }
+
+      const { orderId, paymentSessionId } = data;
+      console.log("CF order created:", orderId, paymentSessionId);
+
+      // TODO: Cashfree Web JS SDK integration:
+      // window.cashfree.checkout({ paymentSessionId })
+      // and in success/cancel callbacks call getCashfreeOrder(orderId) to verify status.
+
+      alert("Order created. Proceeding with Cashfree checkout...");
+    } catch (err) {
+      console.error("UPI pay error:", err);
+      alert("UPI payment init failed");
+    }
+  };
 
   const billingValidationSchema = Yup.object({
     fullName: Yup.string().min(2, "Name too short").required("Full name is required"),
@@ -78,69 +140,9 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
 
       // Handle different payment methods
       if (selectedPaymentMethod === "upi") {
-        // UPI Payment
-        if (!upiId.trim()) {
-          alert("Please enter your UPI ID");
-          setLoading(false);
-          return;
-        }
-
-        try {
-          const piRes = await createPaymentIntent({
-            amount: total,
-            currency: currency,
-            paymentMethod: "upi",
-          });
-
-          const clientSecret = piRes.data.clientSecret;
-
-          // Confirm UPI payment
-          const { paymentIntent, error } = await stripe.confirmPayment({
-            clientSecret,
-            confirmParams: {
-              payment_method_data: {
-                type: "upi",
-                upi: {
-                  vpa: upiId.trim(),
-                },
-              },
-              return_url: `${window.location.origin}/TrackOrder`,
-            },
-          });
-
-          if (error) {
-            console.error("UPI payment error:", error);
-            alert(error.message || "UPI payment failed");
-            setLoading(false);
-            return;
-          }
-
-          // For UPI, payment might be pending - check status
-          if (paymentIntent.status === "succeeded") {
-            paymentStatus = "completed";
-            paymentIntentId = paymentIntent.id;
-          } else if (paymentIntent.status === "requires_action") {
-            // UPI requires user action - redirect or show QR
-            paymentIntentId = paymentIntent.id;
-            // Check payment status after a delay
-            setTimeout(async () => {
-              try {
-                const verifyRes = await verifyPayment({ paymentIntentId });
-                if (verifyRes.data.status === "succeeded") {
-                  paymentStatus = "completed";
-                  await createOrder(values, paymentIntentId, paymentStatus);
-                }
-              } catch (verifyErr) {
-                console.error("Payment verification error:", verifyErr);
-              }
-            }, 3000);
-          }
-        } catch (upiErr) {
-          console.error("UPI payment error:", upiErr);
-          alert(upiErr.response?.data?.message || "UPI payment failed");
-          setLoading(false);
-          return;
-        }
+        await handlePayUPI();
+        setLoading(false);
+        return; // ensure card flow does not run
       } else if (selectedPaymentMethod === "netbanking") {
         // NetBanking Payment
         try {
@@ -254,7 +256,7 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
   const createOrder = async (values, paymentIntentId, paymentStatus) => {
     try {
       const token = localStorage.getItem("userToken");
-      
+
       const orderItems = cartItems.map((item) => ({
         product: item.product._id,
         title: item.product.title,
@@ -385,9 +387,9 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
 
             <div className="z_chck_form_group">
               <label>Full Name</label>
-              <Field 
-                type="text" 
-                name="fullName" 
+              <Field
+                type="text"
+                name="fullName"
                 disabled={selectedAddress && !useManualAddress}
               />
               <ErrorMessage name="fullName" component="small" className="text-danger" />
@@ -401,9 +403,9 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
 
             <div className="z_chck_form_group">
               <label>Phone</label>
-              <Field 
-                type="tel" 
-                name="phone" 
+              <Field
+                type="tel"
+                name="phone"
                 disabled={selectedAddress && !useManualAddress}
               />
               <ErrorMessage name="phone" component="small" className="text-danger" />
@@ -411,9 +413,9 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
 
             <div className="z_chck_form_group">
               <label>Address</label>
-              <Field 
-                type="text" 
-                name="address" 
+              <Field
+                type="text"
+                name="address"
                 as="textarea"
                 rows={3}
                 disabled={selectedAddress && !useManualAddress}
@@ -423,9 +425,9 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
 
             <div className="z_chck_form_group">
               <label>Pincode</label>
-              <Field 
-                type="text" 
-                name="pincode" 
+              <Field
+                type="text"
+                name="pincode"
                 placeholder="Enter 6 digit pincode"
                 maxLength={6}
                 disabled={selectedAddress && !useManualAddress}
@@ -433,137 +435,140 @@ function CheckoutForm({ cartItems, subTotal,selectedCountry, discount, deliveryF
               <ErrorMessage name="pincode" component="small" className="text-danger" />
             </div>
 
-          {/* Payment Method Selection */}
-          <div className="z_chck_form_group mt-3">
-            <label>Payment Method</label>
-            <div className="payment-methods" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {isIndia && (
+            {/* Payment Method Selection */}
+            <div className="z_chck_form_group mt-3">
+              <label>Payment Method</label>
+              <div className="payment-methods" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {isIndia && (
+                  <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="upi"
+                      checked={selectedPaymentMethod === "upi"}
+                      onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                      style={{ marginRight: "8px" }}
+                    />
+                    <span>UPI</span>
+                  </label>
+                )}
                 <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
                   <input
                     type="radio"
                     name="paymentMethod"
-                    value="upi"
-                    checked={selectedPaymentMethod === "upi"}
+                    value="netbanking"
+                    checked={selectedPaymentMethod === "netbanking"}
                     onChange={(e) => setSelectedPaymentMethod(e.target.value)}
                     style={{ marginRight: "8px" }}
                   />
-                  <span>UPI</span>
+                  <span>NetBanking</span>
                 </label>
-              )}
-              <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="netbanking"
-                  checked={selectedPaymentMethod === "netbanking"}
-                  onChange={(e) => setSelectedPaymentMethod(e.target.value)}
-                  style={{ marginRight: "8px" }}
-                />
-                <span>NetBanking</span>
-              </label>
-              <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="card"
-                  checked={selectedPaymentMethod === "card"}
-                  onChange={(e) => setSelectedPaymentMethod(e.target.value)}
-                  style={{ marginRight: "8px" }}
-                />
-                <span>Card (Credit/Debit)</span>
-              </label>
-            </div>
-          </div>
-
-          {/* UPI ID Input */}
-          {selectedPaymentMethod === "upi" && (
-            <div className="z_chck_form_group">
-              <label>UPI ID</label>
-              <input
-                type="text"
-                placeholder="yourname@paytm"
-                value={upiId}
-                onChange={(e) => setUpiId(e.target.value)}
-                style={{ width: "100%", padding: "8px", marginTop: "5px" }}
-              />
-              <small style={{ color: "#666", display: "block", marginTop: "5px" }}>
-                Enter your UPI ID (e.g., yourname@paytm, yourname@phonepe)
-              </small>
-            </div>
-          )}
-
-          {/* Card Details (only for card payment) */}
-          {selectedPaymentMethod === "card" && HAS_STRIPE && (
-            <div className="z_chck_form_group mt-3">
-              <label>Card Details</label>
-              <div className="z_chck_card_element">
-                <CardElement options={{ hidePostalCode: true }} />
+                <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="card"
+                    checked={selectedPaymentMethod === "card"}
+                    onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                    style={{ marginRight: "8px" }}
+                  />
+                  <span>Card (Credit/Debit)</span>
+                </label>
               </div>
             </div>
-          )}
 
-          <button 
-            type="submit" 
-            className="z_chck_pay_btn mt-3" 
-            disabled={loading || !HAS_STRIPE || (selectedPaymentMethod === "card" && !stripe)}
-          >
-            {loading ? "Processing..." : "Pay & Place Order"}
-          </button>
+            {/* UPI ID Input */}
+            {selectedPaymentMethod === "upi" && (
+              <div className="z_chck_form_group">
+                <label>UPI ID</label>
+                <input
+                  type="text"
+                  placeholder="yourname@paytm"
+                  value={upiId}
+                  onChange={(e) => setUpiId(e.target.value)}
+                  style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+                />
+                <small style={{ color: "#666", display: "block", marginTop: "5px" }}>
+                  Enter your UPI ID (e.g., yourname@paytm, yourname@phonepe)
+                </small>
+                {paymentError && (
+                  <div className="text-danger small mt-2">{paymentError}</div>
+                )}
+              </div>
+            )}
 
-          {showConfirm && (
-            <>
-              <div
-                className="modal fade show d-block z_chck_glass_modal_wrapper"
-                tabIndex="-1"
-                role="dialog"
-              >
-                <div className="modal-dialog modal-dialog-centered" role="document">
-                  <div className="modal-content z_glass_modal">
-                    <div className="modal-header">
-                      <h5 className="z_auth_title mb-0">Confirm your order</h5>
-                      <button
-                        type="button"
-                        className="btn-close btn-close-white"
-                        aria-label="Close"
-                        onClick={() => setShowConfirm(false)}
-                      />
-                    </div>
-                    <div className="modal-body">
-                      <p>Are you sure you want to pay and place this order?</p>
-                      <p><b>Payment Method: {selectedPaymentMethod.toUpperCase()}</b></p>
-                      <p><b>Total: {formatPrice(total)}</b></p>
-                    </div>
-                    <div className="modal-footer">
-                      <button
-                        type="button"
-                        className="btn btn-outline-light"
-                        onClick={() => setShowConfirm(false)}
-                        disabled={loading}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-dark"
-                        onClick={async () => {
-                          if (pendingValues) {
-                            setShowConfirm(false);
-                            await actuallySubmitPayment(pendingValues);
-                          }
-                        }}
-                        disabled={loading}
-                      >
-                        {loading ? "Processing..." : "Confirm & Pay"}
-                      </button>
+            {/* Card Details (only for card payment) */}
+            {selectedPaymentMethod === "card" && HAS_STRIPE && (
+              <div className="z_chck_form_group mt-3">
+                <label>Card Details</label>
+                <div className="z_chck_card_element">
+                  <CardElement options={{ hidePostalCode: true }} />
+                </div>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="z_chck_pay_btn mt-3"
+              disabled={loading || !HAS_STRIPE || (selectedPaymentMethod === "card" && !stripe)}
+            >
+              {loading ? "Processing..." : "Pay & Place Order"}
+            </button>
+
+            {showConfirm && (
+              <>
+                <div
+                  className="modal fade show d-block z_chck_glass_modal_wrapper"
+                  tabIndex="-1"
+                  role="dialog"
+                >
+                  <div className="modal-dialog modal-dialog-centered" role="document">
+                    <div className="modal-content z_glass_modal">
+                      <div className="modal-header">
+                        <h5 className="z_auth_title mb-0">Confirm your order</h5>
+                        <button
+                          type="button"
+                          className="btn-close btn-close-white"
+                          aria-label="Close"
+                          onClick={() => setShowConfirm(false)}
+                        />
+                      </div>
+                      <div className="modal-body">
+                        <p>Are you sure you want to pay and place this order?</p>
+                        <p><b>Payment Method: {selectedPaymentMethod.toUpperCase()}</b></p>
+                        <p><b>Total: {formatPrice(total)}</b></p>
+                      </div>
+                      <div className="modal-footer">
+                        <button
+                          type="button"
+                          className="btn btn-outline-light"
+                          onClick={() => setShowConfirm(false)}
+                          disabled={loading}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-dark"
+                          onClick={async () => {
+                            if (pendingValues) {
+                              setShowConfirm(false);
+                              await actuallySubmitPayment(pendingValues);
+                            }
+                          }}
+                          disabled={loading}
+                        >
+                          {loading ? "Processing..." : "Confirm & Pay"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <div className="modal-backdrop fade show" />
-            </>
-          )}
-        </Form>
-      );
+                <div className="modal-backdrop fade show" />
+              </>
+            )}
+          </Form>
+        );
       }}
     </Formik>
   );
@@ -583,7 +588,7 @@ function Checkout() {
   const [total, setTotal] = useState(state?.total || 0);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
-  
+
   // Listen for country changes and force re-render
   useEffect(() => {
     const handleCountryChange = () => {
@@ -592,8 +597,8 @@ function Checkout() {
           (acc, item) => acc + ((item.product?.salePrice || item.product?.price) || 0) * (item.quantity || 0),
           0
         );
-        const disc = appliedCoupon ? (appliedCoupon.discountType === 'percent' 
-          ? (st * appliedCoupon.amount / 100) 
+        const disc = appliedCoupon ? (appliedCoupon.discountType === 'percent'
+          ? (st * appliedCoupon.amount / 100)
           : appliedCoupon.amount) : 0;
         const delivery = 50;
         const tot = st - disc + delivery + shippingCharges;
@@ -607,7 +612,7 @@ function Checkout() {
     return () =>
       window.removeEventListener("countryChanged", handleCountryChange);
   }, [cartItems]);
-  
+
   const [appliedCoupon, setAppliedCoupon] = useState(state?.appliedCoupon || null);
 
   // Ensure product data is always available, even if user refreshes /Checkout
@@ -632,12 +637,12 @@ function Checkout() {
           0
         );
         const delivery = 50;
-      const tot = st + delivery + shippingCharges;
+        const tot = st + delivery + shippingCharges;
 
-      setSubTotal(st);
-      setDiscount(0);
-      setDeliveryFee(delivery);
-      setTotal(tot);
+        setSubTotal(st);
+        setDiscount(0);
+        setDeliveryFee(delivery);
+        setTotal(tot);
       } catch (err) {
         console.error("Error fetching cart for checkout:", err);
         navigate("/Cart");
@@ -653,7 +658,7 @@ function Checkout() {
       try {
         const token = localStorage.getItem("userToken");
         if (!token) return;
-        
+
         const res = await client.get("/address");
         setAddresses(res.data || []);
         // Auto-select first address if available
