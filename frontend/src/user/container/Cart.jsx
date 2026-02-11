@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { RiDeleteBin6Fill } from "react-icons/ri";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import client from "../../api/client";
 import wishEmptyImg from "../../img/image1.png";
 import { toast } from "react-toastify";
 import Loader from "../component/Loader";
@@ -25,13 +26,13 @@ function Cart() {
 
   // Cart items state
   const [cartItems, setCartItems] = useState([]);
-  
+
   // Coupon state - initialize early to avoid initialization issues
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponError, setCouponError] = useState("");
   const [validatingCoupon, setValidatingCoupon] = useState(false);
-  
+
   // Listen for country changes and force re-render
   useEffect(() => {
     const handleCountryChange = () => {
@@ -52,9 +53,9 @@ function Cart() {
       }
       try {
         console.log("Cart fetched:");
-        const res = await axios.get("http://localhost:5000/api/cart",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await axios.get("http://localhost:5000/api/cart", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         console.log("Cart fetched:", res.data.items);
         setCartItems(res.data.items || []);
       } catch (err) {
@@ -76,7 +77,7 @@ function Cart() {
       const res = await axios.put(
         "http://localhost:5000/api/cart/update",
         { productId, qty, size: size ?? null, color: color ?? null },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       console.log("Updated quantity response:", res.data.items);
       setCartItems(res.data.items || []);
@@ -89,7 +90,7 @@ function Cart() {
   const increaseQty = (item) => {
     updateQty(
       { productId: item.product._id, size: item.size, color: item.color },
-      item.quantity + 1
+      item.quantity + 1,
     );
   };
 
@@ -97,7 +98,7 @@ function Cart() {
     if (item.quantity > 1) {
       updateQty(
         { productId: item.product._id, size: item.size, color: item.color },
-        item.quantity - 1
+        item.quantity - 1,
       );
     }
   };
@@ -113,11 +114,11 @@ function Cart() {
     try {
       const res = await axios.delete(
         `http://localhost:5000/api/cart/remove/${item.product._id}?size=${encodeURIComponent(
-          item.size || ""
+          item.size || "",
         )}&color=${encodeURIComponent(item.color || "")}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
       console.log("Delete response:", res.data.items);
       setCartItems(res.data.items || []);
@@ -144,15 +145,12 @@ function Cart() {
     setCouponError("");
 
     try {
-      const res = await axios.post(
-        "http://localhost:5000/api/commerce/coupons/validate",
-        {
-          code: couponCode.trim(),
-          subtotal: subTotal,
-        }
-      );
+      const res = await client.post("/commerce/coupons/validate", {
+        code: couponCode.trim(),
+        subtotal: subTotal,
+      });
 
-      if (res.data.valid) {
+      if (res.data && res.data.valid) {
         setAppliedCoupon(res.data.coupon);
         setCouponError("");
         toast.success(`Coupon "${res.data.coupon.code}" applied successfully!`);
@@ -176,10 +174,11 @@ function Cart() {
 
   // Totals - Use getConvertedPrice for location-based pricing
   const subTotal = cartItems.reduce(
-    (acc, item) => acc + getConvertedPrice(item.product, 'salePrice') * (item.quantity || 0),
-    0
+    (acc, item) =>
+      acc + getConvertedPrice(item.product, "salePrice") * (item.quantity || 0),
+    0,
   );
-  
+
   // Discount from coupon (not automatic 10%)
   const discount = appliedCoupon?.discountAmount || 0;
   const deliveryFee = cartItems.length > 0 ? 50 : 0;
@@ -191,7 +190,11 @@ function Cart() {
         <div className="a_header_container">
           <h2 className="z_cart_heading">Shopping Cart</h2>
           <div className="z_cart_empty">
-            <img src={wishEmptyImg} alt="Empty cart" className="z_cart_empty_img" />
+            <img
+              src={wishEmptyImg}
+              alt="Empty cart"
+              className="z_cart_empty_img"
+            />
             <h3>Your cart is empty</h3>
             <p>Looks like you haven&apos;t added anything to your cart yet.</p>
             <button
@@ -241,7 +244,8 @@ function Cart() {
                       <div>
                         <h6>{item.product.title}</h6>
                         <p>
-                          Size: {item.size || "N/A"} | Color: {item.color || "N/A"}
+                          Size: {item.size || "N/A"} | Color:{" "}
+                          {item.color || "N/A"}
                         </p>
                       </div>
                     </div>
@@ -264,18 +268,24 @@ function Cart() {
                       </button>
                     </div>
 
-                    <div className="z_cart_price">{selectedCountry?.currencySymbol || '₹'}{(getConvertedPrice(item.product, 'salePrice') * (item.quantity || 0)).toLocaleString('en-IN')}</div>
+                    <div className="z_cart_price">
+                      {selectedCountry?.currencySymbol || "₹"}
+                      {(
+                        getConvertedPrice(item.product, "salePrice") *
+                        (item.quantity || 0)
+                      ).toLocaleString("en-IN")}
+                    </div>
 
                     <div>
-                    <button
-                      className="z_cart_delete"
-                      onClick={() => deleteItem(item)}
-                    >
-                      <RiDeleteBin6Fill
-                        size={22}
-                        style={{ color: "rgb(218 65 65)" }}
-                      />
-                    </button>
+                      <button
+                        className="z_cart_delete"
+                        onClick={() => deleteItem(item)}
+                      >
+                        <RiDeleteBin6Fill
+                          size={22}
+                          style={{ color: "rgb(218 65 65)" }}
+                        />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -293,16 +303,24 @@ function Cart() {
 
               <div className="z_cart_coupon">
                 {appliedCoupon ? (
-                  <div style={{ 
-                    padding: "10px", 
-                    backgroundColor: "#d4edda", 
-                    borderRadius: "4px",
-                    marginBottom: "10px"
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div
+                    style={{
+                      padding: "10px",
+                      backgroundColor: "#d4edda",
+                      borderRadius: "4px",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
                       <span style={{ fontWeight: "600", color: "#155724" }}>
                         {appliedCoupon.code} Applied
-                        {appliedCoupon.discountType === 'percent' 
+                        {appliedCoupon.discountType === "percent"
                           ? ` - ${appliedCoupon.amount}% OFF`
                           : ` - $${appliedCoupon.amount} OFF`}
                       </span>
@@ -314,7 +332,7 @@ function Cart() {
                           color: "#721c24",
                           cursor: "pointer",
                           fontSize: "14px",
-                          fontWeight: "600"
+                          fontWeight: "600",
                         }}
                       >
                         Remove
@@ -338,7 +356,7 @@ function Cart() {
                         }
                       }}
                     />
-                    <button 
+                    <button
                       className="z_cart_coupon_btn"
                       onClick={applyCoupon}
                       disabled={validatingCoupon || !couponCode.trim()}
@@ -348,7 +366,13 @@ function Cart() {
                   </>
                 )}
                 {couponError && (
-                  <small style={{ color: "#d32f2f", display: "block", marginTop: "5px" }}>
+                  <small
+                    style={{
+                      color: "#d32f2f",
+                      display: "block",
+                      marginTop: "5px",
+                    }}
+                  >
                     {couponError}
                   </small>
                 )}
@@ -356,24 +380,36 @@ function Cart() {
 
               <div className="z_cart_summary_row">
                 <span>Sub Total</span>
-                <span>{selectedCountry?.currencySymbol || '₹'}{subTotal.toLocaleString('en-IN')}</span>
+                <span>
+                  {selectedCountry?.currencySymbol || "₹"}
+                  {subTotal.toLocaleString("en-IN")}
+                </span>
               </div>
 
               {appliedCoupon && (
                 <div className="z_cart_summary_row">
                   <span>Discount ({appliedCoupon.code})</span>
-                  <span>-{selectedCountry?.currencySymbol || '₹'}{discount.toLocaleString('en-IN')}</span>
+                  <span>
+                    -{selectedCountry?.currencySymbol || "₹"}
+                    {discount.toLocaleString("en-IN")}
+                  </span>
                 </div>
               )}
 
               <div className="z_cart_summary_row">
                 <span>Delivery fee</span>
-                <span>{selectedCountry?.currencySymbol || '₹'}{deliveryFee.toLocaleString('en-IN')}</span>
+                <span>
+                  {selectedCountry?.currencySymbol || "₹"}
+                  {deliveryFee.toLocaleString("en-IN")}
+                </span>
               </div>
 
               <div className="z_cart_summary_row z_cart_grand">
                 <span>Total</span>
-                <span>{selectedCountry?.currencySymbol || '₹'}{total.toLocaleString('en-IN')}</span>
+                <span>
+                  {selectedCountry?.currencySymbol || "₹"}
+                  {total.toLocaleString("en-IN")}
+                </span>
               </div>
 
               <p className="z_cart_note">

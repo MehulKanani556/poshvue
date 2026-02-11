@@ -34,6 +34,11 @@ function mapAdminToCoupon(payload) {
   if (typeof body.code === 'string') {
     body.code = body.code.trim();
   }
+  // conditions: keep as string (admin provided description or rule text)
+  if (body.conditions !== undefined) {
+    if (body.conditions === null) delete body.conditions;
+    else body.conditions = String(body.conditions).trim();
+  }
   return body;
 }
 
@@ -124,14 +129,14 @@ exports.remove = async (req, res) => {
 exports.validate = async (req, res) => {
   try {
     const { code, subtotal } = req.body;
-    
+
     if (!code) {
       return res.status(400).json({ message: 'Coupon code is required' });
     }
 
-    const coupon = await Coupon.findOne({ 
+    const coupon = await Coupon.findOne({
       code: code.toUpperCase().trim(),
-      active: true 
+      active: true
     });
 
     if (!coupon) {
@@ -139,7 +144,7 @@ exports.validate = async (req, res) => {
     }
 
     const now = new Date();
-    
+
     // Check if coupon has expired
     if (coupon.endDate && new Date(coupon.endDate) < now) {
       return res.status(400).json({ message: 'Coupon has expired' });
@@ -174,6 +179,7 @@ exports.validate = async (req, res) => {
         code: coupon.code,
         discountType: coupon.discountType,
         amount: coupon.amount,
+        conditions: coupon.conditions || "",
         discountAmount: discountAmount
       }
     });

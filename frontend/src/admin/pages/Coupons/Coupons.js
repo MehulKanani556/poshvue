@@ -25,6 +25,7 @@ function Coupons() {
     discount: "",
     maxUses: "",
     expiryDate: "",
+    conditions: "",
     status: "Active",
   });
   const [editingId, setEditingId] = useState(null);
@@ -123,6 +124,7 @@ function Coupons() {
       expiryDate: coupon.endDate
         ? new Date(coupon.endDate).toISOString().slice(0, 10)
         : "",
+      conditions: coupon.conditions || "",
       status: coupon.active ? "Active" : "Inactive",
     });
 
@@ -158,6 +160,7 @@ function Coupons() {
       discount: "",
       maxUses: "",
       expiryDate: "",
+      conditions: "",
       status: "Active",
     });
     setEditingId(null);
@@ -293,6 +296,17 @@ function Coupons() {
                     <option value="Inactive">Inactive</option>
                   </select>
                 </div>
+                <div className="x_form-group">
+                  <label className="x_form-label">Condition / Notes</label>
+                  <textarea
+                    name="conditions"
+                    className="x_form-control"
+                    value={formData.conditions}
+                    onChange={onChange}
+                    placeholder="E.g. Minimum cart value 500, valid on selected categories, etc."
+                    rows={3}
+                  />
+                </div>
               </div>
 
               <div className="x_modal-footer">
@@ -372,10 +386,10 @@ function Coupons() {
                       style={{
                         height: "100%",
                         width: `${coupon.maxUses
-                            ? Math.round(
-                              ((coupon.used || 0) / coupon.maxUses) * 100
-                            )
-                            : 0
+                          ? Math.round(
+                            ((coupon.used || 0) / coupon.maxUses) * 100
+                          )
+                          : 0
                           }%`,
                         backgroundColor: "#0a2845",
                       }}
@@ -408,6 +422,15 @@ function Coupons() {
                       : "-"}
                   </p>
                 </div>
+
+                {coupon.conditions ? (
+                  <div style={{ marginBottom: "15px" }}>
+                    <p style={{ margin: "0 0 5px 0", fontSize: "12px", color: "#7f8c8d" }}>
+                      Condition
+                    </p>
+                    <p style={{ margin: 0, fontSize: "13px" }}>{coupon.conditions}</p>
+                  </div>
+                ) : null}
 
                 <div style={{ display: "flex", gap: "8px" }} className="td_btnrm">
                   <button
