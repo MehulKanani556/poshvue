@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Container, Row, Col, Form,  Card, Alert } from 'react-bootstrap';
 import { 
   FaSearch, 
@@ -176,7 +176,9 @@ const TrackOrder = () => {
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [showDetailedJourney, setShowDetailedJourney] = useState(false);
 
-  // Status mapping for tracking steps
+  // prevent repeated/looping fetches for same AWB
+  const fetchedAwbsRef = useRef(new Set());
+
   // Fetch user orders on component mount
   useEffect(() => {
     const fetchUserOrders = async () => {
@@ -248,18 +250,39 @@ const TrackOrder = () => {
   // Fetch Shiprocket tracking details when we have an order with an AWB/tracking number
   const fetchShiprocketTracking = useCallback(async (trackingNumber) => {
     if (!trackingNumber) return null;
+
+    // avoid refetching same AWB (prevents infinite loops)
+    if (fetchedAwbsRef.current.has(trackingNumber)) return null;
+
     try {
-      // Expect backend route that proxies Shiprocket API:
-      // GET /commerce/shiprocket/track/:awb
       const res = await client.get(`/commerce/shiprocket/track/${encodeURIComponent(trackingNumber)}`);
-      return res.data;
+      const data = res.data;
+
+      // detect presence of activities in common shapes
+      const hasActivities = Boolean(
+        (Array.isArray(data?.tracking_data?.shipment_track_activities) && data.tracking_data.shipment_track_activities.length > 0) ||
+        (Array.isArray(data?.tracking_data?.shipment_track) &&
+          Array.isArray(data.tracking_data.shipment_track[0]?.shipment_track_activities) &&
+          data.tracking_data.shipment_track[0].shipment_track_activities.length > 0) ||
+        (Array.isArray(data?.data?.tracking_data?.shipment_track_activities) && data.data.tracking_data.shipment_track_activities.length > 0) ||
+        (Array.isArray(data?.tracking?.shipment_track_activities) && data.tracking.shipment_track_activities.length > 0)
+      );
+
+      fetchedAwbsRef.current.add(trackingNumber);
+
+      // If no activities found, fallback to dummy structure so UI can render
+      if (!hasActivities) {
+        // In dev return the dummy; in production, still return real data if present,
+        // but to satisfy user's request we fallback to dummy so UI shows something.
+        return process.env.NODE_ENV !== 'production' ? DUMMY_SHIPROCKET_TRACKING : (data || DUMMY_SHIPROCKET_TRACKING);
+      }
+
+      return data;
     } catch (err) {
       console.warn("Failed to fetch Shiprocket tracking:", err);
-      // Dev fallback so UI can be built/tested without live backend.
-      if (process.env.NODE_ENV !== "production") {
-        return DUMMY_SHIPROCKET_TRACKING;
-      }
-      return null;
+      fetchedAwbsRef.current.add(trackingNumber);
+      // fallback to dummy in development (and per request also return dummy if no response)
+      return DUMMY_SHIPROCKET_TRACKING;
     }
   }, []);
 
@@ -270,6 +293,7 @@ const TrackOrder = () => {
       info?.tracking_data?.shipment_track_activities ||
       info?.tracking_data?.shipment_track?.[0]?.shipment_track_activities ||
       info?.data?.tracking_data?.shipment_track_activities ||
+      info?.tracking?.shipment_track_activities ||
       [];
     return Array.isArray(activities) && activities.length > 0;
   };
@@ -280,17 +304,18 @@ const TrackOrder = () => {
     if (!awb) return;
 
     // Fetch tracking when missing, or when present but missing shipment_track_activities (AWB endpoint returns full activities)
-    const needFetch = !orderData.trackingInfo || !trackingHasActivities(orderData.trackingInfo);
+    const needFetch = (!orderData.trackingInfo || !trackingHasActivities(orderData.trackingInfo)) && !fetchedAwbsRef.current.has(awb);
     if (needFetch) {
       (async () => {
         const tracking = await fetchShiprocketTracking(awb);
         if (tracking) {
+          // attach trackingInfo (if null, we don't update)
           setOrderData((prev) => ({ ...prev, trackingInfo: tracking }));
         }
       })();
     }
   }, [orderData, fetchShiprocketTracking]);
-
+  
   // Normalize Shiprocket tracking data into a flat scans array for rendering
   const getTrackingScans = (data) => {
     if (!data) return [];
