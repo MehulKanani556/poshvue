@@ -21,7 +21,7 @@ router.use('/shiprocket', shiprocketRoutes);
 // Coupons
 router.get('/coupons', coupon.list);
 router.get('/coupons/active', coupon.listActive);
-router.post('/coupons/validate', coupon.validate); // Public endpoint to validate coupon
+router.post('/coupons/validate', optionalAuth, coupon.validate); // Public endpoint, but uses user if logged in
 router.post('/coupons', auth, requireRole('admin','user'), coupon.create);
 router.get('/coupons/:id', coupon.get);
 router.put('/coupons/:id', auth, requireRole('admin','user'), coupon.update);

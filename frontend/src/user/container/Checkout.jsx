@@ -510,22 +510,22 @@ function CheckoutForm({
       // Calculate package dimensions and weight for Shiprocket
       const totalWeight = cartItems.reduce((sum, item) => {
         const productWeight = item.product?.weight || 0.5;
-        return sum + (productWeight * item.quantity);
+        return sum + productWeight * item.quantity;
       }, 0);
 
       const totalLength = cartItems.reduce((sum, item) => {
         const productLength = item.product?.length || 10;
-        return sum + (productLength * item.quantity);
+        return sum + productLength * item.quantity;
       }, 0);
 
       const totalBreadth = cartItems.reduce((sum, item) => {
         const productBreadth = item.product?.breadth || 10;
-        return sum + (productBreadth * item.quantity);
+        return sum + productBreadth * item.quantity;
       }, 0);
 
       const totalHeight = cartItems.reduce((sum, item) => {
         const productHeight = item.product?.height || 5;
-        return sum + (productHeight * item.quantity);
+        return sum + productHeight * item.quantity;
       }, 0);
 
       const dimension = {
@@ -971,17 +971,27 @@ function CheckoutForm({
                         </p>
 
                         <p>
-                          <b>Subtotal: {formatPrice({ salePrice: subTotal })}</b>
+                          <b>
+                            Subtotal: {formatPrice({ salePrice: subTotal })}
+                          </b>
                         </p>
 
                         {appliedCoupon && discount > 0 && (
                           <p>
-                            <b>Discount ({appliedCoupon.code}): -{selectedCountry?.currencySymbol || '₹'}{discount.toLocaleString()}</b>
+                            <b>
+                              Discount ({appliedCoupon.code}): -
+                              {selectedCountry?.currencySymbol || "₹"}
+                              {discount.toLocaleString()}
+                            </b>
                           </p>
                         )}
 
                         <p>
-                          <b>Shipping ({isInternational ? "International" : "Domestic"}): {formatPrice({ salePrice: shippingCharges })}</b>
+                          <b>
+                            Shipping (
+                            {isInternational ? "International" : "Domestic"}):{" "}
+                            {formatPrice({ salePrice: shippingCharges })}
+                          </b>
                         </p>
 
                         <p>
@@ -989,7 +999,8 @@ function CheckoutForm({
                         </p>
 
                         <p className="text-muted small">
-                          Prices are displayed in {selectedCountry?.currency || 'INR'}
+                          Prices are displayed in{" "}
+                          {selectedCountry?.currency || "INR"}
                         </p>
                       </div>
 
@@ -1237,23 +1248,23 @@ function Checkout() {
       // Calculate total package weight
       const totalWeight = cartItems.reduce((sum, item) => {
         const productWeight = item.product?.weight || 0.5; // Default 0.5kg per item
-        return sum + (productWeight * item.quantity);
+        return sum + productWeight * item.quantity;
       }, 0);
 
       // Calculate package dimensions
       const totalLength = cartItems.reduce((sum, item) => {
         const productLength = item.product?.length || 10;
-        return sum + (productLength * item.quantity);
+        return sum + productLength * item.quantity;
       }, 0);
 
       const totalBreadth = cartItems.reduce((sum, item) => {
         const productBreadth = item.product?.breadth || 10;
-        return sum + (productBreadth * item.quantity);
+        return sum + productBreadth * item.quantity;
       }, 0);
 
       const totalHeight = cartItems.reduce((sum, item) => {
         const productHeight = item.product?.height || 5;
-        return sum + (productHeight * item.quantity);
+        return sum + productHeight * item.quantity;
       }, 0);
 
       const dimensions = {
@@ -1264,7 +1275,7 @@ function Checkout() {
       };
 
       const payload = {
-        cartItems: cartItems.map(item => ({
+        cartItems: cartItems.map((item) => ({
           productId: item.product._id,
           quantity: item.quantity,
         })),
@@ -1279,21 +1290,21 @@ function Checkout() {
         },
       };
 
-      const res = await client.post('/commerce/calculate-shipping', payload);
+      const res = await client.post("/commerce/calculate-shipping", payload);
       const { charges, international } = res.data;
-      
+
       setShippingCharges(charges);
       setIsInternational(international);
     } catch (err) {
-      console.error('Failed to calculate shipping:', err);
+      console.error("Failed to calculate shipping:", err);
       // Fallback to basic shipping calculation
-      const baseRate = selectedCountry?.code === 'IN' ? 50 : 500;
+      const baseRate = selectedCountry?.code === "IN" ? 50 : 500;
       const weightCharge = cartItems.reduce((sum, item) => {
         const weight = item.product?.weight || 0.5;
-        return sum + (weight * item.quantity * 10);
+        return sum + weight * item.quantity * 10;
       }, 0);
       setShippingCharges(baseRate + weightCharge);
-      setIsInternational(selectedCountry?.code !== 'IN');
+      setIsInternational(selectedCountry?.code !== "IN");
     }
   }, [selectedAddress, cartItems, selectedCountry]);
 
@@ -1307,8 +1318,7 @@ function Checkout() {
     const st = cartItems.reduce(
       (acc, item) =>
         acc +
-        getConvertedPrice(item.product, "salePrice") *
-          (item.quantity || 0),
+        getConvertedPrice(item.product, "salePrice") * (item.quantity || 0),
       0,
     );
 
@@ -1384,7 +1394,7 @@ function Checkout() {
               </span>
             </div>
 
-            <div className="z_chck_coupon_section" style={{ margin: "12px 0" }}>
+            {/* <div className="z_chck_coupon_section" style={{ margin: "12px 0" }}>
               <label style={{ display: "block", marginBottom: 6 }}>
                 Have a coupon?
               </label>
@@ -1443,7 +1453,7 @@ function Checkout() {
                   </div>
                 </div>
               )}
-            </div>
+            </div> */}
 
             {appliedCoupon && discount > 0 && (
               <div className="z_chck_summary_item">

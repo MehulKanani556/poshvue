@@ -155,6 +155,13 @@ exports.validate = async (req, res) => {
     const { code } = req.body;
     let { subtotal } = req.body;
 
+    console.log("\n=== COUPON VALIDATION START ===");
+    console.log("Request headers:", req.headers.authorization ? "Auth header present" : "No auth header");
+    console.log("req.user:", req.user);
+    console.log("req.user?.id:", req.user?.id);
+    console.log("Coupon code:", code);
+    console.log("Subtotal:", subtotal);
+
     if (!code) {
       return res.status(400).json({ message: "Coupon code is required" });
     }
@@ -223,8 +230,31 @@ exports.validate = async (req, res) => {
           : 0,
     };
 
+    console.log("Coupon found:", coupon.code);
+    console.log("Coupon rules:", coupon.rules);
+    console.log("Context userId:", ctx.userId);
+    
+    if (ctx.userId) {
+      // Get ALL orders for this user
+      const allOrders = await Order.find({ user: ctx.userId }).select('_id code createdAt status');
+      console.log(`\n[USER ORDERS QUERY]`);
+      console.log(`UserId: ${ctx.userId}`);
+      console.log(`Total Orders Found: ${allOrders.length}`);
+      console.log(`Orders:`, allOrders.map(o => ({
+        id: o._id,
+        code: o.code,
+        status: o.status,
+        date: o.createdAt
+      })));
+      
+      const orderCount = await ctx.getUserOrdersCount(ctx.userId);
+      console.log(`\nOrder count via ctx function: ${orderCount}`);
+    }
+
     const ruleCheck = await validateCouponRules(coupon, ctx);
+    console.log("Rule validation result:", ruleCheck);
     if (!ruleCheck.ok) {
+      console.log("=== COUPON VALIDATION FAILED ===\n");
       return res.status(400).json({ message: ruleCheck.message });
     }
 
@@ -244,6 +274,11 @@ exports.validate = async (req, res) => {
     // Get dynamic usage data
     const userOrderCount = req.user?.id ? await ctx.getUserOrdersCount(req.user.id) : 0;
     const userCouponUsageCount = req.user?.id ? await ctx.getUserCouponUsageCount(req.user.id) : 0;
+
+    console.log("=== COUPON VALIDATION SUCCESS ===");
+    console.log("Discount amount:", discountAmount);
+    console.log("User coupon usage count:", userCouponUsageCount);
+    console.log("=== END ===\n");
 
     return res.json({
       valid: true,
@@ -270,7 +305,11 @@ exports.validate = async (req, res) => {
 async function validateCouponRules(coupon, ctx) {
   const rules = coupon.rules || [];
 
+  console.log(`\n[RULE VALIDATION] Total rules to check: ${rules.length}`);
+
   for (const r of rules) {
+    console.log(`[RULE CHECK] Type: ${r.type}, Value: ${r.value}`);
+    
     switch (r.type) {
 
       case "minSubtotal":
@@ -324,17 +363,57 @@ async function validateCouponRules(coupon, ctx) {
         break;
 
       case "minOrder":
-        const minOrderCount = await ctx.getUserOrdersCount(ctx.userId);
-        if (minOrderCount < Number(r.value || 0)) {
-          return { ok: false, message: `Minimum ${r.value} orders required to use this coupon` };
+        if (!ctx.userId) {
+          console.log(`[RULE FAILED] minOrder: No user ID, user not logged in`);
+          return { ok: false, message: "Please login to use this coupon" };
         }
+        const minOrderCount = await ctx.getUserOrdersCount(ctx.userId);
+        
+        // Get detailed order info
+        const minOrderDetails = await Order.find({ user: ctx.userId }).select('_id code status createdAt');
+        console.log(`\n[RULE CHECK] minOrder:`);
+        console.log(`  userId: ${ctx.userId}`);
+        console.log(`  userOrderCount: ${minOrderCount}`);
+        console.log(`  required: ${r.value}`);
+        console.log(`  All Orders Found:`, minOrderDetails.map(o => ({
+          id: o._id,
+          code: o.code,
+          status: o.status,
+          date: o.createdAt
+        })));
+        
+        if (minOrderCount < Number(r.value || 0)) {
+          console.log(`[RULE FAILED] minOrder: ${minOrderCount} < ${r.value}`);
+          return { ok: false, message: `Minimum ${r.value} orders required. You have ${minOrderCount} order(s).` };
+        }
+        console.log(`[RULE PASSED] minOrder`);
         break;
 
       case "maxOrder":
-        const maxOrderCount = await ctx.getUserOrdersCount(ctx.userId);
-        if (maxOrderCount >= Number(r.value || 0)) {
-          return { ok: false, message: `Coupon valid only for users with less than ${r.value} orders` };
+        if (!ctx.userId) {
+          console.log(`[RULE FAILED] maxOrder: No user ID, user not logged in`);
+          return { ok: false, message: "Please login to use this coupon" };
         }
+        const maxOrderCount = await ctx.getUserOrdersCount(ctx.userId);
+        
+        // Get detailed order info
+        const maxOrderDetails = await Order.find({ user: ctx.userId }).select('_id code status createdAt');
+        console.log(`\n[RULE CHECK] maxOrder:`);
+        console.log(`  userId: ${ctx.userId}`);
+        console.log(`  userOrderCount: ${maxOrderCount}`);
+        console.log(`  max: ${r.value}`);
+        console.log(`  All Orders Found:`, maxOrderDetails.map(o => ({
+          id: o._id,
+          code: o.code,
+          status: o.status,
+          date: o.createdAt
+        })));
+        
+        if (maxOrderCount >= Number(r.value || 0)) {
+          console.log(`[RULE FAILED] maxOrder: ${maxOrderCount} >= ${r.value}`);
+          return { ok: false, message: `Coupon valid only for users with less than ${r.value} orders. You have ${maxOrderCount} order(s).` };
+        }
+        console.log(`[RULE PASSED] maxOrder`);
         break;
 
       default:
@@ -342,6 +421,7 @@ async function validateCouponRules(coupon, ctx) {
     }
   }
 
+  console.log(`[RULE VALIDATION PASSED] All rules passed successfully\n`);
   return { ok: true };
 }
 
