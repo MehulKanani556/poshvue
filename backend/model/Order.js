@@ -99,6 +99,10 @@ const OrderSchema = new mongoose.Schema(
     shippingCharges: { type: Number, default: 0 },
     isInternational: { type: Boolean, default: false },
     country: { type: String, default: 'IN' },
+    // Store original currency info for international orders
+    originalCurrency: { type: String, default: 'INR' },
+    originalTotal: { type: Number },
+    liveExchangeRate: { type: Number }, // Exchange rate used at time of order
     status: {
       type: String,
       enum: [
@@ -142,7 +146,7 @@ const OrderSchema = new mongoose.Schema(
 
     trackingNumber: String,
     trackingUrl: String,
-    
+
     // Coupon related fields
     couponCode: { type: String, default: null },
   },

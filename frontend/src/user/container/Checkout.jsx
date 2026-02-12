@@ -489,6 +489,37 @@ function CheckoutForm({
     }
   };
 
+  // Fetch live exchange rate for international orders at checkout
+  const getLiveExchangeRateForCheckout = useCallback(async () => {
+    if (!selectedCountry?.code) return;
+
+    try {
+      const token = localStorage.getItem("userToken");
+      const response = await client.get(
+        `/country/checkout-rate/${selectedCountry.code}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        },
+      );
+
+      const liveRate = response.data.exchangeRate;
+      console.log("[Checkout] Live exchange rate fetched:", {
+        country: selectedCountry.code,
+        currency: selectedCountry.currency,
+        rate: liveRate,
+        timestamp: new Date().toISOString(),
+      });
+
+      return liveRate;
+    } catch (err) {
+      console.warn(
+        "[Checkout] Failed to fetch live rate, using CurrencyContext rate:",
+        err.message,
+      );
+      return selectedCountry?.exchangeRate || 1;
+    }
+  }, [selectedCountry]);
+
   const createOrder = async (values, paymentIntentId, paymentStatus) => {
     try {
       const token = localStorage.getItem("userToken");
@@ -535,6 +566,43 @@ function CheckoutForm({
         weight: Math.max(0.5, totalWeight),
       };
 
+      // ===== CONVERT AMOUNTS TO INR IF INTERNATIONAL ORDER =====
+      // NOTE: shippingCharges are ALWAYS calculated in INR (calculateShippingCharges function)
+      // Only product prices need conversion when international
+      let finalSubTotal = subTotal;
+      let finalDiscount = discount;
+      let finalShippingCharges = shippingCharges; // Already in INR - don't convert
+      let finalTotal = total;
+      let usedExchangeRate = selectedCountry?.exchangeRate || 1;
+
+      if (isInternational && selectedCountry?.code !== "IN") {
+        // Fetch live exchange rate for accurate conversion
+        const liveExchangeRate = await getLiveExchangeRateForCheckout();
+        usedExchangeRate = liveExchangeRate;
+
+        // Convert product amounts to INR for database and Shiprocket
+        // exchangeRate from API = foreign currency per 1 INR (e.g., 0.017 for SGD)
+        // So to convert foreign currency to INR, we DIVIDE by the rate
+        const exchangeRate = parseFloat(liveExchangeRate) || 1;
+        finalSubTotal = Math.round(subTotal / exchangeRate);
+        finalDiscount = Math.round(discount / exchangeRate);
+        // shippingCharges are ALREADY in INR, don't convert them
+        finalTotal =
+          Math.round((total - shippingCharges) / exchangeRate) +
+          shippingCharges;
+
+        console.log("International Order - Currency Conversion:", {
+          originalCurrency: selectedCountry.currency,
+          exchangeRate: exchangeRate,
+          liveRate: liveExchangeRate,
+          originalSubTotal: subTotal,
+          convertedSubTotal: finalSubTotal,
+          originalTotal: total,
+          convertedTotal: finalTotal,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
       const orderPayload = {
         customerName: values.fullName,
 
@@ -548,13 +616,13 @@ function CheckoutForm({
 
         items: orderItems,
 
-        subTotal: subTotal,
+        subTotal: finalSubTotal,
 
-        total: total,
+        total: finalTotal,
 
-        discount: discount,
+        discount: finalDiscount,
 
-        shippingCharges: shippingCharges,
+        shippingCharges: finalShippingCharges,
 
         isInternational: isInternational,
 
@@ -582,6 +650,11 @@ function CheckoutForm({
         couponCode: appliedCoupon?.code || null,
 
         country: selectedCountry?.code || "IN",
+
+        // Original currency info for reference
+        originalCurrency: selectedCountry?.currency || "INR",
+        originalTotal: total,
+        liveExchangeRate: usedExchangeRate,
       };
 
       const orderRes = await axios.post(
@@ -1245,7 +1318,7 @@ function Checkout() {
     if (!selectedAddress || cartItems.length === 0) return;
 
     try {
-      // Calculate total package weight
+      // Calculate total package weight and dimensions from products
       const totalWeight = cartItems.reduce((sum, item) => {
         const productWeight = item.product?.weight || 0.5; // Default 0.5kg per item
         return sum + productWeight * item.quantity;
@@ -1274,37 +1347,46 @@ function Checkout() {
         weight: Math.max(0.5, totalWeight),
       };
 
-      const payload = {
-        cartItems: cartItems.map((item) => ({
-          productId: item.product._id,
-          quantity: item.quantity,
-        })),
-        address: selectedAddress.address,
-        pincode: selectedAddress.pincode,
-        country: selectedCountry,
-        dimension: dimensions,
-        shippingInfo: {
-          pincode: selectedAddress.pincode,
-          country: selectedCountry.name,
-          address: selectedAddress.address,
-        },
-      };
+      // Determine if international or domestic
+      const isInternationalOrder = selectedCountry?.code !== "IN";
 
-      const res = await client.post("/commerce/calculate-shipping", payload);
-      const { charges, international } = res.data;
+      // Calculate shipping charges based on dimensions and destination
+      // Domestic (India): Base 50 + weight per kg 10 + volumetric charge
+      // International: Base 500 + weight per kg 100 + volumetric charge
+      const baseRate = isInternationalOrder ? 500 : 50;
+      const weightCharge =
+        dimensions.weight * (isInternationalOrder ? 100 : 10);
+      const volumetricWeight =
+        (dimensions.length * dimensions.breadth * dimensions.height) / 5000;
+      const volumetricCharge =
+        volumetricWeight * (isInternationalOrder ? 20 : 2);
+      const calculatedCharges = Math.ceil(
+        baseRate + weightCharge + volumetricCharge,
+      );
 
-      setShippingCharges(charges);
-      setIsInternational(international);
+      setShippingCharges(calculatedCharges);
+      setIsInternational(isInternationalOrder);
+
+      console.log("Shipping calculation:", {
+        weight: dimensions.weight,
+        volumetricWeight: volumetricWeight.toFixed(2),
+        baseRate,
+        weightCharge: weightCharge.toFixed(2),
+        volumetricCharge: volumetricCharge.toFixed(2),
+        total: calculatedCharges,
+        isInternational: isInternationalOrder,
+      });
     } catch (err) {
       console.error("Failed to calculate shipping:", err);
       // Fallback to basic shipping calculation
-      const baseRate = selectedCountry?.code === "IN" ? 50 : 500;
+      const isInternationalOrder = selectedCountry?.code !== "IN";
+      const baseRate = isInternationalOrder ? 500 : 50;
       const weightCharge = cartItems.reduce((sum, item) => {
         const weight = item.product?.weight || 0.5;
-        return sum + weight * item.quantity * 10;
+        return sum + weight * item.quantity * (isInternationalOrder ? 100 : 10);
       }, 0);
       setShippingCharges(baseRate + weightCharge);
-      setIsInternational(selectedCountry?.code !== "IN");
+      setIsInternational(isInternationalOrder);
     }
   }, [selectedAddress, cartItems, selectedCountry]);
 
@@ -1336,6 +1418,7 @@ function Checkout() {
     setDeliveryFee(delivery);
     setTotal(tot);
   }, [cartItems, appliedCoupon, shippingCharges, getConvertedPrice]);
+
   return (
     <section className="z_chck_section">
       <div className="z_chck_container">
@@ -1471,7 +1554,7 @@ function Checkout() {
               </span>
               <span>
                 {selectedCountry?.currencySymbol || "₹"}
-                {shippingCharges.toLocaleString("en-IN")}
+                {formatPrice({ salePrice: shippingCharges })}
               </span>
             </div>
 

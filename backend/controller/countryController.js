@@ -24,7 +24,7 @@ exports.list = async (req, res) => {
 
     if (active !== undefined) query.active = active === 'true';
 
-    
+
 
     const [items, total] = await Promise.all([
 
@@ -124,7 +124,7 @@ exports.create = async (req, res) => {
 
     const { name, code, currency, currencySymbol, flagUrl, exchangeRate = 1, active = true, isDefault = false } = req.body;
 
-    
+
 
     if (!name || !code || !currency || !currencySymbol || !flagUrl) {
 
@@ -190,7 +190,7 @@ exports.update = async (req, res) => {
 
     const updateData = {};
 
-    
+
 
     if (name) updateData.name = name;
 
@@ -276,7 +276,7 @@ exports.detectByLocation = async (req, res) => {
 
     let countryCode = null;
 
-    
+
 
     try {
 
@@ -290,7 +290,7 @@ exports.detectByLocation = async (req, res) => {
 
       console.error('Primary location service failed:', error);
 
-      
+
 
       try {
 
@@ -320,11 +320,11 @@ exports.detectByLocation = async (req, res) => {
 
     // Find matching country in database
 
-    const country = await Country.findOne({ 
+    const country = await Country.findOne({
 
       code: countryCode.toUpperCase(),
 
-      active: true 
+      active: true
 
     });
 
@@ -332,11 +332,11 @@ exports.detectByLocation = async (req, res) => {
 
     if (!country) {
 
-      return res.status(404).json({ 
+      return res.status(404).json({
 
         message: 'Detected country not available',
 
-        detectedCountry: countryCode 
+        detectedCountry: countryCode
 
       });
 
@@ -344,11 +344,11 @@ exports.detectByLocation = async (req, res) => {
 
 
 
-    return res.json({ 
+    return res.json({
 
       item: country,
 
-      detectedCountry: countryCode 
+      detectedCountry: countryCode
 
     });
 
@@ -374,17 +374,17 @@ exports.setDefault = async (req, res) => {
 
   console.log("📥 Request headers:", req.headers);
 
-  
+
 
   try {
 
     const { countryId } = req.body;
 
-    
+
 
     console.log("📋 Received countryId:", countryId);
 
-    
+
 
     if (!countryId) {
 
@@ -402,7 +402,7 @@ exports.setDefault = async (req, res) => {
 
     const country = await Country.findById(countryId);
 
-    
+
 
     if (!country) {
 
@@ -434,7 +434,7 @@ exports.setDefault = async (req, res) => {
 
     const unsetResult = await Country.updateMany(
 
-      { _id: { $ne: countryId } }, 
+      { _id: { $ne: countryId } },
 
       { $set: { isDefault: false } }
 
@@ -442,7 +442,7 @@ exports.setDefault = async (req, res) => {
 
     console.log("✅ Unset result:", unsetResult.modifiedCount, "countries updated");
 
-    
+
 
     // Step 2: Set selected country's isDefault to true
 
@@ -464,11 +464,11 @@ exports.setDefault = async (req, res) => {
 
 
 
-    return res.json({ 
+    return res.json({
 
       message: 'Default country updated successfully',
 
-      item: updatedCountry 
+      item: updatedCountry
 
     });
 
@@ -480,5 +480,105 @@ exports.setDefault = async (req, res) => {
 
   }
 
+};
+
+/**
+ * Get live exchange rate for a specific country
+ * GET /country/exchange-rate/:countryCode
+ */
+exports.getLiveExchangeRate = async (req, res) => {
+  try {
+    const { countryCode } = req.params;
+    const { exchangeRate } = require('../services/exchangeRate');
+
+    if (!countryCode || countryCode.length !== 2) {
+      return res.status(400).json({ message: 'Invalid country code' });
+    }
+
+    // Get country from database
+    const country = await Country.findOne({ code: countryCode.toUpperCase(), active: true });
+    if (!country) {
+      return res.status(404).json({ message: 'Country not found' });
+    }
+
+    // Fetch live rate
+    const liveRate = await exchangeRate(country.currency);
+
+    return res.json({
+      countryCode: country.code,
+      currency: country.currency,
+      liveRate,
+      cachedRate: country.exchangeRate,
+      lastUpdated: country.updatedAt,
+    });
+  } catch (err) {
+    console.error('Error fetching live exchange rate:', err);
+    return res.status(500).json({ message: 'Failed to fetch exchange rate', error: err.message });
+  }
+};
+
+/**
+ * Update all exchange rates
+ * POST /country/update-exchange-rates (admin only)
+ */
+exports.updateExchangeRates = async (req, res) => {
+  try {
+    // Check if user is admin (implement based on your auth)
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    const { updateAllExchangeRates } = require('../services/exchangeRate');
+    await updateAllExchangeRates();
+
+    const countries = await Country.find({ active: true });
+    return res.json({
+      message: 'Exchange rates updated successfully',
+      countries: countries.map(c => ({
+        name: c.name,
+        code: c.code,
+        currency: c.currency,
+        exchangeRate: c.exchangeRate,
+      })),
+    });
+  } catch (err) {
+    console.error('Error updating exchange rates:', err);
+    return res.status(500).json({ message: 'Failed to update exchange rates', error: err.message });
+  }
+};
+
+/**
+ * Get exchange rate for checkout
+ * GET /country/checkout-rate/:countryCode
+ * Used by frontend during checkout to get latest rates
+ */
+exports.getCheckoutExchangeRate = async (req, res) => {
+  try {
+    const { countryCode } = req.params;
+    const { getExchangeRate } = require('../services/exchangeRate');
+
+    if (!countryCode) {
+      return res.status(400).json({ message: 'Country code required' });
+    }
+
+    const country = await Country.findOne({ code: countryCode.toUpperCase(), active: true });
+    if (!country) {
+      return res.status(404).json({ message: 'Country not found' });
+    }
+
+    // Get live rate
+    const liveRate = await getExchangeRate(country.currency);
+
+    return res.json({
+      countryCode: country.code,
+      currency: country.currency,
+      exchangeRate: liveRate,
+      name: country.name,
+      currencySymbol: country.currencySymbol,
+    });
+  } catch (err) {
+    console.error('Error fetching checkout exchange rate:', err);
+    return res.status(500).json({ message: 'Failed to fetch rate', error: err.message });
+  }
 };
 

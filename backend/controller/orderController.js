@@ -506,11 +506,11 @@ exports.create = async (req, res) => {
 
     const { items } = req.body;
 
-    
+
 
     if (!items || !Array.isArray(items) || items.length === 0) {
 
-      return res.status(400).json({ 
+      return res.status(400).json({
 
         message: "Order must have at least one item",
 
@@ -530,7 +530,7 @@ exports.create = async (req, res) => {
 
       if (!item.product) {
 
-        return res.status(400).json({ 
+        return res.status(400).json({
 
           message: `Item ${i + 1} must have a product ID`,
 
@@ -542,7 +542,7 @@ exports.create = async (req, res) => {
 
       if (typeof item.price !== 'number' || item.price < 0) {
 
-        return res.status(400).json({ 
+        return res.status(400).json({
 
           message: `Item ${i + 1} must have a valid price`,
 
@@ -554,7 +554,7 @@ exports.create = async (req, res) => {
 
       if (!item.quantity && !item.qty) {
 
-        return res.status(400).json({ 
+        return res.status(400).json({
 
           message: `Item ${i + 1} must have quantity or qty`,
 
@@ -614,89 +614,101 @@ exports.create = async (req, res) => {
 
 
 
-  // Calculate totals if not provided
+    // Calculate totals if not provided
 
-  if (!payload.subTotal) {
+    if (!payload.subTotal) {
 
-    payload.subTotal = normalizedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-  }
-
-
-
-  // Aggregate dimensions and weight from products
-
-  let totalLength = 0;
-
-  let totalBreadth = 0;
-
-  let totalHeight = 0;
-
-  let totalWeight = 0;
-
-
-
-  for (const item of normalizedItems) {
-
-    const product = await Product.findById(item.product);
-
-    if (product) {
-
-      totalLength += (product.length || 0) * item.quantity;
-
-      totalBreadth += (product.breadth || 0) * item.quantity;
-
-      totalHeight += (product.height || 0) * item.quantity;
-
-      totalWeight += (product.weight || 0) * item.quantity;
+      payload.subTotal = normalizedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
     }
 
-  }
+
+
+    // Aggregate dimensions and weight from products
+
+    let totalLength = 0;
+
+    let totalBreadth = 0;
+
+    let totalHeight = 0;
+
+    let totalWeight = 0;
 
 
 
-  payload.dimension = {
+    for (const item of normalizedItems) {
 
-    length: Math.max(10, totalLength),
+      const product = await Product.findById(item.product);
 
-    breadth: Math.max(10, totalBreadth),
+      if (product) {
 
-    height: Math.max(5, totalHeight),
+        totalLength += (product.length || 0) * item.quantity;
 
-    weight: Math.max(0.5, totalWeight),
+        totalBreadth += (product.breadth || 0) * item.quantity;
 
-  };
+        totalHeight += (product.height || 0) * item.quantity;
 
+        totalWeight += (product.weight || 0) * item.quantity;
 
+      }
 
-  if (!payload.total) {
-
-    payload.total = payload.subTotal + (payload.tax || 0) - (payload.discount || 0);
-
-  }
+    }
 
 
 
-  // Default values for optional but recommended fields
+    payload.dimension = {
 
-  if (!payload.discount) {
+      length: Math.max(10, totalLength),
 
-    payload.discount = 0;
+      breadth: Math.max(10, totalBreadth),
 
-  }
+      height: Math.max(5, totalHeight),
+
+      weight: Math.max(0.5, totalWeight),
+
+    };
 
 
 
-  // Calculate shipping charges
+    if (!payload.total) {
 
-  const { shippingCharges, isInternational } = await calculateShippingCharges(payload);
+      payload.total = payload.subTotal + (payload.tax || 0) - (payload.discount || 0);
 
-  payload.shippingCharges = shippingCharges;
+    }
 
-  payload.isInternational = isInternational;
 
-  payload.total += shippingCharges;
+
+    // Default values for optional but recommended fields
+
+    if (!payload.discount) {
+
+      payload.discount = 0;
+
+    }
+
+
+
+    // ===== SHIPPING CHARGE CALCULATION =====
+    // If frontend already calculated and converted amounts (isInternational flag + shippingCharges provided),
+    // skip recalculation and use the converted amounts from frontend
+    if (!payload.isInternational || !payload.shippingCharges) {
+      // Only recalculate if NOT coming from frontend with conversion
+      const { shippingCharges, isInternational } = await calculateShippingCharges(payload);
+      payload.shippingCharges = shippingCharges;
+      payload.isInternational = isInternational;
+      // Add shipping to total only if not already included
+      if (!payload.originalTotal) {
+        payload.total = (payload.total || payload.subTotal || 0) + shippingCharges;
+      }
+    } else {
+      // Frontend has already provided converted amounts, just ensure total is correct
+      // payload.total should already be calculated with shippingCharges included
+      console.log('[Order] Using frontend-calculated amounts (international order with conversion):', {
+        shippingCharges: payload.shippingCharges,
+        isInternational: payload.isInternational,
+        originalCurrency: payload.originalCurrency,
+      });
+    }
 
 
 
@@ -831,7 +843,7 @@ exports.create = async (req, res) => {
 
       const messages = Object.values(err.errors).map(e => e.message);
 
-      return res.status(400).json({ 
+      return res.status(400).json({
 
         message: "Validation error",
 
@@ -849,7 +861,7 @@ exports.create = async (req, res) => {
 
     if (err.name === 'CastError') {
 
-      return res.status(400).json({ 
+      return res.status(400).json({
 
         message: "Invalid ID format",
 
@@ -865,7 +877,7 @@ exports.create = async (req, res) => {
 
     // Generic error response with more details
 
-    res.status(400).json({ 
+    res.status(400).json({
 
       message: "Invalid order data",
 

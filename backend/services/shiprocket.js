@@ -69,10 +69,10 @@ async function getToken() {
       typeof data === "string"
         ? data
         : data?.message ||
-          data?.error ||
-          data?.msg ||
-          data?.errors ||
-          (data && JSON.stringify(data));
+        data?.error ||
+        data?.msg ||
+        data?.errors ||
+        (data && JSON.stringify(data));
 
     const fullMsg = msg || err.message;
     console.error("[Shiprocket] Token request failed:", status, fullMsg);
@@ -85,14 +85,14 @@ async function getToken() {
     if (status === 403) {
       throw new Error(
         "Shiprocket 403: Use API user, not main login. " +
-          "Go to app.shiprocket.in → Settings → API → Create API User, then set SHIPROCKET_EMAIL and SHIPROCKET_PASSWORD in .env. " +
-          (fullMsg ? ` Details: ${fullMsg}` : ""),
+        "Go to app.shiprocket.in → Settings → API → Create API User, then set SHIPROCKET_EMAIL and SHIPROCKET_PASSWORD in .env. " +
+        (fullMsg ? ` Details: ${fullMsg}` : ""),
       );
     }
     if (status === 401) {
       throw new Error(
         "Shiprocket 401: Invalid email or password. " +
-          (fullMsg ? String(fullMsg) : ""),
+        (fullMsg ? String(fullMsg) : ""),
       );
     }
     throw new Error("Shiprocket auth failed: " + fullMsg);
@@ -174,6 +174,7 @@ exports.createShipmentForOrder = async (order) => {
       name: item.name || item.title || `Item ${index + 1}`,
       sku: String(item.product || ""),
       units: item.qty || item.quantity,
+      // Use converted price if international order, otherwise use original
       selling_price: item.price,
     }));
 
@@ -194,6 +195,21 @@ exports.createShipmentForOrder = async (order) => {
         .replace(/\D/g, "")
         .slice(0, 10) || "9999999999";
     const businessOrderId = "ORD_" + Date.now();
+
+    // ===== USE CONVERTED INR AMOUNTS FOR SHIPROCKET =====
+    // If order is international and has been converted to INR, use those amounts
+    // Otherwise use original amounts
+    const subTotalForShiprocket = Number(order.subTotal || order.total || 0);
+
+    console.log('[Shiprocket] Order amount details:', {
+      isInternational: order.isInternational,
+      originalCurrency: order.originalCurrency,
+      subTotal: order.subTotal,
+      shippingCharges: order.shippingCharges,
+      total: order.total,
+      subTotalForShiprocket,
+    });
+
     const payload = {
       order_id: businessOrderId,
       order_date:
@@ -220,7 +236,8 @@ exports.createShipmentForOrder = async (order) => {
       shipping_is_billing: true,
       order_items: items,
       payment_method: order.paymentStatus === "completed" ? "Prepaid" : "COD",
-      sub_total: Number(order.subTotal || order.total || 0),
+      // Use converted amounts if international, otherwise use original
+      sub_total: subTotalForShiprocket,
       length: Number(dimension.length || 10),
       breadth: Number(dimension.breadth || 10),
       height: Number(dimension.height || 5),
