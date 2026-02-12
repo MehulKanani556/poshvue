@@ -94,8 +94,11 @@ const OrderSchema = new mongoose.Schema(
     customerPhone: String,
     items: { type: [OrderItemSchema], required: true },
     total: { type: Number, required: true },
+    subTotal: Number,
+    discount: { type: Number, default: 0 },
     shippingCharges: { type: Number, default: 0 },
     isInternational: { type: Boolean, default: false },
+    country: { type: String, default: 'IN' },
     status: {
       type: String,
       enum: [
@@ -116,8 +119,6 @@ const OrderSchema = new mongoose.Schema(
     // ===== EXTRA FIELDS FROM SECOND SCHEMA =====
     pickup_location: { type: mongoose.Schema.Types.ObjectId },
     shippingInfo: ShippingInfoSchema,
-    subTotal: Number,
-    discount: { type: Number, default: 0 },
     dimension: DimensionSchema,
 
     paymentMethod: {
@@ -141,8 +142,6 @@ const OrderSchema = new mongoose.Schema(
 
     trackingNumber: String,
     trackingUrl: String,
-    shippingCharges: { type: Number, default: 0 },
-    isInternational: { type: Boolean, default: false },
     
     // Coupon related fields
     couponCode: { type: String, default: null },

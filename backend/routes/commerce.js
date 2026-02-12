@@ -12,11 +12,11 @@ router.post('/orders', optionalAuth, order.create); // customer create (guest su
 router.put('/orders/:id/status', auth, requireRole('admin'), order.updateStatus);
 router.get("/orders/:userId", auth, requireRole('admin','user'), order.getOrdersByUser);
 router.post('/orders/track', order.trackOrder); // Public endpoint to track order
+router.post('/calculate-shipping', auth, order.calculateShipping); // Calculate shipping charges
 
 // Backward-compatible alias for frontend calls:
 // Frontend uses /commerce/shiprocket/track/:awb
 router.use('/shiprocket', shiprocketRoutes);
-
 
 // Coupons
 router.get('/coupons', coupon.list);

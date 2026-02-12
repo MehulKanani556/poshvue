@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Formik, Form, Field, ErrorMessage, useFormikContext } from "formik";
 import * as Yup from "yup";
@@ -60,6 +60,8 @@ function CheckoutForm({
   addresses,
   selectedAddress,
   setSelectedAddress,
+  shippingCharges,
+  isInternational,
 }) {
   const navigate = useNavigate();
 
@@ -505,35 +507,86 @@ function CheckoutForm({
         color: item.color || null,
       }));
 
-      const orderRes = await axios.post(
-        `${process.env.REACT_APP_API_URL || "http://localhost:5000/api"}/commerce/orders`,
+      // Calculate package dimensions and weight for Shiprocket
+      const totalWeight = cartItems.reduce((sum, item) => {
+        const productWeight = item.product?.weight || 0.5;
+        return sum + (productWeight * item.quantity);
+      }, 0);
 
-        {
-          customerName: values.fullName,
+      const totalLength = cartItems.reduce((sum, item) => {
+        const productLength = item.product?.length || 10;
+        return sum + (productLength * item.quantity);
+      }, 0);
 
-          customerEmail: values.email,
+      const totalBreadth = cartItems.reduce((sum, item) => {
+        const productBreadth = item.product?.breadth || 10;
+        return sum + (productBreadth * item.quantity);
+      }, 0);
 
-          customerPhone: values.phone,
+      const totalHeight = cartItems.reduce((sum, item) => {
+        const productHeight = item.product?.height || 5;
+        return sum + (productHeight * item.quantity);
+      }, 0);
 
+      const dimension = {
+        length: Math.max(10, totalLength),
+        breadth: Math.max(10, totalBreadth),
+        height: Math.max(5, totalHeight),
+        weight: Math.max(0.5, totalWeight),
+      };
+
+      const orderPayload = {
+        customerName: values.fullName,
+
+        customerEmail: values.email,
+
+        customerPhone: values.phone,
+
+        address: values.address,
+
+        pincode: values.pincode,
+
+        items: orderItems,
+
+        subTotal: subTotal,
+
+        total: total,
+
+        discount: discount,
+
+        shippingCharges: shippingCharges,
+
+        isInternational: isInternational,
+
+        dimension: dimension,
+
+        shippingInfo: {
+          firstName: values.fullName,
+          phone: values.phone,
+          email: values.email,
           address: values.address,
-
           pincode: values.pincode,
-
-          items: orderItems,
-
-          total,
-
-          status: paymentStatus === "completed" ? "paid" : "pending",
-
-          paymentMethod: selectedPaymentMethod,
-
-          paymentStatus: paymentStatus,
-
-          paymentIntentId,
-
-          couponCode: appliedCoupon?.code || null,
+          country: selectedCountry?.name || "India",
+          city: selectedAddress?.city || "Mumbai",
+          state: selectedAddress?.state || "Maharashtra",
         },
 
+        status: paymentStatus === "completed" ? "paid" : "pending",
+
+        paymentMethod: selectedPaymentMethod,
+
+        paymentStatus: paymentStatus,
+
+        paymentIntentId,
+
+        couponCode: appliedCoupon?.code || null,
+
+        country: selectedCountry?.code || "IN",
+      };
+
+      const orderRes = await axios.post(
+        `${process.env.REACT_APP_API_URL || "http://localhost:5000/api"}/commerce/orders`,
+        orderPayload,
         { headers: { Authorization: `Bearer ${token}` } },
       );
 
@@ -918,7 +971,25 @@ function CheckoutForm({
                         </p>
 
                         <p>
-                          <b>Total: {formatPrice(total)}</b>
+                          <b>Subtotal: {formatPrice({ salePrice: subTotal })}</b>
+                        </p>
+
+                        {appliedCoupon && discount > 0 && (
+                          <p>
+                            <b>Discount ({appliedCoupon.code}): -{selectedCountry?.currencySymbol || '₹'}{discount.toLocaleString()}</b>
+                          </p>
+                        )}
+
+                        <p>
+                          <b>Shipping ({isInternational ? "International" : "Domestic"}): {formatPrice({ salePrice: shippingCharges })}</b>
+                        </p>
+
+                        <p>
+                          <b>Total: {formatPrice({ salePrice: total })}</b>
+                        </p>
+
+                        <p className="text-muted small">
+                          Prices are displayed in {selectedCountry?.currency || 'INR'}
                         </p>
                       </div>
 
@@ -1158,30 +1229,103 @@ function Checkout() {
     toast.info("Coupon removed");
   };
 
-  // Recalculate totals when cartItems or appliedCoupon changes
+  // Calculate shipping charges based on package weight and destination
+  const calculateShippingCharges = useCallback(async () => {
+    if (!selectedAddress || cartItems.length === 0) return;
+
+    try {
+      // Calculate total package weight
+      const totalWeight = cartItems.reduce((sum, item) => {
+        const productWeight = item.product?.weight || 0.5; // Default 0.5kg per item
+        return sum + (productWeight * item.quantity);
+      }, 0);
+
+      // Calculate package dimensions
+      const totalLength = cartItems.reduce((sum, item) => {
+        const productLength = item.product?.length || 10;
+        return sum + (productLength * item.quantity);
+      }, 0);
+
+      const totalBreadth = cartItems.reduce((sum, item) => {
+        const productBreadth = item.product?.breadth || 10;
+        return sum + (productBreadth * item.quantity);
+      }, 0);
+
+      const totalHeight = cartItems.reduce((sum, item) => {
+        const productHeight = item.product?.height || 5;
+        return sum + (productHeight * item.quantity);
+      }, 0);
+
+      const dimensions = {
+        length: Math.max(10, totalLength),
+        breadth: Math.max(10, totalBreadth),
+        height: Math.max(5, totalHeight),
+        weight: Math.max(0.5, totalWeight),
+      };
+
+      const payload = {
+        cartItems: cartItems.map(item => ({
+          productId: item.product._id,
+          quantity: item.quantity,
+        })),
+        address: selectedAddress.address,
+        pincode: selectedAddress.pincode,
+        country: selectedCountry,
+        dimension: dimensions,
+        shippingInfo: {
+          pincode: selectedAddress.pincode,
+          country: selectedCountry.name,
+          address: selectedAddress.address,
+        },
+      };
+
+      const res = await client.post('/commerce/calculate-shipping', payload);
+      const { charges, international } = res.data;
+      
+      setShippingCharges(charges);
+      setIsInternational(international);
+    } catch (err) {
+      console.error('Failed to calculate shipping:', err);
+      // Fallback to basic shipping calculation
+      const baseRate = selectedCountry?.code === 'IN' ? 50 : 500;
+      const weightCharge = cartItems.reduce((sum, item) => {
+        const weight = item.product?.weight || 0.5;
+        return sum + (weight * item.quantity * 10);
+      }, 0);
+      setShippingCharges(baseRate + weightCharge);
+      setIsInternational(selectedCountry?.code !== 'IN');
+    }
+  }, [selectedAddress, cartItems, selectedCountry]);
+
+  // Recalculate shipping when address or cart changes
   useEffect(() => {
-   const st = cartItems.reduce(
-    (acc, item) =>
-      acc +
-      getConvertedPrice(item.product, "salePrice") *
-        (item.quantity || 0),
-    0,
-  );
+    calculateShippingCharges();
+  }, [calculateShippingCharges]);
 
-  const disc = appliedCoupon
-    ? appliedCoupon.discountType === "percent"
-      ? (st * appliedCoupon.amount) / 100
-      : appliedCoupon.amount
-    : 0;
+  // Recalculate totals when cartItems, appliedCoupon, or shippingCharges changes
+  useEffect(() => {
+    const st = cartItems.reduce(
+      (acc, item) =>
+        acc +
+        getConvertedPrice(item.product, "salePrice") *
+          (item.quantity || 0),
+      0,
+    );
 
-  const delivery = 50;
-  const tot = st - disc + delivery + shippingCharges;
+    const disc = appliedCoupon
+      ? appliedCoupon.discountType === "percent"
+        ? (st * appliedCoupon.amount) / 100
+        : appliedCoupon.amount
+      : 0;
 
-  setSubTotal(st);
-  setDiscount(disc);
-  setDeliveryFee(delivery);
-  setTotal(tot);
-  }, [cartItems, appliedCoupon, shippingCharges]);
+    const delivery = shippingCharges;
+    const tot = st - disc + delivery;
+
+    setSubTotal(st);
+    setDiscount(disc);
+    setDeliveryFee(delivery);
+    setTotal(tot);
+  }, [cartItems, appliedCoupon, shippingCharges, getConvertedPrice]);
   return (
     <section className="z_chck_section">
       <div className="z_chck_container">
@@ -1204,7 +1348,6 @@ function Checkout() {
                 addresses={addresses}
                 selectedAddress={selectedAddress}
                 setSelectedAddress={setSelectedAddress}
-                selectedCountry={selectedCountry}
                 shippingCharges={shippingCharges}
                 isInternational={isInternational}
               />
@@ -1241,7 +1384,7 @@ function Checkout() {
               </span>
             </div>
 
-            {/* <div className="z_chck_coupon_section" style={{ margin: "12px 0" }}>
+            <div className="z_chck_coupon_section" style={{ margin: "12px 0" }}>
               <label style={{ display: "block", marginBottom: 6 }}>
                 Have a coupon?
               </label>
@@ -1300,7 +1443,7 @@ function Checkout() {
                   </div>
                 </div>
               )}
-            </div> */}
+            </div>
 
             {appliedCoupon && discount > 0 && (
               <div className="z_chck_summary_item">
