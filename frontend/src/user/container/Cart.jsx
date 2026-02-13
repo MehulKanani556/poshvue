@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from "react";
-import { RiDeleteBin6Fill } from "react-icons/ri";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState, createContext, useContext } from "react";
 import axios from "axios";
-import client from "../../api/client";
-import wishEmptyImg from "../../img/image1.png";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
+import { FaPlus, FaMinus, FaTrash, FaShoppingBag } from "react-icons/fa";
+import { RiDeleteBin6Fill } from "react-icons/ri";
+import client from "../../api/client";
+import { API_ENDPOINTS } from "../../config/api";
+import wishEmptyImg from "../../img/image1.png";
 import Loader from "../component/Loader";
 import { useCurrency } from "../../context/CurrencyContext";
 
@@ -83,7 +85,7 @@ function Cart() {
       }
       try {
         console.log("Cart fetched:");
-        const res = await axios.get("https://api.poshwue.com/api/cart", {
+        const res = await axios.get(API_ENDPOINTS.CART, {
           headers: { Authorization: `Bearer ${token}` },
         });
         console.log("Cart fetched:", res.data.items);
@@ -115,7 +117,7 @@ function Cart() {
     }
     try {
       const res = await axios.put(
-        "https://api.poshwue.com/api/cart/update",
+        API_ENDPOINTS.CART_UPDATE,
         { productId, qty, size: size ?? null, color: color ?? null },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -153,7 +155,7 @@ function Cart() {
     }
     try {
       const res = await axios.delete(
-        `https://api.poshwue.com/api/cart/remove/${item.product._id}?size=${encodeURIComponent(
+        `${API_ENDPOINTS.CART}/remove/${item.product._id}?size=${encodeURIComponent(
           item.size || "",
         )}&color=${encodeURIComponent(item.color || "")}`,
         {

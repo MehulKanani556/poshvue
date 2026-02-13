@@ -2,6 +2,7 @@ import React from 'react';
 import axios from 'axios';
 import { Phone, Mail, MapPin, Facebook, Instagram, Youtube, Send } from 'lucide-react';
 import { useState } from 'react';
+import { API_ENDPOINTS } from '../../config/api';
 
 const Footer = () => {
   const [email, setEmail] = useState('');
@@ -13,7 +14,7 @@ const Footer = () => {
     if (!consent) return setMsg('Please accept privacy policy');
 
     try {
-      const res = await axios.post('https://api.poshwue.com/api/support/subscriptions', {
+      const res = await axios.post(API_ENDPOINTS.NEWSLETTER_SUBSCRIBE, {
         email,
         source: 'frontend',
       });

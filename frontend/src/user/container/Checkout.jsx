@@ -1919,19 +1919,119 @@ function CheckoutForm({
 
 
 
-                        <p>
+                        {(() => {
 
-                          <b>Subtotal: {formatPrice({ salePrice: subTotal })}</b>
+                          // For international orders, the state values are already INR
 
-                        </p>
+                          // For domestic orders, they are in local currency
+
+                          const displaySubTotal = isInternational ? subTotal / (selectedCountry?.exchangeRate || 1) : subTotal;
+
+                          const displayDiscount = isInternational ? discount / (selectedCountry?.exchangeRate || 1) : discount;
+
+                          const displayShipping = isInternational ? shippingCharges / (selectedCountry?.exchangeRate || 1) : shippingCharges;
+
+                          const displayTotal = isInternational ? total / (selectedCountry?.exchangeRate || 1) : total;
 
 
 
-                        {appliedCoupon && discount > 0 && (
+                          return (
 
-                          <p>
+                            <>
 
-                            <b>Discount ({appliedCoupon.code}): -{selectedCountry?.currencySymbol || '₹'}{discount.toLocaleString()}</b>
+                              <p>
+
+                                <b>Subtotal: {formatPrice({ salePrice: displaySubTotal })}</b>
+
+                                {isInternational && (
+
+                                  <span className="text-muted ms-2">
+
+                                    (₹{subTotal.toFixed(2)})
+
+                                  </span>
+
+                                )}
+
+                              </p>
+
+
+
+                              {appliedCoupon && discount > 0 && (
+
+                                <p>
+
+                                  <b>Discount ({appliedCoupon.code}): -{selectedCountry?.currencySymbol || '₹'}{displayDiscount.toLocaleString()}</b>
+
+                                  {isInternational && (
+
+                                    <span className="text-muted ms-2">
+
+                                      (-₹{discount.toFixed(2)})
+
+                                    </span>
+
+                                  )}
+
+                                </p>
+
+                              )}
+
+
+
+                              <p>
+
+                                <b>Shipping ({isInternational ? "International" : "Domestic"}): {formatPrice({ salePrice: displayShipping })}</b>
+
+                                {isInternational && (
+
+                                  <span className="text-muted ms-2">
+
+                                    (₹{shippingCharges.toFixed(2)})
+
+                                  </span>
+
+                                )}
+
+                              </p>
+
+
+
+                              <hr className="my-2" />
+
+
+
+                              <p className="mb-0">
+
+                                <b>Total: {formatPrice({ salePrice: displayTotal })}</b>
+
+                                {isInternational && (
+
+                                  <span className="text-muted ms-2">
+
+                                    (₹{total.toFixed(2)})
+
+                                  </span>
+
+                                )}
+
+                              </p>
+
+                            </>
+
+                          );
+
+                        })()}
+
+
+
+                        {isInternational && (
+
+                          <p className="text-info small mt-2">
+
+                            <i className="fas fa-info-circle me-1"></i>
+
+                            International order will be charged in INR (₹{total.toFixed(2)})
 
                           </p>
 
@@ -1939,25 +2039,9 @@ function CheckoutForm({
 
 
 
-                        <p>
-
-                          <b>Shipping ({isInternational ? "International" : "Domestic"}): {formatPrice({ salePrice: shippingCharges })}</b>
-
-                        </p>
-
-
-
-                        <p>
-
-                          <b>Total: {formatPrice({ salePrice: total })}</b>
-
-                        </p>
-
-
-
                         <p className="text-muted small">
 
-                          Prices are displayed in {selectedCountry?.currency || 'INR'}
+                          Prices displayed in {selectedCountry?.currency || 'INR'}
 
                         </p>
 

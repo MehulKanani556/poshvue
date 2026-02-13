@@ -3,6 +3,7 @@ import axios from "axios";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Autoplay } from "swiper/modules";
 import { useNavigate } from "react-router-dom";
+import { API_ENDPOINTS } from "../../config/api";
 
 import "swiper/css";
 import "swiper/css/navigation";
@@ -17,9 +18,7 @@ export default function HomeSlider() {
 
   const fetchCategories = async () => {
     try {
-      const res = await axios.get(
-        "https://api.poshwue.com/api/catalog/categories"
-      );
+      const res = await axios.get(API_ENDPOINTS.CATEGORIES);
 
       // ⚠️ Your backend returns "items"
       setCategories(res.data.items || []);
