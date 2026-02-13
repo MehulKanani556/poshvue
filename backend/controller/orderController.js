@@ -615,12 +615,22 @@ exports.create = async (req, res) => {
 
 
     // Calculate totals if not provided
-
     if (!payload.subTotal) {
-
       payload.subTotal = normalizedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
     }
+
+    // Ensure shipping charges are properly calculated
+    if (!payload.shippingCharges) {
+      payload.shippingCharges = 0;
+    }
+
+    // Calculate total properly: subtotal - discount + shipping charges
+    if (!payload.total) {
+      payload.total = payload.subTotal - (payload.discount || 0) + payload.shippingCharges;
+    }
+
+    // Set deliveryFee for compatibility
+    payload.deliveryFee = payload.shippingCharges;
 
 
 
@@ -668,16 +678,6 @@ exports.create = async (req, res) => {
 
     };
 
-
-
-    if (!payload.total) {
-
-      payload.total = payload.subTotal + (payload.tax || 0) - (payload.discount || 0);
-
-    }
-
-
-
     // Default values for optional but recommended fields
 
     if (!payload.discount) {
@@ -685,8 +685,6 @@ exports.create = async (req, res) => {
       payload.discount = 0;
 
     }
-
-
 
     // ===== SHIPPING CHARGE CALCULATION =====
     // If frontend already calculated and converted amounts (isInternational flag + shippingCharges provided),

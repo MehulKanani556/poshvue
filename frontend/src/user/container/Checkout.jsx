@@ -1072,20 +1072,22 @@ function CheckoutForm({
 
 
       // Convert totals to INR for Shiprocket and database
-
       const subTotalINR = selectedCountry?.code === 'IN' ? subTotal : subTotal / (selectedCountry?.exchangeRate || 1);
-
       const discountINR = selectedCountry?.code === 'IN' ? discount : discount / (selectedCountry?.exchangeRate || 1);
-
       const shippingChargesINR = selectedCountry?.code === 'IN' ? shippingCharges : shippingCharges / (selectedCountry?.exchangeRate || 1);
-
       const totalINR = selectedCountry?.code === 'IN' ? total : total / (selectedCountry?.exchangeRate || 1);
+
+      console.log(" Currency Conversion Debug:", {
+        selectedCountry: selectedCountry?.name,
+        currency: selectedCountry?.currency,
+        exchangeRate: selectedCountry?.exchangeRate,
+        localAmounts: { subTotal, discount, shippingCharges, total },
+        inrAmounts: { subTotalINR, discountINR, shippingChargesINR, totalINR }
+      });
 
 
 
       const orderPayload = {
-
-        customerName: values.fullName,
 
         customerEmail: values.email,
 

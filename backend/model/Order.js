@@ -94,9 +94,10 @@ const OrderSchema = new mongoose.Schema(
     customerPhone: String,
     items: { type: [OrderItemSchema], required: true },
     total: { type: Number, required: true },
-    subTotal: Number,
+    subTotal: { type: Number, required: true },
     discount: { type: Number, default: 0 },
     shippingCharges: { type: Number, default: 0 },
+    deliveryFee: { type: Number, default: 0 }, // For compatibility
     isInternational: { type: Boolean, default: false },
     country: { type: String, default: 'IN' },
     // Store original currency info for international orders

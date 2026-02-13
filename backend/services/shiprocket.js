@@ -170,13 +170,30 @@ exports.createShipmentForOrder = async (order) => {
   try {
     console.log(`[Shiprocket] Creating shipment for order ${order._id}...`);
 
-    const items = order.items.map((item, index) => ({
-      name: item.name || item.title || `Item ${index + 1}`,
-      sku: String(item.product || ""),
-      units: item.qty || item.quantity,
-      // Use converted price if international order, otherwise use original
-      selling_price: item.price,
-    }));
+    const items = order.items.map((item, index) => {
+      // Generate proper SKU: Use product ID + size + color for uniqueness
+      let sku = `PRD-${item.product}`;
+      if (item.size) sku += `-SZ-${item.size}`;
+      if (item.color) sku += `-CL-${item.color}`;
+      
+      // Add index to ensure uniqueness even if there are issues
+      sku += `-IDX-${index + 1}`;
+      
+      console.log(`[Shiprocket] Generating SKU for item ${index + 1}:`, {
+        product: item.product,
+        size: item.size,
+        color: item.color,
+        generatedSku: sku
+      });
+      
+      return {
+        name: item.name || item.title || `Item ${index + 1}`,
+        sku: sku,
+        units: item.qty || item.quantity,
+        // Use converted price if international order, otherwise use original
+        selling_price: item.price,
+      };
+    });
 
     const shippingInfo = order.shippingInfo || {};
     const dimension = order.dimension || {
