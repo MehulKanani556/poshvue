@@ -13,7 +13,7 @@ const Footer = () => {
     if (!consent) return setMsg('Please accept privacy policy');
 
     try {
-      const res = await axios.post('http://localhost:5000/api/support/subscriptions', {
+      const res = await axios.post('https://api.poshwue.com/api/support/subscriptions', {
         email,
         source: 'frontend',
       });

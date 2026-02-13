@@ -83,7 +83,7 @@ function Cart() {
       }
       try {
         console.log("Cart fetched:");
-        const res = await axios.get("http://localhost:5000/api/cart", {
+        const res = await axios.get("https://api.poshwue.com/api/cart", {
           headers: { Authorization: `Bearer ${token}` },
         });
         console.log("Cart fetched:", res.data.items);
@@ -115,7 +115,7 @@ function Cart() {
     }
     try {
       const res = await axios.put(
-        "http://localhost:5000/api/cart/update",
+        "https://api.poshwue.com/api/cart/update",
         { productId, qty, size: size ?? null, color: color ?? null },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -153,7 +153,7 @@ function Cart() {
     }
     try {
       const res = await axios.delete(
-        `http://localhost:5000/api/cart/remove/${item.product._id}?size=${encodeURIComponent(
+        `https://api.poshwue.com/api/cart/remove/${item.product._id}?size=${encodeURIComponent(
           item.size || "",
         )}&color=${encodeURIComponent(item.color || "")}`,
         {

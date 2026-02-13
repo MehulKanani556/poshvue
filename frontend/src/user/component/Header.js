@@ -1081,7 +1081,6 @@ const Header = () => {
                 marginLeft: '5px',
                 fontWeight: 'bold'
               }}>
-                📍 Your Location
               </span>
             </div>
           ) : (

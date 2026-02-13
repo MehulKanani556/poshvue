@@ -44,7 +44,7 @@ function Wishlist(props) {
       }
 
       const res = await axios.get(
-        "http://localhost:5000/api/wishlist",
+        "https://api.poshwue.com/api/wishlist",
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -70,7 +70,7 @@ function Wishlist(props) {
       }
 
       // Call API to remove item
-      await axios.delete(`http://localhost:5000/api/wishlist/${productId}`, {
+      await axios.delete(`https://api.poshwue.com/api/wishlist/${productId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
