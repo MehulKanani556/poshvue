@@ -53,11 +53,16 @@ function Cart() {
 
   useEffect(() => {
     const st = cartItems.reduce(
-      (acc, item) =>
-        acc +
-        getConvertedPrice(item.product, "salePrice") * (item.quantity || 0),
-      0,
+      (acc, item) => {
+        const itemTotal = Math.round(
+          getConvertedPrice(item.product, "salePrice") *
+          (item.quantity || 0)
+        );
+        return acc + itemTotal;
+      },
+      0
     );
+
 
     const disc = appliedCoupon
       ? appliedCoupon.discountType === "percent"
@@ -312,7 +317,7 @@ function Cart() {
 
                     <div className="z_cart_price">
                       {selectedCountry?.currencySymbol || "₹"}
-                      {(
+                      {Math.round(
                         getConvertedPrice(item.product, "salePrice") *
                         (item.quantity || 0)
                       ).toLocaleString("en-IN")}
@@ -443,6 +448,7 @@ function Cart() {
                   {selectedCountry?.currencySymbol || "₹"}
                   {subTotal.toLocaleString("en-IN")}
                 </span>
+
               </div>
 
               {appliedCoupon && (

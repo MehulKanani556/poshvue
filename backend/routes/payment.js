@@ -6,7 +6,7 @@ const paymentController = require('../controller/paymentController');
 // Customer creates a payment intent for checkout
 router.post('/create-intent', auth, requireRole('user'), paymentController.createPaymentIntent);
 
-// Verify payment status (for UPI and NetBanking)
+// Verify payment status (for UPI )
 router.post('/verify', auth, requireRole('user'), paymentController.verifyPayment);
 
 // optionalAuth use kariye jethi guest/logged-in banne initiate kari sake
