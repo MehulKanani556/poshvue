@@ -1004,7 +1004,7 @@ function Checkout() {
               <span>Subtotal</span>
               <span>
                 {selectedCountry?.currencySymbol || "₹"}
-                {subTotal.toLocaleString("en-IN")}
+                {Math.round(subTotal).toLocaleString("en-IN")}
               </span>
             </div>
 
@@ -1013,7 +1013,7 @@ function Checkout() {
                 <span>Discount ({appliedCoupon.code})</span>
                 <span>
                   -{selectedCountry?.currencySymbol || "₹"}
-                  {discount.toLocaleString("en-IN")}
+                  {Math.round(discount).toLocaleString("en-IN")}
                 </span>
               </div>
             )}
@@ -1033,6 +1033,19 @@ function Checkout() {
                 {selectedCountry?.currencySymbol || "₹"}
                 {Math.round(total).toLocaleString("en-IN")}
               </span>
+              {isInternational && (
+                <small className="text-muted d-block mt-1">
+                  ≈ ₹{(() => {
+                    if (selectedCountry?.code === 'SG') {
+                      return Math.round(total * (selectedCountry?.exchangeRate || 1)).toLocaleString("en-IN");
+                    } else if (selectedCountry?.code === 'IN') {
+                      return Math.round(total).toLocaleString("en-IN");
+                    } else {
+                      return Math.round(total / (selectedCountry?.exchangeRate || 1)).toLocaleString("en-IN");
+                    }
+                  })()}
+                </small>
+              )}
             </div>
           </div>
         </div>
