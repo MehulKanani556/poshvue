@@ -245,8 +245,8 @@ function Countries() {
                   className="x_form-control"
                   value={formData.exchangeRate}
                   onChange={handleInputChange}
-                  placeholder="1"
-                  step="0.01"
+                  placeholder="1.0000"
+                  step="0.0001"
                   min="0"
                 />
                 <small style={{ color: "#7f8c8d" }}>
@@ -331,7 +331,7 @@ function Countries() {
                     <td><strong>{country.code}</strong></td>
                     <td>{country.currency}</td>
                     <td><strong>{country.currencySymbol}</strong></td>
-                    <td>{country.exchangeRate}</td>
+                    <td>{Number(country.exchangeRate).toFixed(4)}</td>
                     <td>{country.active === false ? "Inactive" : "Active"}</td>
                     <td>{country.isDefault ? "✓ Default" : "-"}</td>
                     <td style={{ textAlign: "center" }}>
