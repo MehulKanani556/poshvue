@@ -216,7 +216,7 @@ exports.createShipmentForOrder = async (order) => {
     // ===== USE CONVERTED INR AMOUNTS FOR SHIPROCKET =====
     // If order is international and has been converted to INR, use those amounts
     // Otherwise use original amounts
-    const subTotalForShiprocket = Number(order.subTotal || order.total || 0);
+    const subTotalForShiprocket = Number(order.total || 0);
 
     console.log('[Shiprocket] Order amount details:', {
       isInternational: order.isInternational,
