@@ -828,9 +828,6 @@
   }
 }
 
-/* Cart .jsx end */
-
-/* checkout.jsx start */
 /* Checkout Section */
 .z_chck_section {
   background: #fff;
@@ -1048,8 +1045,6 @@
   }
 }
 
-/* checkout.jsx end */
-
 /* Wishlist start */
 .z_wish_section {
   min-height: 80vh;
@@ -1119,8 +1114,6 @@
   box-shadow: none !important;
   outline: none !important;
 }
-
-/* Wishlist end */
 
 /* Profile start */
 /* ------------------ Page Background ------------------ */
@@ -1854,8 +1847,6 @@
   margin-bottom: 8px;
 }
 
-/* Profile end */
-
 /* Complain.jsx start */
 
 .z_complain_section {
@@ -2100,4 +2091,35 @@
 .z_chck_pay_btn:not(:disabled):hover {
   transform: scale(1.02);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Payment card (Checkout) */
+.payment-card {
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border-radius: 12px;
+  border: 1px solid rgba(10, 40, 69, 0.06);
+  padding: 12px;
+  box-shadow: 0 8px 20px rgba(10,40,69,0.06);
+}
+.payment-card-header {
+  font-weight: 700;
+  color: #0a2845;
+  margin-bottom: 8px;
+}
+.payment-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.z_chck_card_element {
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e8eef6;
+}
+/* mobile */
+@media (max-width: 768px) {
+  .payment-card {
+    padding: 10px;
+  }
 }
