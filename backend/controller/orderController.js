@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const { Order, Product, Country } = require("../model");
+const { Order, Product, Country, Wishlist } = require("../model");
 
 const { incrementCouponUsage } = require("./couponController");
 
@@ -695,9 +695,9 @@ exports.create = async (req, res) => {
       payload.shippingCharges = shippingCharges;
       payload.isInternational = isInternational;
       // Add shipping to total only if not already included
-      if (!payload.originalTotal) {
-        payload.total = (payload.total || payload.subTotal || 0) + shippingCharges;
-      }
+      // if (!payload.originalTotal) {
+      //   payload.total = (payload.total || payload.subTotal || 0) + shippingCharges;
+      // }
     } else {
       // Frontend has already provided converted amounts, just ensure total is correct
       // payload.total should already be calculated with shippingCharges included
@@ -795,9 +795,33 @@ exports.create = async (req, res) => {
 
 
     const item = await Order.create(payload);
-
     console.log('[Order] Created order:', item._id);
 
+    // Remove ordered products from user's wishlist (if user is authenticated)
+    if (req.user?.id) {
+      try {
+        const orderedProductIds = normalizedItems.map(i => i.product.toString());
+        const wishlist = await Wishlist.findOne({ user: req.user.id });
+        if (wishlist) {
+          const beforeCount = wishlist.items.length;
+          wishlist.items = wishlist.items.filter(
+            wi => !orderedProductIds.includes(wi.product.toString())
+          );
+          const removedCount = beforeCount - wishlist.items.length;
+          if (removedCount > 0) {
+            await wishlist.save();
+            console.log('[Order] Removed ordered items from wishlist', {
+              user: req.user.id,
+              removedCount,
+              productIds: orderedProductIds
+            });
+          }
+        }
+      } catch (e) {
+        console.error('[Order] Wishlist cleanup error:', e.message);
+      }
+    }
+    
     // Increment coupon usage if coupon was used
     if (payload.couponCode) {
       console.log('[Order] Incrementing coupon usage for:', payload.couponCode);
