@@ -454,11 +454,17 @@ exports.trackOrder = async (req, res) => {
 
         shippingInfo: order.shippingInfo,
 
-        total: order.subTotal || order.total,
-
+        // `total` is stored in INR; keep it as total (not subtotal)
+        total: order.total,
+        subTotal: order.subTotal,
+        discount: order.discount,
         shippingCharges: order.shippingCharges,
-
         isInternational: order.isInternational,
+        // Currency metadata for correct display on frontend
+        country: order.country, // ISO country code like "IN", "US"
+        originalCurrency: order.originalCurrency,
+        originalTotal: order.originalTotal,
+        liveExchangeRate: order.liveExchangeRate,
 
         items: order.items,
 

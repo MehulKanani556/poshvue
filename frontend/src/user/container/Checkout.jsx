@@ -1035,19 +1035,6 @@ function Checkout() {
                 {selectedCountry?.currencySymbol || "₹"}
                 {Math.round(total).toLocaleString("en-IN")}
               </span>
-              {isInternational && (
-                <small className="text-muted d-block mt-1">
-                  ≈ ₹{(() => {
-                    if (selectedCountry?.code === 'SG') {
-                      return Math.round(total * (selectedCountry?.exchangeRate || 1)).toLocaleString("en-IN");
-                    } else if (selectedCountry?.code === 'IN') {
-                      return Math.round(total).toLocaleString("en-IN");
-                    } else {
-                      return Math.round(total / (selectedCountry?.exchangeRate || 1)).toLocaleString("en-IN");
-                    }
-                  })()}
-                </small>
-              )}
             </div>
           </div>
         </div>

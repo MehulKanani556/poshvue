@@ -16,6 +16,7 @@ import {
 } from 'react-icons/fa';
 import { trackOrder } from '../../api/client';
 import client from '../../api/client';
+import { useCurrency } from '../../context/CurrencyContext';
 
 // Dummy Shiprocket payload (dev fallback when backend tracking is unavailable)
 const DUMMY_SHIPROCKET_TRACKING = {
@@ -167,6 +168,7 @@ const getShiprocketMilestones = (trackingData) => {
 };
 
 const TrackOrder = () => {
+  const { countries } = useCurrency();
   const [orderId, setOrderId] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -175,6 +177,71 @@ const TrackOrder = () => {
   const [userOrders, setUserOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [showDetailedJourney, setShowDetailedJourney] = useState(false);
+
+  const countriesByCode = useMemo(() => {
+    const map = new Map();
+    (countries || []).forEach((c) => {
+      if (c?.code) map.set(String(c.code).toUpperCase(), c);
+    });
+    return map;
+  }, [countries]);
+
+  const formatOrderTotalByCountry = useCallback((order) => {
+    const totalInr = Number(order?.total ?? 0);
+    const orderCountryCode = String(order?.country || 'IN').toUpperCase();
+
+    const country = countriesByCode.get(orderCountryCode);
+    const currency = String(order?.originalCurrency || country?.currency || 'INR').toUpperCase();
+    const exchangeRate = Number(order?.liveExchangeRate || country?.exchangeRate || 1);
+    const converted = Number.isFinite(totalInr) ? totalInr * (Number.isFinite(exchangeRate) ? exchangeRate : 1) : 0;
+
+    try {
+      // Prefer backend-configured symbol so it always matches the selected country config
+      if (country?.currencySymbol) {
+        const n = Number.isFinite(converted) ? converted : 0;
+        const formatted = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(n);
+        return `${country.currencySymbol}${formatted}`;
+      }
+
+      return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency,
+        maximumFractionDigits: 0,
+      }).format(converted);
+    } catch {
+      const symbol = country?.currencySymbol || '₹';
+      return `${symbol}${Math.round(converted).toLocaleString('en-IN')}`;
+    }
+  }, [countriesByCode]);
+
+  const formatAmountForOrder = useCallback((order, amountInr) => {
+    const inr = Number(amountInr ?? 0);
+    const orderCountryCode = String(order?.country || 'IN').toUpperCase();
+    const country = countriesByCode.get(orderCountryCode);
+    const currency = String(order?.originalCurrency || country?.currency || 'INR').toUpperCase();
+    const exchangeRate = Number(order?.liveExchangeRate || country?.exchangeRate || 1);
+    const converted = Number.isFinite(inr) ? inr * (Number.isFinite(exchangeRate) ? exchangeRate : 1) : 0;
+
+    const rounded = Math.round(Number.isFinite(converted) ? converted : 0);
+    const symbol = country?.currencySymbol;
+
+    let display = '';
+    try {
+      if (symbol) {
+        display = `${symbol}${new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(rounded)}`;
+      } else {
+        display = new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 0 }).format(rounded);
+      }
+    } catch {
+      display = `${symbol || '₹'}${rounded.toLocaleString('en-IN')}`;
+    }
+
+    return {
+      display,
+      inrDisplay: `₹${Number.isFinite(inr) ? inr.toFixed(2) : '0.00'}`,
+      isInternational: orderCountryCode !== 'IN',
+    };
+  }, [countriesByCode]);
 
   // prevent repeated/looping fetches for same AWB
   const fetchedAwbsRef = useRef(new Set());
@@ -467,7 +534,7 @@ const TrackOrder = () => {
                       <option value="">-- Select an order to track --</option>
                       {userOrders.map((order) => (
                         <option key={order._id} value={order._id}>
-                          Order #{order._id.slice(-6)} - ₹{order.total} - {new Date(order.createdAt).toLocaleDateString()} - {order.status}
+                          Order #{order._id.slice(-6)} - {formatOrderTotalByCountry(order)} - {new Date(order.createdAt).toLocaleDateString()} - {order.status}
                         </option>
                       ))}
                     </Form.Select>
@@ -615,14 +682,42 @@ const TrackOrder = () => {
                               {item.color && ` (Color: ${item.color})`}
                             </td>
                             <td>{item.qty || item.quantity}</td>
-                            <td>₹{item.price}</td>
+                            <td>
+                              {(() => {
+                                const { display, inrDisplay, isInternational } = formatAmountForOrder(orderData.order, item.price);
+                                return (
+                                  <>
+                                    {display}
+                                    {isInternational && (
+                                      <span className="text-muted ms-2">
+                                        ({inrDisplay})
+                                      </span>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                       <tfoot>
                         <tr>
                           <td colSpan="2" className="text-end fw-bold">Total:</td>
-                          <td className="fw-bold">₹{orderData.order.total}</td>
+                          <td className="fw-bold">
+                            {(() => {
+                              const { display, inrDisplay, isInternational } = formatAmountForOrder(orderData.order, orderData.order.total);
+                              return (
+                                <>
+                                  {display}
+                                  {isInternational && (
+                                    <span className="text-muted ms-2">
+                                      ({inrDisplay})
+                                    </span>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </td>
                         </tr>
                       </tfoot>
                     </table>
