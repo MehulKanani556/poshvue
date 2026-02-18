@@ -1,4 +1,4 @@
-import React, { useEffect, useState, createContext, useContext } from "react";
+import React, { useEffect, useState, createContext, useContext, useCallback } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -39,6 +39,7 @@ function Cart() {
   const [discount, setDiscount] = useState(0);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [total, setTotal] = useState(0);
+  const [liveExchangeRate, setLiveExchangeRate] = useState(null);
 
   // Listen for country changes and force re-render
   // useEffect(() => {
@@ -50,6 +51,72 @@ function Cart() {
   //   return () =>
   //     window.removeEventListener("countryChanged", handleCountryChange);
   // }, []);
+
+  // Calculate shipping charges based on domestic/international
+  const calculateShippingCharges = useCallback(() => {
+    if (cartItems.length === 0) return 0;
+    
+    const isInternational = selectedCountry?.code !== "IN";
+    
+    // Base shipping rates
+    const domesticBaseRate = 50; // INR
+    const internationalBaseRate = 1500; // INR
+    
+    // Calculate total weight for additional charges
+    const totalWeight = cartItems.reduce((sum, item) => {
+      const productWeight = item.product?.weight || 0.5; // Default 0.5kg per item
+      return sum + productWeight * item.quantity;
+    }, 0);
+    
+    // Additional weight charges (per kg over 1kg)
+    const weightThreshold = 1; // kg
+    const weightChargePerKg = isInternational ? 500 : 20; // INR per kg
+    
+    let shippingChargesINR = isInternational ? internationalBaseRate : domesticBaseRate;
+    
+    if (totalWeight > weightThreshold) {
+      const additionalWeight = totalWeight - weightThreshold;
+      shippingChargesINR += Math.ceil(additionalWeight) * weightChargePerKg;
+    }
+    
+    // Convert to local currency if needed
+    if (selectedCountry?.code !== "IN") {
+      const exchangeRate = liveExchangeRate || selectedCountry?.exchangeRate || 1;
+      return shippingChargesINR * exchangeRate;
+    }
+    
+    return shippingChargesINR;
+  }, [cartItems, selectedCountry, liveExchangeRate]);
+
+  // Fetch live exchange rate for international countries
+  useEffect(() => {
+    if (!selectedCountry || selectedCountry.code === "IN") {
+      setLiveExchangeRate(null);
+      return;
+    }
+
+    const symbol = selectedCountry?.currency.toUpperCase();
+    const url = `https://api.frankfurter.app/latest?from=INR&to=${symbol}`;
+
+    let mounted = true;
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+        const rateFromApi = data?.rates?.[symbol];
+        const fallbackRate = symbol === "SGD" ? 0.0141 : selectedCountry?.exchangeRate || 1;
+        const finalRate = rateFromApi || fallbackRate;
+        if (mounted) {
+          setLiveExchangeRate(finalRate);
+        }
+      })
+      .catch((err) => {
+        const fallbackRate = (selectedCountry?.code || "").toUpperCase() === "SGD" ? 0.0141 : selectedCountry?.exchangeRate || 1;
+        if (mounted) setLiveExchangeRate(fallbackRate);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [selectedCountry]);
 
   useEffect(() => {
     const st = cartItems.reduce(
@@ -70,7 +137,7 @@ function Cart() {
         : appliedCoupon.amount
       : 0;
 
-    const delivery = 50;
+    const delivery = calculateShippingCharges();
 
     const tot = st - disc + delivery;
 
@@ -78,7 +145,7 @@ function Cart() {
     setDiscount(disc);
     setDeliveryFee(delivery);
     setTotal(tot);
-  }, [cartItems, appliedCoupon, selectedCountry]);
+  }, [cartItems, appliedCoupon, selectedCountry, calculateShippingCharges, liveExchangeRate]);
 
   useEffect(() => {
     const fetchCart = async () => {
@@ -464,7 +531,11 @@ function Cart() {
               )}
 
               <div className="z_cart_summary_row">
-                <span>Delivery fee</span>
+                <span>
+                  Delivery fee (
+                  {selectedCountry?.code !== "IN" ? "International" : "Domestic"}
+                  )
+                </span>
                 <span>
                   {selectedCountry?.currencySymbol || "₹"}
                   {deliveryFee.toLocaleString("en-IN")}
