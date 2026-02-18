@@ -104,6 +104,17 @@ const OrderSchema = new mongoose.Schema(
     originalCurrency: { type: String, default: 'INR' },
     originalTotal: { type: Number },
     liveExchangeRate: { type: Number }, // Exchange rate used at time of order
+    
+    // Original currency data object for complete tracking
+    originalData: {
+      currency: String,
+      exchangeRate: Number,
+      subTotal: Number,
+      total: Number,
+      discount: Number,
+      shippingCharges: Number,
+      createdAt: Date
+    },
     status: {
       type: String,
       enum: [

@@ -371,6 +371,14 @@ function CheckoutForm({
         paymentIntentId,
         couponCode: appliedCoupon?.code || null,
         country: selectedCountry?.code || "IN",
+        
+        // Original currency data for tracking
+        originalCurrency: selectedCountry?.currency || "INR",
+        originalTotal: total, // Original currency total
+        originalSubTotal: subTotal, // Original currency subtotal
+        originalDiscount: discount, // Original currency discount
+        originalShippingCharges: shippingCharges, // Original currency shipping
+        liveExchangeRate: liveExchangeRate || selectedCountry?.exchangeRate || 1,
       };
       const orderRes = await axios.post(
         `${process.env.REACT_APP_API_URL || "http://localhost:5000/api"}/commerce/orders`,

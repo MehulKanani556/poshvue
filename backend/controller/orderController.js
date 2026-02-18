@@ -476,6 +476,10 @@ exports.trackOrder = async (req, res) => {
 
         updatedAt: order.updatedAt,
 
+        originalData: order.originalData,
+
+        country: order.country,
+
       },
 
       trackingInfo,
@@ -592,24 +596,31 @@ exports.create = async (req, res) => {
 
 
 
+    // Create original currency data object for tracking
+    const originalData = {};
+    if (req.body.originalCurrency && req.body.originalCurrency !== 'INR') {
+      originalData.currency = req.body.originalCurrency;
+      originalData.exchangeRate = req.body.liveExchangeRate || 1;
+      originalData.subTotal = req.body.originalSubTotal || 0;
+      originalData.total = req.body.originalTotal || 0;
+      originalData.discount = req.body.originalDiscount || 0;
+      originalData.shippingCharges = req.body.originalShippingCharges || 0;
+      originalData.createdAt = new Date();
+      
+      console.log('[Order] Original currency data stored:', originalData);
+    }
+
     const payload = {
-
       ...req.body,
-
       items: normalizedItems,
-
       user: req.user?.id,
-
       paymentMethod: req.body.paymentMethod || 'card',
-
       paymentStatus: req.body.paymentStatus || 'pending',
-
       status: req.body.status || 'pending',
-
       // Set order_date in proper format if not provided
-
       order_date: req.body.order_date || new Date().toISOString().replace('T', ' ').split('.')[0],
-
+      // Store original currency data if available
+      originalData: Object.keys(originalData).length > 0 ? originalData : undefined,
     };
 
 
