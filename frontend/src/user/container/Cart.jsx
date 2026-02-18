@@ -52,41 +52,108 @@ function Cart() {
   //     window.removeEventListener("countryChanged", handleCountryChange);
   // }, []);
 
-  // Calculate shipping charges based on domestic/international
-  const calculateShippingCharges = useCallback(() => {
+  // Calculate shipping charges based on package weight and destination
+  const calculateShippingCharges = useCallback(async () => {
     if (cartItems.length === 0) return 0;
-    
-    const isInternational = selectedCountry?.code !== "IN";
-    
-    // Base shipping rates
-    const domesticBaseRate = 50; // INR
-    const internationalBaseRate = 1500; // INR
-    
-    // Calculate total weight for additional charges
-    const totalWeight = cartItems.reduce((sum, item) => {
-      const productWeight = item.product?.weight || 0.5; // Default 0.5kg per item
-      return sum + productWeight * item.quantity;
-    }, 0);
-    
-    // Additional weight charges (per kg over 1kg)
-    const weightThreshold = 1; // kg
-    const weightChargePerKg = isInternational ? 500 : 20; // INR per kg
-    
-    let shippingChargesINR = isInternational ? internationalBaseRate : domesticBaseRate;
-    
-    if (totalWeight > weightThreshold) {
-      const additionalWeight = totalWeight - weightThreshold;
-      shippingChargesINR += Math.ceil(additionalWeight) * weightChargePerKg;
+
+    try {
+      // Calculate total package weight
+      const totalWeight = cartItems.reduce((sum, item) => {
+        const productWeight = item.product?.weight || 0.5; // Default 0.5kg per item
+        return sum + productWeight * item.quantity;
+      }, 0);
+
+      // Calculate package dimensions
+      const totalLength = cartItems.reduce((sum, item) => {
+        const productLength = item.product?.length || 10;
+        return sum + productLength * item.quantity;
+      }, 0);
+
+      const totalBreadth = cartItems.reduce((sum, item) => {
+        const productBreadth = item.product?.breadth || 10;
+        return sum + productBreadth * item.quantity;
+      }, 0);
+
+      const totalHeight = cartItems.reduce((sum, item) => {
+        const productHeight = item.product?.height || 5;
+        return sum + productHeight * item.quantity;
+      }, 0);
+
+      const dimensions = {
+        length: Math.max(10, totalLength),
+        breadth: Math.max(10, totalBreadth),
+        height: Math.max(5, totalHeight),
+        weight: Math.max(0.5, totalWeight),
+      };
+
+      // Convert subtotal to INR for shipping calculation
+      const subTotalINR =
+        selectedCountry?.code === "IN"
+          ? subTotal
+          : subTotal / (selectedCountry?.exchangeRate || 1);
+
+      const payload = {
+        cartItems: cartItems.map((item) => ({
+          productId: item.product._id,
+          quantity: item.quantity,
+        })),
+        address: "Default Address", // Cart doesn't have address, using default
+        pincode: "400001", // Default pincode for cart
+        country: selectedCountry,
+        dimension: dimensions,
+        subTotal: subTotalINR, // Send INR value to backend
+        shippingInfo: {
+          pincode: "400001",
+          country: selectedCountry?.name || "India",
+          address: "Default Address",
+        },
+      };
+
+      const res = await client.post("/commerce/calculate-shipping", payload);
+      const { charges, international } = res.data;
+
+      // Convert shipping charges back to local currency for display
+      const shippingChargesLocal =
+        selectedCountry?.code === "IN"
+          ? charges
+          : charges * (liveExchangeRate || selectedCountry?.exchangeRate || 1);
+
+      return shippingChargesLocal;
+    } catch (err) {
+      console.error("Failed to calculate shipping:", err);
+      // Fallback to same calculation logic as before
+      const isInternational = selectedCountry?.code !== "IN";
+
+      // Base shipping rates
+      const domesticBaseRate = 50; // INR
+      const internationalBaseRate = 1500; // INR
+
+      // Calculate total weight for additional charges
+      const totalWeight = cartItems.reduce((sum, item) => {
+        const productWeight = item.product?.weight || 0.5; // Default 0.5kg per item
+        return sum + productWeight * item.quantity;
+      }, 0);
+
+      // Additional weight charges (per kg over 1kg)
+      const weightThreshold = 1; // kg
+      const weightChargePerKg = isInternational ? 500 : 20; // INR per kg
+
+      let shippingChargesINR = isInternational ? internationalBaseRate : domesticBaseRate;
+
+      if (totalWeight > weightThreshold) {
+        const additionalWeight = totalWeight - weightThreshold;
+        shippingChargesINR += Math.ceil(additionalWeight) * weightChargePerKg;
+      }
+
+      // Convert to local currency if needed
+      if (selectedCountry?.code !== "IN") {
+        const exchangeRate = liveExchangeRate || selectedCountry?.exchangeRate || 1;
+        return shippingChargesINR * exchangeRate;
+      }
+
+      return shippingChargesINR;
     }
-    
-    // Convert to local currency if needed
-    if (selectedCountry?.code !== "IN") {
-      const exchangeRate = liveExchangeRate || selectedCountry?.exchangeRate || 1;
-      return shippingChargesINR * exchangeRate;
-    }
-    
-    return shippingChargesINR;
-  }, [cartItems, selectedCountry, liveExchangeRate]);
+  }, [cartItems, selectedCountry, subTotal, liveExchangeRate]);
 
   // Fetch live exchange rate for international countries
   useEffect(() => {
@@ -119,33 +186,36 @@ function Cart() {
   }, [selectedCountry]);
 
   useEffect(() => {
-    const st = cartItems.reduce(
-      (acc, item) => {
-        const itemTotal = Math.round(
-          getConvertedPrice(item.product, "salePrice") *
-          (item.quantity || 0)
-        );
-        return acc + itemTotal;
-      },
-      0
-    );
+    const calculateTotals = async () => {
+      const st = cartItems.reduce(
+        (acc, item) => {
+          const itemTotal = Math.round(
+            getConvertedPrice(item.product, "salePrice") *
+            (item.quantity || 0)
+          );
+          return acc + itemTotal;
+        },
+        0
+      );
 
+      const disc = appliedCoupon
+        ? appliedCoupon.discountType === "percent"
+          ? (st * appliedCoupon.amount) / 100
+          : appliedCoupon.amount
+        : 0;
 
-    const disc = appliedCoupon
-      ? appliedCoupon.discountType === "percent"
-        ? (st * appliedCoupon.amount) / 100
-        : appliedCoupon.amount
-      : 0;
+      const delivery = await calculateShippingCharges();
 
-    const delivery = calculateShippingCharges();
+      const tot = st - disc + delivery;
 
-    const tot = st - disc + delivery;
+      setSubTotal(st);
+      setDiscount(disc);
+      setDeliveryFee(delivery);
+      setTotal(tot);
+    };
 
-    setSubTotal(st);
-    setDiscount(disc);
-    setDeliveryFee(delivery);
-    setTotal(tot);
-  }, [cartItems, appliedCoupon, selectedCountry, calculateShippingCharges, liveExchangeRate]);
+    calculateTotals();
+  }, [cartItems, appliedCoupon, selectedCountry, calculateShippingCharges, getConvertedPrice, liveExchangeRate]);
 
   useEffect(() => {
     const fetchCart = async () => {
@@ -533,20 +603,20 @@ function Cart() {
               <div className="z_cart_summary_row">
                 <span>
                   Delivery fee (
-                  {selectedCountry?.code !== "IN" ? "International" : "Domestic"}
-                  )
+                  {selectedCountry?.code !== "IN" ? "International" : "Domestic"})
                 </span>
                 <span>
                   {selectedCountry?.currencySymbol || "₹"}
-                  {deliveryFee.toLocaleString("en-IN")}
+                  {Math.round(deliveryFee).toLocaleString("en-IN")}
                 </span>
               </div>
+
 
               <div className="z_cart_summary_row z_cart_grand">
                 <span>Total</span>
                 <span>
                   {selectedCountry?.currencySymbol || "₹"}
-                  {total.toLocaleString("en-IN")}
+                  {Math.round(total).toLocaleString("en-IN")}
                 </span>
               </div>
 

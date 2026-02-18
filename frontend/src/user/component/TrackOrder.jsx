@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Container, Row, Col, Form,  Card, Alert } from 'react-bootstrap';
-import { 
-  FaSearch, 
-  FaBox, 
-  FaCheckCircle, 
-  FaTruckLoading, 
-  FaMapMarkerAlt, 
+import { Container, Row, Col, Form, Card, Alert } from 'react-bootstrap';
+import {
+  FaSearch,
+  FaBox,
+  FaCheckCircle,
+  FaTruckLoading,
+  FaMapMarkerAlt,
   FaHandSparkles,
   FaCreditCard,
   FaSpinner,
@@ -16,6 +16,88 @@ import {
 } from 'react-icons/fa';
 import { trackOrder } from '../../api/client';
 import client from '../../api/client';
+
+// Country to currency mapping
+const getCurrencyInfo = (countryInput) => {
+
+  const countryNameToCodeMap = {
+    "India": "IN",
+    "United States": "US",
+    "United Kingdom": "GB",
+    "Australia": "AU",
+    "Canada": "CA",
+    "Singapore": "SG",
+    "United Arab Emirates": "AE",
+    "Saudi Arabia": "SA",
+    "Malaysia": "MY",
+    "Thailand": "TH",
+    "Japan": "JP",
+    "China": "CN",
+    "Hong Kong": "HK",
+    "New Zealand": "NZ",
+    "Switzerland": "CH",
+    "Sweden": "SE",
+    "Norway": "NO",
+    "Denmark": "DK",
+    "Poland": "PL",
+    "Czech Republic": "CZ",
+    "Hungary": "HU",
+    "Israel": "IL",
+    "Mexico": "MX",
+    "Brazil": "BR",
+    "South Africa": "ZA",
+    "Russia": "RU",
+    "Turkey": "TR",
+    "South Korea": "KR",
+    "Indonesia": "ID",
+    "Philippines": "PH",
+    "Vietnam": "VN"
+  };
+
+  const countryCurrencyMap = {
+    IN: { code: "INR", symbol: "₹" },
+    US: { code: "USD", symbol: "$" },
+    GB: { code: "GBP", symbol: "£" },
+    AU: { code: "AUD", symbol: "A$" },
+    CA: { code: "CAD", symbol: "C$" },
+    SG: { code: "SGD", symbol: "S$" },
+    AE: { code: "AED", symbol: "د.إ" },
+    SA: { code: "SAR", symbol: "﷼" },
+    MY: { code: "MYR", symbol: "RM" },
+    TH: { code: "THB", symbol: "฿" },
+    JP: { code: "JPY", symbol: "¥" },
+    CN: { code: "CNY", symbol: "¥" },
+    HK: { code: "HKD", symbol: "HK$" },
+    NZ: { code: "NZD", symbol: "NZ$" },
+    CH: { code: "CHF", symbol: "CHF" },
+    SE: { code: "SEK", symbol: "kr" },
+    NO: { code: "NOK", symbol: "kr" },
+    DK: { code: "DKK", symbol: "kr" },
+    PL: { code: "PLN", symbol: "zł" },
+    CZ: { code: "CZK", symbol: "Kč" },
+    HU: { code: "HUF", symbol: "Ft" },
+    IL: { code: "ILS", symbol: "₪" },
+    MX: { code: "MXN", symbol: "$" },
+    BR: { code: "BRL", symbol: "R$" },
+    ZA: { code: "ZAR", symbol: "R" },
+    RU: { code: "RUB", symbol: "₽" },
+    TR: { code: "TRY", symbol: "₺" },
+    KR: { code: "KRW", symbol: "₩" },
+    ID: { code: "IDR", symbol: "Rp" },
+    PH: { code: "PHP", symbol: "₱" },
+    VN: { code: "VND", symbol: "₫" }
+  };
+
+  // ✅ If input is country name → convert to code
+  const countryCode =
+    countryNameToCodeMap[countryInput] || countryInput;
+
+  return countryCurrencyMap[countryCode] || {
+    code: "INR",
+    symbol: "₹"
+  };
+};
+
 
 // Dummy Shiprocket payload (dev fallback when backend tracking is unavailable)
 const DUMMY_SHIPROCKET_TRACKING = {
@@ -179,6 +261,62 @@ const TrackOrder = () => {
   // prevent repeated/looping fetches for same AWB
   const fetchedAwbsRef = useRef(new Set());
 
+  // Helper function to get currency info for current order
+  const getOrderCurrencyInfo = () => {
+    const countryCode = orderData?.order?.shippingInfo.country;
+    console.log('Getting currency info for country:', countryCode);
+    return getCurrencyInfo(countryCode);
+  };
+
+  // Helper function to convert INR price to order's local currency
+  const convertPrice = (priceInINR) => {
+    const countryCode = orderData?.order?.country || 'IN';
+    console.log('Converting price:', { priceInINR, countryCode });
+
+    if (countryCode === 'IN') return priceInINR;
+
+    // Exchange rates (1 INR = X local currency)
+    const exchangeRates = {
+      'SG': 0.016,  // 1 INR = 0.016 SGD
+      'US': 0.012,  // 1 INR = 0.012 USD
+      'UK': 0.0095, // 1 INR = 0.0095 GBP
+      'GB': 0.0095, // 1 INR = 0.0095 GBP
+      'EU': 0.011,  // 1 INR = 0.011 EUR
+      'AU': 0.018,  // 1 INR = 0.018 AUD
+      'CA': 0.016,  // 1 INR = 0.016 CAD
+      'AE': 0.044,  // 1 INR = 0.044 AED
+      'SA': 0.045,  // 1 INR = 0.045 SAR
+      'MY': 0.056,  // 1 INR = 0.056 MYR
+      'TH': 0.43,   // 1 INR = 0.43 THB
+      'JP': 1.8,    // 1 INR = 1.8 JPY
+      'CN': 8.6,    // 1 INR = 8.6 CNY
+      'HK': 0.093,  // 1 INR = 0.093 HKD
+      'NZ': 0.020,  // 1 INR = 0.020 NZD
+      'CH': 0.010,  // 1 INR = 0.010 CHF
+      'SE': 0.12,   // 1 INR = 0.12 SEK
+      'NO': 0.12,   // 1 INR = 0.12 NOK
+      'DK': 0.12,   // 1 INR = 0.12 DKK
+      'PL': 0.046,  // 1 INR = 0.046 PLN
+      'CZ': 0.28,   // 1 INR = 0.28 CZK
+      'HU': 4.3,    // 1 INR = 4.3 HUF
+      'IL': 0.043,  // 1 INR = 0.043 ILS
+      'MX': 0.22,   // 1 INR = 0.22 MXN
+      'BR': 0.070,  // 1 INR = 0.070 BRL
+      'ZA': 0.22,   // 1 INR = 0.22 ZAR
+      'RU': 1.1,    // 1 INR = 1.1 RUB
+      'TR': 0.36,   // 1 INR = 0.36 TRY
+      'KR': 15.8,   // 1 INR = 15.8 KRW
+      'ID': 186,    // 1 INR = 186 IDR
+      'PH': 0.67,   // 1 INR = 0.67 PHP
+      'VN': 292     // 1 INR = 292 VND
+    };
+
+    const rate = exchangeRates[countryCode] || 1;
+    const convertedAmount = priceInINR * rate;
+    console.log('Conversion result:', { priceInINR, rate, convertedAmount });
+    return convertedAmount;
+  };
+
   // Fetch user orders on component mount
   useEffect(() => {
     const fetchUserOrders = async () => {
@@ -237,7 +375,7 @@ const TrackOrder = () => {
         orderId: orderId.trim(),
         email: email.trim() || undefined,
       });
-
+      console.log("Track order response:", res.data);
       setOrderData(res.data);
     } catch (err) {
       console.error("Track order error:", err);
@@ -315,7 +453,7 @@ const TrackOrder = () => {
       })();
     }
   }, [orderData, fetchShiprocketTracking]);
-  
+
   // Normalize Shiprocket tracking data into a flat scans array for rendering
   const getTrackingScans = (data) => {
     if (!data) return [];
@@ -381,9 +519,9 @@ const TrackOrder = () => {
   const shipStatusRaw = (() => {
     if (!orderData?.trackingInfo) return null;
     const t = orderData.trackingInfo?.tracking_data?.[0] ||
-              orderData.trackingInfo?.tracking_data?.shipment_track?.[0] ||
-              orderData.trackingInfo?.data ||
-              orderData.trackingInfo;
+      orderData.trackingInfo?.tracking_data?.shipment_track?.[0] ||
+      orderData.trackingInfo?.data ||
+      orderData.trackingInfo;
     return t?.current_status || t?.status || orderData.trackingInfo?.status || null;
   })();
 
@@ -393,18 +531,18 @@ const TrackOrder = () => {
   const currentStatus = isCancelled
     ? statusSteps.cancelled
     : shipStatusKey
-    ? statusSteps[shipStatusKey] || null
-    : orderData?.order
-    ? statusSteps[orderData.order.status]
-    : null;
-   const allSteps = [
-     statusSteps.pending,
-     statusSteps.paid,
-     statusSteps.processing,
-     statusSteps.shipped,
-     statusSteps.out_for_delivery,
-     statusSteps.delivered,
-   ];
+      ? statusSteps[shipStatusKey] || null
+      : orderData?.order
+        ? statusSteps[orderData.order.status]
+        : null;
+  const allSteps = [
+    statusSteps.pending,
+    statusSteps.paid,
+    statusSteps.processing,
+    statusSteps.shipped,
+    statusSteps.out_for_delivery,
+    statusSteps.delivered,
+  ];
 
   const shipMilestones = useMemo(() => {
     if (!orderData?.trackingInfo) return null;
@@ -438,9 +576,9 @@ const TrackOrder = () => {
     if (actStr.includes('pick') || actStr.includes('pkd') || actStr.includes('pud')) return <FaClipboardList />;
     return <FaMapMarkerAlt />;
   };
- 
-   return (
-     <div className="d_track_wrapper py-5">
+
+  return (
+    <div className="d_track_wrapper py-5">
       <Container>
         {/* Header */}
         <Row className="justify-content-center text-center mb-md-4 mb-3">
@@ -459,17 +597,20 @@ const TrackOrder = () => {
                 {userOrders.length > 0 && (
                   <Form.Group className="mb-3">
                     <Form.Label className="small fw-bold text-uppercase">Select Your Order</Form.Label>
-                    <Form.Select 
+                    <Form.Select
                       className="rounded-0 d_input_focus"
                       value={orderId}
                       onChange={(e) => handleOrderSelect(e.target.value)}
-                    >  
+                    >
                       <option value="">-- Select an order to track --</option>
-                      {userOrders.map((order) => (
-                        <option key={order._id} value={order._id}>
-                          Order #{order._id.slice(-6)} - ₹{order.total} - {new Date(order.createdAt).toLocaleDateString()} - {order.status}
-                        </option>
-                      ))}
+                      {userOrders.map((order) => {
+                        const currencyInfo = getCurrencyInfo(order.country || 'IN');
+                        return (
+                          <option key={order._id} value={order._id}>
+                            Order #{order._id.slice(-6)} - {currencyInfo.symbol}{order.total} - {new Date(order.createdAt).toLocaleDateString()} - {order.status}
+                          </option>
+                        );
+                      })}
                     </Form.Select>
                     <Form.Text className="text-muted">
                       Or enter Order ID manually below
@@ -479,9 +620,9 @@ const TrackOrder = () => {
 
                 <Form.Group className="mb-3">
                   <Form.Label className="small fw-bold text-uppercase">Order ID / Order Number</Form.Label>
-                  <Form.Control 
-                    type="text" 
-                    placeholder="e.g. #ABC12345 or full order ID" 
+                  <Form.Control
+                    type="text"
+                    placeholder="e.g. #ABC12345 or full order ID"
                     className="rounded-0 d_input_focus"
                     value={orderId}
                     onChange={(e) => setOrderId(e.target.value)}
@@ -490,9 +631,9 @@ const TrackOrder = () => {
                 </Form.Group>
                 <Form.Group className="mb-4">
                   <Form.Label className="small fw-bold text-uppercase">Email Address (Optional)</Form.Label>
-                  <Form.Control 
-                    type="email" 
-                    placeholder="The email used during checkout" 
+                  <Form.Control
+                    type="email"
+                    placeholder="The email used during checkout"
                     className="rounded-0 d_input_focus"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -501,9 +642,9 @@ const TrackOrder = () => {
                     Enter email to verify order ownership
                   </Form.Text>
                 </Form.Group>
-                <button 
-                  type="submit" 
-                  variant="dark" 
+                <button
+                  type="submit"
+                  variant="dark"
                   className="w-100 rounded-0 d_btn_track py-2"
                   disabled={loading}
                 >
@@ -550,10 +691,10 @@ const TrackOrder = () => {
                         })}
                       </small>
                     </div>
-                    <span 
-                      className={`badge p-2 mt-2 ${orderData.order.status === 'delivered' ? 'bg-success' : 
-                                                      orderData.order.status === 'cancelled' ? 'bg-danger' : 
-                                                      'bg-warning'}`}
+                    <span
+                      className={`badge p-2 mt-2 ${orderData.order.status === 'delivered' ? 'bg-success' :
+                        orderData.order.status === 'cancelled' ? 'bg-danger' :
+                          'bg-warning'}`}
                     >
                       {orderData.order.statusLabel || orderData.order.status.toUpperCase()}
                     </span>
@@ -597,7 +738,15 @@ const TrackOrder = () => {
 
                   {/* Order Items */}
                   <div className="mb-4">
-                    <h6 className="fw-bold mb-3">Order Items</h6>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <h6 className="fw-bold mb-0">Order Items</h6>
+                      <small className="text-muted">
+                        Currency: {getOrderCurrencyInfo().code} ({getOrderCurrencyInfo().symbol})
+                        {orderData?.order?.country && orderData.order.country !== 'IN' &&
+                          ` - ${orderData.order.country}`
+                        }
+                      </small>
+                    </div>
                     <table className="table table-sm">
                       <thead>
                         <tr>
@@ -607,22 +756,44 @@ const TrackOrder = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {orderData.order.items?.map((item, index) => (
-                          <tr key={index}>
-                            <td>
-                              {item.name || item.title || item.product?.name || item.product?.title || "Item"}
-                              {item.size && ` (Size: ${item.size})`}
-                              {item.color && ` (Color: ${item.color})`}
-                            </td>
-                            <td>{item.qty || item.quantity}</td>
-                            <td>₹{item.price}</td>
-                          </tr>
-                        ))}
+                        {orderData.order.items?.map((item, index) => {
+                          const currencyInfo = getOrderCurrencyInfo();
+                          const convertedPrice = convertPrice(item.price);
+                          console.log('Item conversion:', {
+                            originalPrice: item.price,
+                            countryCode: orderData?.order?.country,
+                            convertedPrice,
+                            currencyInfo
+                          });
+                          return (
+                            <tr key={index}>
+                              <td>
+                                {item.name || item.title || item.product?.name || item.product?.title || "Item"}
+                                {item.size && ` (Size: ${item.size})`}
+                                {item.color && ` (Color: ${item.color})`}
+                              </td>
+                              <td>{item.qty || item.quantity}</td>
+                              <td>{currencyInfo.symbol}{convertedPrice.toFixed(2)}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                       <tfoot>
                         <tr>
                           <td colSpan="2" className="text-end fw-bold">Total:</td>
-                          <td className="fw-bold">₹{orderData.order.total}</td>
+                          <td className="fw-bold">
+                            {(() => {
+                              const currencyInfo = getOrderCurrencyInfo();
+                              const convertedTotal = convertPrice(orderData.order.total);
+                              console.log('Total conversion:', {
+                                originalTotal: orderData.order.total,
+                                countryCode: orderData?.order?.country,
+                                convertedTotal,
+                                currencyInfo
+                              });
+                              return `${currencyInfo.symbol}${convertedTotal.toFixed(2)}`;
+                            })()}
+                          </td>
                         </tr>
                       </tfoot>
                     </table>
@@ -641,9 +812,9 @@ const TrackOrder = () => {
                     const awbCode = trackSummary?.awb_code || orderData.order?.trackingNumber || "";
                     const courierName = trackSummary?.courier_name || "";
                     const displayedScans = showDetailedJourney ? scans : scans.slice(0, 5);
-                    
+
                     if (scans.length === 0 && !status) return null;
-                    
+
                     return (
                       <div className="mb-4" style={{
                         background: "linear-gradient(135deg, #f8fef8 0%, #f0f9f0 100%)",
@@ -745,7 +916,7 @@ const TrackOrder = () => {
                                   }}>
                                     {getActivityIcon(scan.activity)}
                                   </div>
-                                  <div style={{ flex: 1,wordBreak: 'break-word'} }>
+                                  <div style={{ flex: 1, wordBreak: 'break-word' }}>
                                     <h6 className="mb-1" style={{ fontSize: "14px", fontWeight: 600, color: "#0a2845" }}>
                                       {scan.activity}
                                     </h6>
@@ -765,7 +936,7 @@ const TrackOrder = () => {
                               <div className="text-center mt-3">
                                 <button
                                   type="button"
-                                  className="btn btn-sm btn-link" 
+                                  className="btn btn-sm btn-link"
                                   onClick={() => setShowDetailedJourney(true)}
                                   style={{ color: "#28a745", fontWeight: 600, textDecoration: "none" }}
                                 >
@@ -826,23 +997,23 @@ const TrackOrder = () => {
                           step === statusSteps.pending
                             ? "pending"
                             : step === statusSteps.paid
-                            ? "paid"
-                            : step === statusSteps.processing
-                            ? "processing"
-                            : step === statusSteps.shipped
-                            ? "shipped"
-                            : step === statusSteps.out_for_delivery
-                            ? "out_for_delivery"
-                            : step === statusSteps.delivered
-                            ? "delivered"
-                            : null;
+                              ? "paid"
+                              : step === statusSteps.processing
+                                ? "processing"
+                                : step === statusSteps.shipped
+                                  ? "shipped"
+                                  : step === statusSteps.out_for_delivery
+                                    ? "out_for_delivery"
+                                    : step === statusSteps.delivered
+                                      ? "delivered"
+                                      : null;
 
                         const meta = key ? stepMeta?.[key] : null;
                         const metaDate = meta?.date || "";
                         const metaTime = meta?.time || "";
                         const metaActivity = meta?.activity || meta?.raw?.activity || "";
                         const metaLocation = meta?.location || meta?.raw?.location || "";
-                        
+
                         return (
                           <div
                             key={index}
@@ -878,14 +1049,14 @@ const TrackOrder = () => {
                       })}
                     </div>
                   )}
-                 </Card.Body>
-               </Card>
-             </Col>
-           </Row>
-         )}
-       </Container>
- 
-       <style>{`
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        )}
+      </Container>
+
+      <style>{`
         .d_track_wrapper {
           background-color: #fcfaf8;
         }
@@ -991,8 +1162,8 @@ const TrackOrder = () => {
           }
         }
       `}</style>
-     </div>
-   );
- };
- 
- export default TrackOrder;
+    </div>
+  );
+};
+
+export default TrackOrder;
