@@ -798,15 +798,18 @@ function Checkout() {
   }, []);
 
   useEffect(() => {
+    const countryCode = selectedCountry?.code || "";
     (async () => {
       try {
-        const res = await client.get("/commerce/coupons/active");
+        const res = await client.get("/commerce/coupons/active", {
+          params: countryCode ? { countryCode } : {},
+        });
         setAvailableCoupons(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error("Failed to fetch coupons:", err);
       }
     })();
-  }, []);
+  }, [selectedCountry?.code]);
 
   // Apply coupon (can pass code param to apply directly from available list)
 
@@ -819,6 +822,7 @@ function Checkout() {
       const res = await client.post("/commerce/coupons/validate", {
         code: codeToUse,
         subtotal: subTotal,
+        countryCode: selectedCountry?.code || "",
       });
 
       if (res.data && res.data.valid) {

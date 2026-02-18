@@ -55,6 +55,16 @@ function mapAdminToCoupon(payload) {
       }))
       .filter(r => Object.keys(r).length > 1); // exclude rules with only type
   }
+  // allowedCountries: array of country codes (e.g. ["IN", "SG"]). Empty = valid for all countries.
+  if (body.allowedCountries !== undefined) {
+    if (!Array.isArray(body.allowedCountries)) {
+      body.allowedCountries = [];
+    } else {
+      body.allowedCountries = body.allowedCountries
+        .map(c => (typeof c === 'string' ? c.trim().toUpperCase() : String(c).trim().toUpperCase()))
+        .filter(Boolean);
+    }
+  }
   return body;
 }
 
@@ -78,8 +88,9 @@ exports.list = async (req, res) => {
 exports.listActive = async (req, res) => {
   try {
     const now = new Date();
+    const countryCode = (req.query.countryCode || "").trim().toUpperCase();
 
-    const coupons = await Coupon.find({
+    const query = {
       active: true,
       $or: [
         { endDate: { $exists: false } },
@@ -91,7 +102,22 @@ exports.listActive = async (req, res) => {
           { $lt: ["$used", "$maxUses"] }
         ]
       }
-    }).sort("-createdAt");
+    };
+
+    // If countryCode provided, return only coupons valid for that country (allowedCountries empty or contains code)
+    if (countryCode) {
+      query.$and = [
+        {
+          $or: [
+            { allowedCountries: { $exists: false } },
+            { allowedCountries: { $size: 0 } },
+            { allowedCountries: countryCode }
+          ]
+        }
+      ];
+    }
+
+    const coupons = await Coupon.find(query).sort("-createdAt");
 
     res.json(coupons);
   } catch (err) {
@@ -196,6 +222,18 @@ exports.validate = async (req, res) => {
 
     if (coupon.maxUses > 0 && coupon.used >= coupon.maxUses) {
       return res.status(400).json({ message: "Coupon usage limit reached" });
+    }
+
+    // Country restriction: if coupon has allowedCountries, request must send countryCode and it must be in the list
+    const allowedCountries = coupon.allowedCountries || [];
+    if (allowedCountries.length > 0) {
+      const countryCode = (req.body.countryCode || "").trim().toUpperCase();
+      if (!countryCode) {
+        return res.status(400).json({ message: "Country is required to apply this coupon" });
+      }
+      if (!allowedCountries.includes(countryCode)) {
+        return res.status(400).json({ message: "This coupon is not valid for your selected country" });
+      }
     }
 
     // Fetch cart securely
