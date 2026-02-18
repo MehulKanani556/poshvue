@@ -28,9 +28,11 @@ function Coupons() {
     conditions: "",
     status: "Active",
     rules: [],
+    allowedCountries: [],
   });
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
+  const [countries, setCountries] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -38,6 +40,10 @@ function Coupons() {
         const base = await detectCouponsPath();
         setApiBase(base);
         await load(base);
+        // Fetch active countries for coupon country selection
+        const countryRes = await adminClient.get("/country/active");
+        const countryList = countryRes.data?.items ?? countryRes.data ?? [];
+        setCountries(Array.isArray(countryList) ? countryList : []);
       } catch (err) {
         setError(err.message || "Failed to detect coupons endpoint");
       }
@@ -132,10 +138,22 @@ function Coupons() {
       conditions: coupon.conditions || "",
       status: coupon.active ? "Active" : "Inactive",
       rules: Array.isArray(coupon.rules) ? coupon.rules : [],
+      allowedCountries: Array.isArray(coupon.allowedCountries) ? coupon.allowedCountries : [],
     });
 
     setEditingId(coupon._id || coupon.id);
     setShowModal(true);
+  }
+
+  function toggleCountry(code) {
+    const codeUpper = (code || "").trim().toUpperCase();
+    if (!codeUpper) return;
+    setFormData((prev) => {
+      const current = prev.allowedCountries || [];
+      const has = current.includes(codeUpper);
+      const next = has ? current.filter((c) => c !== codeUpper) : [...current, codeUpper];
+      return { ...prev, allowedCountries: next };
+    });
   }
 
 
@@ -168,6 +186,7 @@ function Coupons() {
       conditions: "",
       status: "Active",
       rules: [],
+      allowedCountries: [],
     });
     setEditingId(null);
     setShowModal(false);
@@ -314,6 +333,32 @@ function Coupons() {
                   />
                 </div>
 
+                <div className="x_form-group">
+                  <label className="x_form-label">Allowed Countries</label>
+                  <small style={{ display: "block", color: "#7f8c8d", marginBottom: 8 }}>
+                    Leave unchecked for all countries. Select countries where this coupon is valid.
+                  </small>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "12px 16px" }}>
+                    {countries.map((c) => {
+                      const code = (c.code || c._id || "").toString().toUpperCase();
+                      const checked = (formData.allowedCountries || []).includes(code);
+                      return (
+                        <label key={c._id || c.code || c.name} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleCountry(code)}
+                          />
+                          <span>{c.name || code} ({code})</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {countries.length === 0 && (
+                    <span style={{ fontSize: "13px", color: "#7f8c8d" }}>No countries loaded.</span>
+                  )}
+                </div>
+
                 {/* Rule Generator Component */}
                 <RuleGenerator
                   initialRules={formData.rules}
@@ -441,6 +486,15 @@ function Coupons() {
                       Condition
                     </p>
                     <p style={{ margin: 0, fontSize: "13px" }}>{coupon.conditions}</p>
+                  </div>
+                ) : null}
+
+                {Array.isArray(coupon.allowedCountries) && coupon.allowedCountries.length > 0 ? (
+                  <div style={{ marginBottom: "15px" }}>
+                    <p style={{ margin: "0 0 5px 0", fontSize: "12px", color: "#7f8c8d" }}>
+                      Valid for countries
+                    </p>
+                    <p style={{ margin: 0, fontSize: "13px" }}>{coupon.allowedCountries.join(", ")}</p>
                   </div>
                 ) : null}
 

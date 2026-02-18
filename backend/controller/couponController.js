@@ -55,6 +55,12 @@ function mapAdminToCoupon(payload) {
       }))
       .filter(r => Object.keys(r).length > 1); // exclude rules with only type
   }
+  // allowedCountries: array of country codes (e.g. ['IN', 'SG'])
+  if (body.allowedCountries !== undefined) {
+    body.allowedCountries = Array.isArray(body.allowedCountries)
+      ? body.allowedCountries.map(c => String(c).trim().toUpperCase()).filter(Boolean)
+      : [];
+  }
   return body;
 }
 
@@ -78,8 +84,9 @@ exports.list = async (req, res) => {
 exports.listActive = async (req, res) => {
   try {
     const now = new Date();
+    const { countryCode } = req.query;
 
-    const coupons = await Coupon.find({
+    const query = {
       active: true,
       $or: [
         { endDate: { $exists: false } },
@@ -91,7 +98,23 @@ exports.listActive = async (req, res) => {
           { $lt: ["$used", "$maxUses"] }
         ]
       }
-    }).sort("-createdAt");
+    };
+
+    // Filter by country: coupon valid if allowedCountries is empty or contains countryCode
+    if (countryCode && String(countryCode).trim()) {
+      const code = String(countryCode).trim().toUpperCase();
+      query.$and = [
+        {
+          $or: [
+            { allowedCountries: { $exists: false } },
+            { allowedCountries: { $size: 0 } },
+            { allowedCountries: code }
+          ]
+        }
+      ];
+    }
+
+    const coupons = await Coupon.find(query).sort("-createdAt");
 
     res.json(coupons);
   } catch (err) {
@@ -152,7 +175,7 @@ exports.remove = async (req, res) => {
 // Validate coupon by code
 exports.validate = async (req, res) => {
   try {
-    const { code } = req.body;
+    const { code, countryCode } = req.body;
     let { subtotal } = req.body;
 
     console.log("\n=== COUPON VALIDATION START ===");
@@ -196,6 +219,18 @@ exports.validate = async (req, res) => {
 
     if (coupon.maxUses > 0 && coupon.used >= coupon.maxUses) {
       return res.status(400).json({ message: "Coupon usage limit reached" });
+    }
+
+    // Country restriction: if coupon has allowedCountries, request country must be in list
+    const allowedCountries = coupon.allowedCountries || [];
+    if (allowedCountries.length > 0) {
+      const reqCountry = countryCode ? String(countryCode).trim().toUpperCase() : "";
+      if (!reqCountry) {
+        return res.status(400).json({ message: "Country is required to use this coupon" });
+      }
+      if (!allowedCountries.includes(reqCountry)) {
+        return res.status(400).json({ message: "This coupon is not valid for your selected country" });
+      }
     }
 
     // Fetch cart securely

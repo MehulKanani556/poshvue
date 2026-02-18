@@ -101,16 +101,17 @@ function Cart() {
     };
     fetchCart();
 
-    // fetch active coupons for dropdown
+    // fetch active coupons for dropdown (filtered by selected country)
     (async () => {
       try {
-        const res = await client.get("/commerce/coupons/active");
+        const params = selectedCountry?.code ? { countryCode: selectedCountry.code } : {};
+        const res = await client.get("/commerce/coupons/active", { params });
         setAvailableCoupons(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error("Failed to fetch coupons for cart:", err);
       }
     })();
-  }, []);
+  }, [selectedCountry?.code]);
 
   // Update quantity for a specific variant (product + size + color)
   const updateQty = async ({ productId, size, color }, qty) => {
@@ -195,6 +196,7 @@ function Cart() {
       const res = await client.post("/commerce/coupons/validate", {
         code: couponCode.trim(),
         subtotal: subTotal,
+        countryCode: selectedCountry?.code || undefined,
       });
 
       if (res.data && res.data.valid) {

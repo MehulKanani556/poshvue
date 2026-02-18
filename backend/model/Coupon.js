@@ -25,6 +25,8 @@ const CouponSchema = new mongoose.Schema(
     maxUses: { type: Number, default: 0 },
     used: { type: Number, default: 0 },
     active: { type: Boolean, default: true },
+    // Country codes (e.g. 'IN', 'SG') where coupon is valid. Empty = valid for all countries.
+    allowedCountries: { type: [String], default: [] },
   },
   { timestamps: true }
 );
