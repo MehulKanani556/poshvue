@@ -160,7 +160,7 @@ function SimiliarPro({ items, productId, category }) {
   };
 
   return (
-    <div className="similiar-products my-5">
+    <div className="similiar-products my-md-5 my-2">
       <style>{`
         .similiar-row::-webkit-scrollbar { display: none; }
         .similiar-row { 

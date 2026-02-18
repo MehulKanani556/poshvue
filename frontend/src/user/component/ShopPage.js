@@ -43,7 +43,7 @@ const ShopPage = () => {
     Occasion: [],
     Work: [],
     Style: [],
-    Discount: [],
+    // Discount: [],
   });
 
   // Fetch wishlist (with auth header if available)
@@ -202,7 +202,7 @@ const ShopPage = () => {
     { label: "NEWEST", value: "NEWEST" },
     { label: "PRICE: LOW TO HIGH", value: "PRICE_LOW_HIGH" },
     { label: "PRICE: HIGH TO LOW", value: "PRICE_HIGH_LOW" },
-    { label: "DISCOUNT", value: "DISCOUNT" },
+    // { label: "DISCOUNT", value: "DISCOUNT" },
   ];
 
   useEffect(() => {
@@ -275,7 +275,7 @@ const ShopPage = () => {
       Occasion: occasions,
       Work: works,
       Style: styles,
-      Discount: discounts,
+      // Discount: discounts,
     });
   }, [allProducts]);
 
@@ -371,7 +371,7 @@ const ShopPage = () => {
     "Occasion",
     "Work",
     "Style",
-    "Discount",
+    // "Discount",
   ];
 
   // UPDATED LOGIC: Maintain only 2 open categories
@@ -456,15 +456,15 @@ const ShopPage = () => {
       list = list.filter((p) => p.productType && setSel.has(p.productType));
     }
 
-    if (hasSel("Discount")) {
-      const thresholds = selectedFilters["Discount"]
-        .map((s) => parseInt(String(s).replace("%", ""), 10))
-        .filter((n) => !isNaN(n));
-      const minThreshold = thresholds.length ? Math.min(...thresholds) : null;
-      if (minThreshold !== null) {
-        list = list.filter((p) => (p.discountPercent || 0) >= minThreshold);
-      }
-    }
+    // if (hasSel("Discount")) {
+    //   const thresholds = selectedFilters["Discount"]
+    //     .map((s) => parseInt(String(s).replace("%", ""), 10))
+    //     .filter((n) => !isNaN(n));
+    //   const minThreshold = thresholds.length ? Math.min(...thresholds) : null;
+    //   if (minThreshold !== null) {
+    //     list = list.filter((p) => (p.discountPercent || 0) >= minThreshold);
+    //   }
+    // }
 
     // Filter by category name if categoryFilter is set
     if (categoryFilter) {
@@ -494,8 +494,8 @@ const ShopPage = () => {
           return priceA - priceB;
         case "PRICE_HIGH_LOW":
           return priceB - priceA;
-        case "DISCOUNT":
-          return (b.discountPercent || 0) - (a.discountPercent || 0);
+        // case "DISCOUNT":
+        //   return (b.discountPercent || 0) - (a.discountPercent || 0);
         case "NEWEST":
         default:
           return (
@@ -746,7 +746,7 @@ const ShopPage = () => {
               { label: "NEWEST", value: "NEWEST" },
               { label: "PRICE: LOW TO HIGH", value: "PRICE_LOW_HIGH" },
               { label: "PRICE: HIGH TO LOW", value: "PRICE_HIGH_LOW" },
-              { label: "DISCOUNT", value: "DISCOUNT" },
+              // { label: "DISCOUNT", value: "DISCOUNT" },
             ].map((opt) => (
               <div
                 key={opt.value}
@@ -835,7 +835,7 @@ const ShopPage = () => {
                   { label: "NEWEST", value: "NEWEST" },
                   { label: "PRICE: LOW TO HIGH", value: "PRICE_LOW_HIGH" },
                   { label: "PRICE: HIGH TO LOW", value: "PRICE_HIGH_LOW" },
-                  { label: "DISCOUNT", value: "DISCOUNT" },
+                  // { label: "DISCOUNT", value: "DISCOUNT" },
                 ].map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     SORT: {opt.label}
