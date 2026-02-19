@@ -607,7 +607,7 @@ const TrackOrder = () => {
                         const currencyInfo = getCurrencyInfo(order.country || 'IN');
                         return (
                           <option key={order._id} value={order._id}>
-                            Order #{order._id.slice(-6)} - {currencyInfo.symbol}{order.total} - {new Date(order.createdAt).toLocaleDateString()} - {order.status}
+                            Order #{order._id.slice(-6)} - {new Date(order.createdAt).toLocaleDateString()} - {order.status}
                           </option>
                         );
                       })}
@@ -758,11 +758,8 @@ const TrackOrder = () => {
                       <tbody>
                         {orderData.order.items?.map((item, index) => {
                           const currencyInfo = getOrderCurrencyInfo();
-                          const convertedPrice = convertPrice(item.price);
-                          console.log('Item conversion:', {
+                          console.log('Item price (no conversion):', {
                             originalPrice: item.price,
-                            countryCode: orderData?.order?.country,
-                            convertedPrice,
                             currencyInfo
                           });
                           return (
@@ -773,29 +770,74 @@ const TrackOrder = () => {
                                 {item.color && ` (Color: ${item.color})`}
                               </td>
                               <td>{item.qty || item.quantity}</td>
-                              <td>{currencyInfo.symbol}{convertedPrice.toFixed(2)}</td>
+                              <td>{currencyInfo.symbol}{item.price.toFixed(2)}</td>
                             </tr>
                           );
                         })}
                       </tbody>
                       <tfoot>
+                        {/* Product Total */}
                         <tr>
-                          <td colSpan="2" className="text-end fw-bold">Total:</td>
+                          <td colSpan="2" className="text-end fw-bold">Product Total:</td>
                           <td className="fw-bold">
                             {(() => {
                               const currencyInfo = getOrderCurrencyInfo();
-                              const convertedTotal = convertPrice(orderData.order.total);
-                              console.log('Total conversion:', {
-                                originalTotal: orderData.order.total,
-                                countryCode: orderData?.order?.country,
-                                convertedTotal,
-                                currencyInfo
-                              });
-                              return `${currencyInfo.symbol}${convertedTotal.toFixed(2)}`;
+
+                              const productTotal =
+                                orderData.order.items?.reduce((sum, item) => {
+                                  const qty = item.qty ?? item.quantity ?? 1;
+                                  return sum + item.price * qty;
+                                }, 0) || 0;
+
+                              return `${currencyInfo.symbol}${productTotal.toFixed(2)}`;
+                            })()}
+                          </td>
+                        </tr>
+
+                        {/* Shipping Charges */}
+                        {orderData.order.shippingCharges > 0 && (
+                          <tr>
+                            <td colSpan="2" className="text-end fw-bold">Shipping Charges:</td>
+                            <td className="fw-bold">
+                              {(() => {
+                                const currencyInfo = getOrderCurrencyInfo();
+                                const shippingCharges =
+                                  orderData.order.originalData?.shippingCharges ??
+                                  orderData.order.shippingCharges ??
+                                  0;
+
+                                return `${currencyInfo.symbol}${shippingCharges.toFixed(2)}`;
+                              })()}
+                            </td>
+                          </tr>
+                        )}
+
+                        {/* Grand Total = Product Total + Shipping */}
+                        <tr>
+                          <td colSpan="2" className="text-end fw-bold">Grand Total:</td>
+                          <td className="fw-bold">
+                            {(() => {
+                              const currencyInfo = getOrderCurrencyInfo();
+
+                              const productTotal =
+                                orderData.order.items?.reduce((sum, item) => {
+                                  const qty = item.qty ?? item.quantity ?? 1;
+                                  return sum + item.price * qty;
+                                }, 0) || 0;
+
+                              const shippingCharges =
+                                orderData.order.originalData?.shippingCharges ??
+                                orderData.order.shippingCharges ??
+                                0;
+
+                              const grandTotal = productTotal + shippingCharges;
+
+                              return `${currencyInfo.symbol}${grandTotal.toFixed(2)}`;
                             })()}
                           </td>
                         </tr>
                       </tfoot>
+
                     </table>
                   </div>
 
