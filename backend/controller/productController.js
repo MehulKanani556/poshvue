@@ -2,11 +2,10 @@
 const fs = require('fs');
 const path = require('path');
 const { promisify } = require('util');
-const writeFile = promisify(fs.writeFile);
-const mkdir = promisify(fs.mkdir);
 const unlink = promisify(fs.unlink);
 
 const { Product, Category, ShippingPolicy, Country } = require('../model');
+const { bufferToWebPAndUpload } = require('../middleware/upload');
 
 /* -------------------- Helpers -------------------- */
 
@@ -58,28 +57,11 @@ async function saveBase64Image(dataUrl) {
   const match = /^data:(image\/[a-zA-Z]+);base64,(.+)$/.exec(dataUrl);
   if (!match) throw new Error('Invalid image data');
 
-  const mime = match[1];
-  let ext = mime.split('/')[1];
-  if (ext === 'jpeg') ext = 'jpg';
-
   const buffer = Buffer.from(match[2], 'base64');
   const MAX_BYTES = 5 * 1024 * 1024;
+  if (buffer.length > MAX_BYTES) throw new Error('Image too large');
 
-  if (buffer.length > MAX_BYTES) {
-    throw new Error('Image too large');
-  }
-
-  const uploadDir = path.join(__dirname, '..', 'uploads', 'products');
-  await mkdir(uploadDir, { recursive: true });
-
-  const filename = `${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}.${ext}`;
-
-  const filePath = path.join(uploadDir, filename);
-  await writeFile(filePath, buffer);
-
-  return `/uploads/products/${filename}`;
+  return bufferToWebPAndUpload(buffer, 'products/', match[1]);
 }
 
 async function processImagesArray(images) {
@@ -90,14 +72,11 @@ async function processImagesArray(images) {
       const saved = await saveBase64Image(img);
       out.push(saved);
     } else if (typeof img === 'string') {
-      // Normalize absolute URLs to relative '/uploads/products/...'
+      // Keep S3/full URLs as-is; normalize legacy full URL to path for DB
       if (img.startsWith('http')) {
         const idx = img.indexOf('/uploads/products/');
-        if (idx !== -1) {
-          out.push(img.slice(idx));
-        } else {
-          out.push(img);
-        }
+        if (idx !== -1) out.push(img.slice(idx));
+        else out.push(img);
       } else {
         out.push(img);
       }
@@ -110,11 +89,8 @@ async function processImagesArray(images) {
 function makeAbsoluteImages(images, req) {
   if (!Array.isArray(images)) return images;
   const host = `${req.protocol}://${req.get('host')}`;
-
   return images.map((img) =>
-    typeof img === 'string' && img.startsWith('/uploads/')
-      ? host + img
-      : img
+    typeof img === 'string' && img.startsWith('/uploads/') ? host + img : img
   );
 }
 
@@ -276,7 +252,8 @@ exports.update = async (req, res) => {
     if (imagesProvided) {
       const oldImages = existing.images || [];
       const newImagesNormalized = (body.images || []).map((img) => {
-        if (typeof img === 'string' && img.startsWith('http')) {
+        if (typeof img !== 'string') return img;
+        if (img.startsWith('http')) {
           const idx = img.indexOf('/uploads/products/');
           return idx !== -1 ? img.slice(idx) : img;
         }

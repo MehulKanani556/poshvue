@@ -13,7 +13,7 @@ router.get('/blogs/:slug', blog.get);
 router.get('/reviews', review.list); // admin can filter by status
 router.get('/reviews/products-with-reviews', auth, requireRole('admin'), review.getProductsWithReviews); // get products with reviews grouped
 router.get('/reviews/reviewable-products', auth, review.getReviewableProducts); // get products user can review
-router.post('/reviews', auth, uploadReviewImages, review.create); // authenticated review creation with multer
+router.post('/reviews', auth, ...uploadReviewImages, review.create); // authenticated review creation with multer
 router.put('/reviews/:id/status', auth, requireRole('admin'), review.updateStatus); // admin moderate
 router.delete('/reviews/:id', auth, requireRole('admin'), review.remove);
 

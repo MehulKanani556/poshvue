@@ -179,7 +179,8 @@ function Cart() {
   const getImageUrl = (img) => {
     if (!img) return wishEmptyImg; // fallback
     if (img.startsWith("http")) return img;
-    return `http://localhost:5000${img}`;
+    const base = (process.env.REACT_APP_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "") || "http://localhost:5000";
+    return base + img;
   };
 
   // Validate and apply coupon

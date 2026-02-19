@@ -43,11 +43,11 @@ const Review = () => {
         const formattedProducts = products.map((product) => ({
           id: product.id,
           name: product.name,
-          image: product.image?.startsWith("http")
+          image: !product.image
+            ? "https://via.placeholder.com/100"
+            : product.image.startsWith("http")
             ? product.image
-            : product.image
-            ? `http://localhost:5000${product.image}`
-            : "https://via.placeholder.com/100",
+            : `${(process.env.REACT_APP_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "") || "http://localhost:5000"}${product.image}`,
         }));
         
         setPurchasedItems(formattedProducts);

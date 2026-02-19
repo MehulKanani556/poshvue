@@ -127,9 +127,9 @@ function Reviews() {
 
     const getImageUrl = (img) => {
         if (!img) return "";
-        if (img.startsWith("http")) return img;
-        if (img.startsWith("data:image")) return img;
-        return `http://localhost:5000${img}`;
+        if (img.startsWith("http") || img.startsWith("data:image")) return img;
+        const base = (process.env.REACT_APP_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "") || "http://localhost:5000";
+        return base + img;
     };
 
     if (loading) {

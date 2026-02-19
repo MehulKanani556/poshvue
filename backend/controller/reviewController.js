@@ -1,6 +1,4 @@
 const { Review, Order } = require('../model');
-const path = require('path');
-const fs = require('fs').promises;
 
 function mapAdminToReview(payload) {
   const body = { ...payload };
@@ -44,110 +42,49 @@ exports.list = async (req, res) => {
   }
 };
 
-// Helper function to save base64 image
-async function saveBase64Image(dataUrl) {
-  const match = /^data:(image\/[a-zA-Z]+);base64,(.+)$/.exec(dataUrl);
-  if (!match) throw new Error('Invalid image data');
-
-  const mime = match[1];
-  let ext = mime.split('/')[1];
-  if (ext === 'jpeg') ext = 'jpg';
-
-  const buffer = Buffer.from(match[2], 'base64');
-  const MAX_BYTES = 5 * 1024 * 1024; // 5MB
-
-  if (buffer.length > MAX_BYTES) {
-    throw new Error('Image too large (max 5MB)');
-  }
-
-  const uploadDir = path.join(__dirname, '..', 'uploads', 'reviews');
-  await fs.mkdir(uploadDir, { recursive: true });
-
-  const filename = `review-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const filePath = path.join(uploadDir, filename);
-  await fs.writeFile(filePath, buffer);
-
-  return `/uploads/reviews/${filename}`;
-}
-
 exports.create = async (req, res) => {
   try {
     const body = mapAdminToReview(req.body);
-    
-    // Add user ID from auth token if available
-    if (req.user?.id) {
-      body.user = req.user.id;
-    }
-    
-    // Validate product ID is provided
+
+    if (req.user?.id) body.user = req.user.id;
+
     if (!body.product) {
       return res.status(400).json({ message: 'Product ID is required' });
     }
-    
-    // If user is logged in, verify they have ordered this product with completed payment
+
     if (req.user?.id) {
       const hasOrdered = await Order.findOne({
         user: req.user.id,
         'items.product': body.product,
         paymentStatus: 'completed'
       });
-      
       if (!hasOrdered) {
-        return res.status(403).json({ 
-          message: 'You can only review products you have purchased with completed payment' 
+        return res.status(403).json({
+          message: 'You can only review products you have purchased with completed payment'
         });
       }
     }
-    
-    // Handle multer uploaded files
-    let imagePaths = [];
-    if (req.files && req.files.length > 0) {
-      // Limit to 4 images
-      const files = req.files.slice(0, 4);
-      imagePaths = files.map(file => `/uploads/reviews/${file.filename}`);
-    }
-    
-    // Handle base64 images (for backward compatibility)
-    if (body.image && typeof body.image === 'string' && body.image.startsWith('data:')) {
-      try {
-        const savedPath = await saveBase64Image(body.image);
-        imagePaths.push(savedPath);
-      } catch (err) {
-        console.error('Error saving base64 image:', err);
-      }
-    }
-    
-    // Handle images array from base64
+
+    // All images (multipart or base64) are uploaded as WebP to S3 by middleware
+    let imagePaths = Array.isArray(req.uploadedImages) ? [...req.uploadedImages] : [];
     if (Array.isArray(body.images)) {
       for (const img of body.images.slice(0, 4 - imagePaths.length)) {
-        if (typeof img === 'string' && img.startsWith('data:')) {
-          try {
-            const savedPath = await saveBase64Image(img);
-            imagePaths.push(savedPath);
-          } catch (err) {
-            console.error('Error saving base64 image:', err);
-          }
-        } else if (typeof img === 'string' && !img.startsWith('data:')) {
-          // Already a path
-          imagePaths.push(img);
-        }
+        if (typeof img === 'string' && !img.startsWith('data:')) imagePaths.push(img);
       }
     }
-    
-    // Limit to 4 images total
     imagePaths = imagePaths.slice(0, 4);
-    
+
     // Set images array and legacy image field (for backward compatibility)
     if (imagePaths.length > 0) {
       body.images = imagePaths;
       body.image = imagePaths[0]; // First image as legacy field
     }
-    
+
     const item = await Review.create(body);
     const populatedItem = await Review.findById(item._id)
       .populate('product', 'title name images salePrice')
       .populate('user', 'name email');
-    
+
     return res.status(201).json({ item: populatedItem });
   } catch (err) {
     console.error('Review create error:', err);
@@ -186,7 +123,7 @@ exports.getProductsWithReviews = async (req, res) => {
       .populate('user', 'name email')
       .sort('-createdAt')
       .lean();
-    
+
     // Normalize images - use images array if available, fallback to image field
     reviews.forEach(review => {
       if (!review.images || review.images.length === 0) {
@@ -200,11 +137,11 @@ exports.getProductsWithReviews = async (req, res) => {
 
     // Group reviews by product
     const productMap = new Map();
-    
+
     reviews.forEach(review => {
       if (review.product && review.product._id) {
         const productId = review.product._id.toString();
-        
+
         if (!productMap.has(productId)) {
           // Handle images - could be array or string
           let productImage = '';
@@ -215,10 +152,10 @@ exports.getProductsWithReviews = async (req, res) => {
               productImage = review.product.images;
             }
           }
-          
+
           // Use title (primary) or name (fallback) for product name
           const productName = review.product.title || review.product.name || 'Unknown Product';
-          
+
           productMap.set(productId, {
             _id: review.product._id,
             name: productName,
@@ -228,7 +165,7 @@ exports.getProductsWithReviews = async (req, res) => {
             reviews: []
           });
         }
-        
+
         const product = productMap.get(productId);
         product.reviewCount += 1;
         // Normalize images - use images array if available, fallback to image field
@@ -236,7 +173,7 @@ exports.getProductsWithReviews = async (req, res) => {
         if (reviewImages.length === 0 && review.image) {
           reviewImages = [review.image];
         }
-        
+
         product.reviews.push({
           _id: review._id,
           rating: review.rating,
@@ -286,12 +223,12 @@ exports.getReviewableProducts = async (req, res) => {
 
     // Extract unique products that user has ordered
     const productMap = new Map();
-    
+
     orders.forEach(order => {
       order.items.forEach(item => {
         if (item.product && item.product._id) {
           const productId = item.product._id.toString();
-          
+
           // Check if user has already reviewed this product
           if (!productMap.has(productId)) {
             // Handle images - could be array or string
@@ -303,7 +240,7 @@ exports.getReviewableProducts = async (req, res) => {
                 productImage = item.product.images;
               }
             }
-            
+
             productMap.set(productId, {
               _id: item.product._id,
               name: item.product.name || item.name,
