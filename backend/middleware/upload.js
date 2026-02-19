@@ -1,24 +1,9 @@
+const { processAndUploadImage, uploadMultipleImages } = require('../utils/awsUpload');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, '..', 'uploads', 'reviews');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Configure storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, `review-${uniqueSuffix}${ext}`);
-  }
-});
+// Configure multer for memory storage (temporary)
+const storage = multer.memoryStorage();
 
 // File filter - only images
 const fileFilter = (req, file, cb) => {
@@ -43,6 +28,82 @@ const uploadReviewImages = multer({
   fileFilter: fileFilter
 });
 
+// Multer configuration for products - max 10 images, 5MB each
+const uploadProductImages = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB per file
+    files: 10 // Max 10 files for products
+  },
+  fileFilter: fileFilter
+});
+
+/**
+ * Middleware to handle AWS S3 upload with WebP conversion
+ * This middleware should be used after multer middleware
+ */
+const uploadToS3 = async (req, res, next) => {
+  try {
+    console.log('UploadToS3 middleware - req.files:', req.files ? req.files.length : 'undefined');
+    
+    if (!req.files || req.files.length === 0) {
+      console.log('No files to upload, proceeding to next middleware');
+      return next();
+    }
+
+    console.log('Processing', req.files.length, 'files for S3 upload');
+    
+    // Process uploaded files and upload to S3 with WebP conversion
+    const s3Urls = await uploadMultipleImages(req.files, 'reviews');
+    
+    console.log('S3 upload successful, URLs:', s3Urls);
+    
+    // Replace file information with S3 URLs
+    req.s3FileUrls = s3Urls;
+    req.files = undefined; // Clear multer files to free memory
+    
+    next();
+  } catch (error) {
+    console.error('Error uploading to S3:', error);
+    console.error('Error details:', error.stack);
+    return res.status(500).json({ message: 'Failed to upload images', error: error.message });
+  }
+};
+
+/**
+ * Middleware to handle AWS S3 upload for products
+ */
+const uploadProductsToS3 = async (req, res, next) => {
+  try {
+    console.log('UploadProductsToS3 middleware - req.files:', req.files ? req.files.length : 'undefined');
+    
+    if (!req.files || req.files.length === 0) {
+      console.log('No files to upload, proceeding to next middleware');
+      return next();
+    }
+
+    console.log('Processing', req.files.length, 'product images for S3 upload');
+    
+    // Process uploaded files and upload to S3 with WebP conversion
+    const s3Urls = await uploadMultipleImages(req.files, 'products');
+    
+    console.log('Product S3 upload successful, URLs:', s3Urls);
+    
+    // Replace file information with S3 URLs
+    req.s3FileUrls = s3Urls;
+    req.files = undefined; // Clear multer files to free memory
+    
+    next();
+  } catch (error) {
+    console.error('Error uploading products to S3:', error);
+    console.error('Error details:', error.stack);
+    return res.status(500).json({ message: 'Failed to upload product images', error: error.message });
+  }
+};
+
 module.exports = {
-  uploadReviewImages: uploadReviewImages.array('images', 4) // 'images' is the field name, max 4 files
+  uploadReviewImages: uploadReviewImages.array('images', 4), // 'images' is the field name, max 4 files
+  uploadProductImages: uploadProductImages.array('images', 10), // 'images' is the field name, max 10 files
+  uploadToS3,
+  uploadProductsToS3
 };

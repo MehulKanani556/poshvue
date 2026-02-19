@@ -1,6 +1,5 @@
 const { Review, Order } = require('../model');
-const path = require('path');
-const fs = require('fs').promises;
+const { uploadBase64Image } = require('../utils/awsUpload');
 
 function mapAdminToReview(payload) {
   const body = { ...payload };
@@ -44,30 +43,14 @@ exports.list = async (req, res) => {
   }
 };
 
-// Helper function to save base64 image
+// Helper function to save base64 image to AWS S3
 async function saveBase64Image(dataUrl) {
-  const match = /^data:(image\/[a-zA-Z]+);base64,(.+)$/.exec(dataUrl);
-  if (!match) throw new Error('Invalid image data');
-
-  const mime = match[1];
-  let ext = mime.split('/')[1];
-  if (ext === 'jpeg') ext = 'jpg';
-
-  const buffer = Buffer.from(match[2], 'base64');
-  const MAX_BYTES = 5 * 1024 * 1024; // 5MB
-
-  if (buffer.length > MAX_BYTES) {
-    throw new Error('Image too large (max 5MB)');
+  try {
+    return await uploadBase64Image(dataUrl, 'reviews');
+  } catch (error) {
+    console.error('Error uploading base64 image to S3:', error);
+    throw error;
   }
-
-  const uploadDir = path.join(__dirname, '..', 'uploads', 'reviews');
-  await fs.mkdir(uploadDir, { recursive: true });
-
-  const filename = `review-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const filePath = path.join(uploadDir, filename);
-  await fs.writeFile(filePath, buffer);
-
-  return `/uploads/reviews/${filename}`;
 }
 
 exports.create = async (req, res) => {
@@ -99,12 +82,15 @@ exports.create = async (req, res) => {
       }
     }
     
-    // Handle multer uploaded files
+    // Handle AWS S3 uploaded files
     let imagePaths = [];
-    if (req.files && req.files.length > 0) {
+    console.log('Review controller - req.s3FileUrls:', req.s3FileUrls);
+    console.log('Review controller - req.files:', req.files);
+    
+    if (req.s3FileUrls && req.s3FileUrls.length > 0) {
       // Limit to 4 images
-      const files = req.files.slice(0, 4);
-      imagePaths = files.map(file => `/uploads/reviews/${file.filename}`);
+      imagePaths = req.s3FileUrls.slice(0, 4);
+      console.log('Using S3 URLs:', imagePaths);
     }
     
     // Handle base64 images (for backward compatibility)

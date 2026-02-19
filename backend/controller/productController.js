@@ -5,6 +5,7 @@ const { promisify } = require('util');
 const writeFile = promisify(fs.writeFile);
 const mkdir = promisify(fs.mkdir);
 const unlink = promisify(fs.unlink);
+const { uploadBase64Image } = require('../utils/awsUpload');
 
 const { Product, Category, ShippingPolicy, Country } = require('../model');
 
@@ -55,31 +56,12 @@ function mapAdminToProduct(payload) {
 }
 
 async function saveBase64Image(dataUrl) {
-  const match = /^data:(image\/[a-zA-Z]+);base64,(.+)$/.exec(dataUrl);
-  if (!match) throw new Error('Invalid image data');
-
-  const mime = match[1];
-  let ext = mime.split('/')[1];
-  if (ext === 'jpeg') ext = 'jpg';
-
-  const buffer = Buffer.from(match[2], 'base64');
-  const MAX_BYTES = 5 * 1024 * 1024;
-
-  if (buffer.length > MAX_BYTES) {
-    throw new Error('Image too large');
+  try {
+    return await uploadBase64Image(dataUrl, 'products');
+  } catch (error) {
+    console.error('Error uploading base64 image to S3:', error);
+    throw error;
   }
-
-  const uploadDir = path.join(__dirname, '..', 'uploads', 'products');
-  await mkdir(uploadDir, { recursive: true });
-
-  const filename = `${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}.${ext}`;
-
-  const filePath = path.join(uploadDir, filename);
-  await writeFile(filePath, buffer);
-
-  return `/uploads/products/${filename}`;
 }
 
 async function processImagesArray(images) {
@@ -90,14 +72,9 @@ async function processImagesArray(images) {
       const saved = await saveBase64Image(img);
       out.push(saved);
     } else if (typeof img === 'string') {
-      // Normalize absolute URLs to relative '/uploads/products/...'
+      // Keep S3 URLs as-is
       if (img.startsWith('http')) {
-        const idx = img.indexOf('/uploads/products/');
-        if (idx !== -1) {
-          out.push(img.slice(idx));
-        } else {
-          out.push(img);
-        }
+        out.push(img);
       } else {
         out.push(img);
       }
@@ -114,7 +91,7 @@ function makeAbsoluteImages(images, req) {
   return images.map((img) =>
     typeof img === 'string' && img.startsWith('/uploads/')
       ? host + img
-      : img
+      : img // Keep S3 URLs as-is
   );
 }
 
@@ -223,13 +200,33 @@ async function ensureBasePriceFromCountry(body) {
     : Number((body.price - body.price * (body.discountPercent / 100)).toFixed(2));
 }
 
-// exports.create = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const body = mapAdminToProduct(req.body);
 
-    if (Array.isArray(body.images)) {
-      body.images = await processImagesArray(body.images);
+    // Handle AWS S3 uploaded files
+    let imagePaths = [];
+    console.log('Product controller - req.s3FileUrls:', req.s3FileUrls);
+    console.log('Product controller - req.files:', req.files);
+
+    if (req.s3FileUrls && req.s3FileUrls.length > 0) {
+      // Limit to 10 images for products
+      imagePaths = req.s3FileUrls.slice(0, 10);
+      console.log('Using S3 URLs for products:', imagePaths);
+    }
+
+    // Handle base64 images (for backward compatibility)
+    if (body.images && Array.isArray(body.images)) {
+      const processedImages = await processImagesArray(body.images);
+      imagePaths.push(...processedImages);
+    }
+
+    // Limit to 10 images total and remove duplicates
+    imagePaths = [...new Set(imagePaths)].slice(0, 10);
+
+    // Set images array
+    if (imagePaths.length > 0) {
+      body.images = imagePaths;
     }
 
     await resolveCategory(body);
@@ -272,26 +269,11 @@ exports.update = async (req, res) => {
       { new: true }
     ).populate('categories');
 
-    // ✅ delete only when images explicitly updated (normalize new images for compare)
+    // ✅ Note: With S3, we don't need to delete local files anymore
+    // Old images will remain in S3 - you may want to implement S3 cleanup later if needed
     if (imagesProvided) {
-      const oldImages = existing.images || [];
-      const newImagesNormalized = (body.images || []).map((img) => {
-        if (typeof img === 'string' && img.startsWith('http')) {
-          const idx = img.indexOf('/uploads/products/');
-          return idx !== -1 ? img.slice(idx) : img;
-        }
-        return img;
-      });
-      const prefix = '/uploads/products/';
-
-      for (const img of oldImages) {
-        if (img.startsWith(prefix) && !newImagesNormalized.includes(img)) {
-          const filePath = path.join(__dirname, '..', img);
-          try {
-            await unlink(filePath);
-          } catch (e) {}
-        }
-      }
+      // No local file cleanup needed with S3
+      console.log('Images updated, S3 handles storage automatically');
     }
 
     const obj = updated.toObject();
