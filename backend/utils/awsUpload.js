@@ -2,6 +2,7 @@ const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
 const sharp = require('sharp');
 const crypto = require('crypto');
+const { getEMACacheHeaders } = require('./cloudfrontConfig');
 
 // Initialize S3 client
 const s3Client = new S3Client({
@@ -13,6 +14,20 @@ const s3Client = new S3Client({
 });
 
 const S3_BUCKET = process.env.AWS_S3_BUCKET;
+const CLOUDFRONT_DOMAIN = process.env.AWS_CLOUDFRONT_DOMAIN; // e.g., d1234567890.cloudfront.net
+
+/**
+ * Get CloudFront CDN URL or fallback to S3 URL
+ * @param {string} s3Key - S3 object key
+ * @returns {string} - CloudFront URL or S3 URL as fallback
+ */
+function getCdnUrl(s3Key) {
+  if (CLOUDFRONT_DOMAIN) {
+    return `https://${CLOUDFRONT_DOMAIN}/${s3Key}`;
+  }
+  // Fallback to S3 URL if CloudFront not configured
+  return `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${s3Key}`;
+}
 
 /**
  * Convert image buffer to WebP format using Sharp
@@ -39,21 +54,23 @@ async function convertToWebp(buffer) {
 function generateFilename(originalName, prefix = 'image') {
   const timestamp = Date.now();
   const random = crypto.randomBytes(4).toString('hex');
-  // Use a simple prefix instead of folder name to avoid duplication in URL
-  const cleanPrefix = prefix === 'products' || prefix === 'reviews' ? 'img' : prefix;
-  return `${cleanPrefix}-${timestamp}-${random}.webp`;
+  return `${prefix}-${timestamp}-${random}.webp`;
 }
 
 /**
- * Upload image to AWS S3 with WebP conversion
+ * Upload image to AWS S3 with WebP conversion and CDN caching
  * @param {Buffer} buffer - Image buffer
  * @param {string} filename - Filename for S3
  * @param {string} folder - S3 folder path
- * @returns {Promise<string>} - S3 URL of uploaded image
+ * @returns {Promise<string>} - CDN URL of uploaded image
  */
 async function uploadToS3(buffer, filename, folder = 'uploads') {
   try {
     const key = `${folder}/${filename}`;
+    
+    // Generate cache-busting query string for EMA (Edge-Memory Acceleration)
+    const timestamp = Date.now();
+    const cacheKey = `${timestamp}-${crypto.randomBytes(4).toString('hex')}`;
     
     const upload = new Upload({
       client: s3Client,
@@ -62,14 +79,23 @@ async function uploadToS3(buffer, filename, folder = 'uploads') {
         Key: key,
         Body: buffer,
         ContentType: 'image/webp',
-        CacheControl: 'max-age=31536000', // 1 year cache
+        CacheControl: 'max-age=31536000, immutable', // 1 year cache, immutable
+        Metadata: {
+          'cache-key': cacheKey,
+          'ema-enabled': 'true',
+          'cdn-ttl': '31536000', // 1 year TTL for CDN edge caching
+          'content-type': 'image/webp'
+        },
+        // Apply EMA cache headers
+        ...getEMACacheHeaders('image/webp')
       },
     });
 
     await upload.done();
     
-    // Return the S3 URL
-    return `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
+    // Return the CDN URL with cache-busting for EMA
+    const cdnUrl = getCdnUrl(key);
+    return `${cdnUrl}?v=${cacheKey}`;
   } catch (error) {
     console.error('Error uploading to S3:', error);
     throw new Error('Failed to upload image to S3');

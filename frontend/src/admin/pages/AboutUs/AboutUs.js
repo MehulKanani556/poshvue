@@ -2,6 +2,15 @@ import React, { useState, useEffect } from "react";
 import { FiEdit2, FiSave, FiEye, FiPlus, FiTrash2 } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
 
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(file);
+  });
+}
+
 function AboutUs() {
   const [aboutUs, setAboutUs] = useState({
     heroHeader: { title: '', subtitle: '' },
@@ -25,58 +34,64 @@ function AboutUs() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [mode, setMode] = useState('edit');
+  const [ourStoryImagePreview, setOurStoryImagePreview] = useState(null);
 
   useEffect(() => {
-   const fetchAboutUs = async () => {
-  try {
-    setLoading(true);
-    const res = await adminClient.get("/about-us");
+    const fetchAboutUs = async () => {
+      try {
+        setLoading(true);
+        const res = await adminClient.get("/about-us");
 
-    const data = res.data || {};
+        const data = res.data || {};
 
-    setAboutUs({
-      heroHeader: data.heroHeader || { title: "", subtitle: "" },
+        setAboutUs({
+          heroHeader: data.heroHeader || { title: "", subtitle: "" },
 
-      ourStory: {
-        image: data.ourStory?.image || "",
-        subtitle: data.ourStory?.subtitle || "",
-        title: data.ourStory?.title || "",
+          ourStory: {
+            image: data.ourStory?.image || "",
+            subtitle: data.ourStory?.subtitle || "",
+            title: data.ourStory?.title || "",
 
-        // ✅ FORCE ARRAY
-        description: Array.isArray(data.ourStory?.description)
-          ? data.ourStory.description
-          : data.ourStory?.description
-          ? [data.ourStory.description]
-          : [""],
+            // FORCE ARRAY
+            description: Array.isArray(data.ourStory?.description)
+              ? data.ourStory.description
+              : data.ourStory?.description
+              ? [data.ourStory.description]
+              : [""],
 
-        stats: Array.isArray(data.ourStory?.stats)
-          ? data.ourStory.stats
-          : [],
-      },
+            stats: Array.isArray(data.ourStory?.stats)
+              ? data.ourStory.stats
+              : [],
+          },
 
-      whyChooseUs: Array.isArray(data.whyChooseUs)
-        ? data.whyChooseUs
-        : [],
+          whyChooseUs: Array.isArray(data.whyChooseUs)
+            ? data.whyChooseUs
+            : [],
 
-      visionSection: data.visionSection || {
-        quoteIcon: "",
-        subtitle: "",
-        visionText: "",
-        buttonText: "",
-      },
+          visionSection: data.visionSection || {
+            quoteIcon: "",
+            subtitle: "",
+            visionText: "",
+            buttonText: "",
+          },
 
-      experienceBanner: data.experienceBanner || {
-        icon: "",
-        title: "",
-        description: "",
-      },
-    });
-  } catch (err) {
-    setError("Failed to load about us content");
-  } finally {
-    setLoading(false);
-  }
-};
+          experienceBanner: data.experienceBanner || {
+            icon: "",
+            title: "",
+            description: "",
+          },
+        });
+
+        // Set image preview if ourStory image exists
+        if (data.ourStory?.image) {
+          setOurStoryImagePreview(data.ourStory.image);
+        }
+      } catch (err) {
+        setError("Failed to load about us content");
+      } finally {
+        setLoading(false);
+      }
+    };
 
     fetchAboutUs();
   }, []);
@@ -84,7 +99,15 @@ function AboutUs() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      await adminClient.put("/about-us", aboutUs);
+
+      const payload = { ...aboutUs };
+
+      // Handle ourStory image: convert file object to base64 if needed
+      if (payload.ourStory.image && typeof payload.ourStory.image === 'object' && payload.ourStory.image.file) {
+        payload.ourStory.image = await fileToDataUrl(payload.ourStory.image.file);
+      }
+
+      await adminClient.put("/about-us", payload);
       // alert("About Us content updated successfully");
     } catch (err) {
       setError("Failed to save content");
@@ -94,75 +117,110 @@ function AboutUs() {
   };
 
   const handleInputChange = (
-  section,
-  field,
-  value,
-  index = null,
-  subField = null
-) => {
-  setAboutUs(prev => {
-    // 🔹 OUR STORY
-    if (section === "ourStory") {
-      // Description array
-      if (field === "description" && index !== null) {
-        const updatedDesc = [...prev.ourStory.description];
-        updatedDesc[index] = value;
-
-        return {
-          ...prev,
-          ourStory: {
-            ...prev.ourStory,
-            description: updatedDesc,
-          },
-        };
-      }
-
-      // Stats array
-      if (field === "stats" && index !== null) {
-        const updatedStats = [...prev.ourStory.stats];
-        updatedStats[index] = {
-          ...updatedStats[index],
-          [subField]: value,
-        };
-
-        return {
-          ...prev,
-          ourStory: {
-            ...prev.ourStory,
-            stats: updatedStats,
-          },
-        };
-      }
-
-      // Normal ourStory fields
-      return {
+    section,
+    field,
+    value,
+    index = null,
+    subField = null,
+    isFile = false
+  ) => {
+    // Handle file upload for ourStory image
+    if (section === "ourStory" && field === "image" && isFile && value && value.file) {
+      const preview = URL.createObjectURL(value.file);
+      setOurStoryImagePreview(preview);
+      setAboutUs(prev => ({
         ...prev,
         ourStory: {
           ...prev.ourStory,
+          image: { file: value.file, preview }
+        }
+      }));
+      return;
+    }
+
+    setAboutUs(prev => {
+      // OUR STORY
+      if (section === "ourStory") {
+        // Description array
+        if (field === "description" && index !== null) {
+          const updatedDesc = [...prev.ourStory.description];
+          updatedDesc[index] = value;
+
+          return {
+            ...prev,
+            ourStory: {
+              ...prev.ourStory,
+              description: updatedDesc,
+            },
+          };
+        }
+
+        // Stats array
+        if (field === "stats" && index !== null) {
+          const updatedStats = [...prev.ourStory.stats];
+          updatedStats[index] = {
+            ...updatedStats[index],
+            [subField]: value,
+          };
+
+          return {
+            ...prev,
+            ourStory: {
+              ...prev.ourStory,
+              stats: updatedStats,
+            },
+          };
+        }
+
+        // Normal ourStory fields
+        return {
+          ...prev,
+          ourStory: {
+            ...prev.ourStory,
+            [field]: value,
+          },
+        };
+      }
+
+      // WHY CHOOSE US (array)
+      if (section === "whyChooseUs" && index !== null) {
+        const updated = [...prev.whyChooseUs];
+        updated[index] = { ...updated[index], [field]: value };
+
+        return { ...prev, whyChooseUs: updated };
+      }
+
+      // OTHER OBJECT SECTIONS
+      return {
+        ...prev,
+        [section]: {
+          ...prev[section],
           [field]: value,
         },
       };
+    });
+  };
+
+  const handleOurStoryImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      handleInputChange('ourStory', 'image', { file }, null, null, true);
     }
+  };
 
-    // 🔹 WHY CHOOSE US (array)
-    if (section === "whyChooseUs" && index !== null) {
-      const updated = [...prev.whyChooseUs];
-      updated[index] = { ...updated[index], [field]: value };
-
-      return { ...prev, whyChooseUs: updated };
+  const removeOurStoryImage = () => {
+    if (ourStoryImagePreview && aboutUs.ourStory.image && typeof aboutUs.ourStory.image === 'object') {
+      URL.revokeObjectURL(ourStoryImagePreview);
     }
-
-    // 🔹 OTHER OBJECT SECTIONS
-    return {
+    setOurStoryImagePreview(null);
+    setAboutUs(prev => ({
       ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: value,
-      },
-    };
-  });
-};
-
+      ourStory: {
+        ...prev.ourStory,
+        image: null
+      }
+    }));
+  };
 
   const addItem = (section) => {
     if (section === 'whyChooseUs') {
@@ -770,13 +828,56 @@ function AboutUs() {
             <div className="x_card_body">
               <div className="grid_2">
                 <div className="x_form_group">
-                  <label>Image URL</label>
+                  <label>Story Image</label>
                   <input
-                    type="text"
-                    placeholder="https://example.com/story-image.jpg"
-                    value={aboutUs.ourStory.image}
-                    onChange={(e) => handleInputChange('ourStory', 'image', e.target.value)}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleOurStoryImageUpload}
+                    className="x_form-control"
                   />
+                  {(ourStoryImagePreview || aboutUs.ourStory.image) && (
+                    <div style={{ 
+                      marginTop: "10px", 
+                      position: "relative",
+                      width: "150px",
+                      height: "150px"
+                    }}>
+                      <img
+                        src={ourStoryImagePreview || (typeof aboutUs.ourStory.image === 'string' ? aboutUs.ourStory.image : aboutUs.ourStory.image?.preview)}
+                        alt="Story preview"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          borderRadius: "6px",
+                          border: "1px solid #ddd",
+                          display: "block"
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={removeOurStoryImage}
+                        style={{
+                          position: "absolute",
+                          top: "-8px",
+                          right: "-8px",
+                          backgroundColor: "#ff4444",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "50%",
+                          width: "20px",
+                          height: "20px",
+                          cursor: "pointer",
+                          fontSize: "12px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="x_form_group">
                   <label>Subtitle</label>

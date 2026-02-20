@@ -3,6 +3,15 @@ import { FiEdit2, FiTrash2, FiPlus } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
 import Modal from "../../components/Modal";
 
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(file);
+  });
+}
+
 function Categories() {
   const [categories, setCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -18,6 +27,7 @@ function Categories() {
     image: null,
     status: "Active",
   });
+  const [imagePreview, setImagePreview] = useState(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -51,12 +61,33 @@ function Categories() {
   }, []);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, files } = e.target;
+
+    if (type === "file" && files && files[0]) {
+      const file = files[0];
+      const preview = URL.createObjectURL(file);
+      setImagePreview(preview);
+      setFormData((prev) => ({ ...prev, image: { file, preview } }));
+      return;
+    }
+
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const removeImage = () => {
+    if (imagePreview && formData.image && typeof formData.image === 'object') {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setImagePreview(null);
+    setFormData((prev) => ({ ...prev, image: null }));
+  };
+
   const resetForm = () => {
+    if (imagePreview && formData.image && typeof formData.image === 'object') {
+      URL.revokeObjectURL(imagePreview);
+    }
     setFormData({ name: "", description: "", image: null, status: "Active" });
+    setImagePreview(null);
     setEditingId(null);
     setShowModal(false);
   };
@@ -66,11 +97,18 @@ function Categories() {
     try {
       setLoading(true);
       setError("");
+      const payload = { ...formData };
+
+      // Handle image: existing URL preserved, file object converted to base64
+      if (payload.image && typeof payload.image === 'object' && payload.image.file) {
+        payload.image = await fileToDataUrl(payload.image.file);
+      }
+
       if (editingId) {
-        const res = await adminClient.put(`/catalog/categories/${editingId}`, formData);
+        const res = await adminClient.put(`/catalog/categories/${editingId}`, payload);
         setCategories((prev) => prev.map((c) => (c._id === editingId ? res.data.item : c)));
       } else {
-        const res = await adminClient.post("/catalog/categories", formData);
+        const res = await adminClient.post("/catalog/categories", payload);
         setCategories((prev) => [res.data.item, ...prev]);
       }
       resetForm();
@@ -89,6 +127,7 @@ function Categories() {
       image: category.image || null,
       status: category.active === false ? "Inactive" : "Active",
     });
+    setImagePreview(category.image && typeof category.image === 'string' ? category.image : null);
     setEditingId(category._id);
     setShowModal(true);
   };
@@ -171,15 +210,56 @@ function Categories() {
               </div>
 
               <div className="x_form-group">
-                <label className="x_form-label">Image URL</label>
+                <label className="x_form-label">Category Image</label>
                 <input
-                  type="url"
+                  type="file"
                   name="image"
                   className="x_form-control"
-                  value={formData.image || ""}
                   onChange={handleInputChange}
-                  placeholder="https://example.com/image.jpg"
+                  accept="image/*"
                 />
+                {(imagePreview || formData.image) && (
+                  <div style={{ 
+                    marginTop: "10px", 
+                    position: "relative",
+                    width: "100px",
+                    height: "100px"
+                  }}>
+                    <img
+                      src={imagePreview || (typeof formData.image === 'string' ? formData.image : formData.image?.preview)}
+                      alt="Category preview"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        borderRadius: "6px",
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      style={{
+                        position: "absolute",
+                        top: "-8px",
+                        right: "-8px",
+                        backgroundColor: "#ff4444",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: "20px",
+                        height: "20px",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="x_form-group">

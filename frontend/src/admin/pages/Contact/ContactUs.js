@@ -4,11 +4,21 @@ import { FaCrown, FaPhone as FaPhoneIcon, FaEnvelope, FaClock as FaClockIcon, Fa
 import { Facebook, Instagram, Youtube, Send } from 'lucide-react';
 import adminClient from "../../../api/adminClient";
 
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(file);
+  });
+}
+
 function ContactUs() {
     const [pageData, setPageData] = useState(null);
     const [pageLoading, setPageLoading] = useState(false);
     const [savingPage, setSavingPage] = useState(false);
     const [mode, setMode] = useState('edit');
+    const [bannerImagePreview, setBannerImagePreview] = useState(null);
 
     // Icon mapping for preview
     const iconMap = {
@@ -71,8 +81,31 @@ function ContactUs() {
         fetchPage();
     }, []);
 
-    const handlePageChange = (field, value) => {
+    const handlePageChange = (field, value, isFile = false) => {
+        // Handle file upload for banner image
+        if (field === 'bannerImage' && isFile && value && value.file) {
+            const preview = URL.createObjectURL(value.file);
+            setBannerImagePreview(preview);
+            setPageData(prev => ({ ...(prev || {}), bannerImage: { file: value.file, preview } }));
+            return;
+        }
+        
         setPageData(prev => ({ ...(prev || {}), [field]: value }));
+    };
+    
+    const handleBannerImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            handlePageChange('bannerImage', { file }, true);
+        }
+    };
+    
+    const removeBannerImage = () => {
+        if (bannerImagePreview && pageData?.bannerImage && typeof pageData.bannerImage === 'object') {
+            URL.revokeObjectURL(bannerImagePreview);
+        }
+        setBannerImagePreview(null);
+        setPageData(prev => ({ ...(prev || {}), bannerImage: null }));
     };
 
     const handleCardChange = (index, field, value) => {
@@ -93,7 +126,15 @@ function ContactUs() {
     const savePage = async () => {
         try {
             setSavingPage(true);
-            await adminClient.put('/contact-page', pageData || {});
+            
+            const payload = { ...pageData };
+            
+            // Handle banner image: convert file object to base64 if needed
+            if (payload.bannerImage && typeof payload.bannerImage === 'object' && payload.bannerImage.file) {
+                payload.bannerImage = await fileToDataUrl(payload.bannerImage.file);
+            }
+            
+            await adminClient.put('/contact-page', payload || {});
             alert('Contact page saved');
         } catch (err) {
             alert(err?.response?.data?.message || 'Failed to save page');
@@ -163,8 +204,55 @@ function ContactUs() {
                                         </div>
                                     </div>
                                     <div className="x_form_group">
-                                        <label>Banner Image URL</label>
-                                        <input value={pageData?.bannerImage || ''} onChange={(e) => handlePageChange('bannerImage', e.target.value)} />
+                                        <label>Banner Image</label>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleBannerImageUpload}
+                                            className="x_form-control"
+                                        />
+                                        {(bannerImagePreview || pageData?.bannerImage) && (
+                                            <div style={{ 
+                                                marginTop: "10px", 
+                                                position: "relative",
+                                                width: "200px",
+                                                height: "120px"
+                                            }}>
+                                                <img
+                                                    src={bannerImagePreview || (typeof pageData?.bannerImage === 'string' ? pageData?.bannerImage : pageData?.bannerImage?.preview)}
+                                                    alt="Banner preview"
+                                                    style={{
+                                                        width: "100%",
+                                                        height: "100%",
+                                                        objectFit: "cover",
+                                                        borderRadius: "6px",
+                                                        border: "1px solid #ddd",
+                                                    }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={removeBannerImage}
+                                                    style={{
+                                                        position: "absolute",
+                                                        top: "-8px",
+                                                        right: "-8px",
+                                                        backgroundColor: "#ff4444",
+                                                        color: "white",
+                                                        border: "none",
+                                                        borderRadius: "50%",
+                                                        width: "20px",
+                                                        height: "20px",
+                                                        cursor: "pointer",
+                                                        fontSize: "12px",
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                    }}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="x_form_group">
                                         <label>Form Intro Text</label>

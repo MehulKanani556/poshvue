@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { emaCacheMiddleware } = require('../middleware/emaCache');
 
 const authRoutes = require('./auth');
 const adminRoutes = require('./admin');
@@ -29,7 +30,7 @@ const shippingRoutes = require('./shipping');
 
 router.use('/auth', authRoutes);
 router.use('/admin', adminRoutes);
-router.use('/catalog', catalogRoutes);
+router.use('/catalog', emaCacheMiddleware, catalogRoutes);
 router.use('/content', contentRoutes);
 router.use('/commerce', commerceRoutes);
 router.use('/payment', paymentRoutes);

@@ -2,6 +2,15 @@ import React, { useState, useEffect } from "react";
 import { FiEdit2, FiSave, FiEye, FiPlus, FiTrash2, FiImage, FiType } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
 
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(file);
+  });
+}
+
 function Story() {
   const [story, setStory] = useState({
     hero: { title: '', subtitle: '', backgroundImage: '' },
@@ -15,6 +24,11 @@ function Story() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [mode, setMode] = useState('edit');
+  const [imagePreviews, setImagePreviews] = useState({
+    heroBackground: null,
+    philosophyImage: null,
+    craftsmanshipImage: null
+  });
 
   useEffect(() => {
     const fetchStory = async () => {
@@ -34,7 +48,17 @@ function Story() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      await adminClient.put("/story", story);
+      const payload = { ...story };
+      if (payload.hero.backgroundImage && typeof payload.hero.backgroundImage === 'object' && payload.hero.backgroundImage.file) {
+        payload.hero.backgroundImage = await fileToDataUrl(payload.hero.backgroundImage.file);
+      }
+      if (payload.philosophy.image && typeof payload.philosophy.image === 'object' && payload.philosophy.image.file) {
+        payload.philosophy.image = await fileToDataUrl(payload.philosophy.image.file);
+      }
+      if (payload.craftsmanship.image && typeof payload.craftsmanship.image === 'object' && payload.craftsmanship.image.file) {
+        payload.craftsmanship.image = await fileToDataUrl(payload.craftsmanship.image.file);
+      }
+      await adminClient.put("/story", payload);
       alert("Story updated successfully");
     } catch (err) {
       setError("Failed to save story");
@@ -43,10 +67,43 @@ function Story() {
     }
   };
 
-  const handleInputChange = (section, field, value) => {
+  const handleInputChange = (section, field, value, isFile = false) => {
+    if (isFile && value && value.file) {
+      const preview = URL.createObjectURL(value.file);
+      setImagePreviews(prev => ({
+        ...prev,
+        [field]: preview
+      }));
+      setStory(prev => ({
+        ...prev,
+        [section]: { ...prev[section], [field]: { file: value.file, preview } }
+      }));
+      return;
+    }
     setStory(prev => ({
       ...prev,
       [section]: { ...prev[section], [field]: value }
+    }));
+  };
+
+  const handleImageUpload = (section, field, file) => {
+    if (file) {
+      handleInputChange(section, field, { file }, true);
+    }
+  };
+
+  const removeImage = (section, field) => {
+    const previewKey = field;
+    if (imagePreviews[previewKey]) {
+      URL.revokeObjectURL(imagePreviews[previewKey]);
+    }
+    setImagePreviews(prev => ({
+      ...prev,
+      [previewKey]: null
+    }));
+    setStory(prev => ({
+      ...prev,
+      [section]: { ...prev[section], [field]: null }
     }));
   };
 
@@ -154,8 +211,55 @@ function Story() {
                 </div>
               </div>
               <div className="x_form_group">
-                <label>Background Image URL</label>
-                <input type="text" value={story.hero.backgroundImage} onChange={(e) => handleInputChange('hero', 'backgroundImage', e.target.value)} />
+                <label>Background Image</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageUpload('hero', 'backgroundImage', e.target.files[0])}
+                  className="x_form-control"
+                />
+                {(imagePreviews.heroBackground || story.hero.backgroundImage) && (
+                  <div style={{ 
+                    marginTop: "10px", 
+                    position: "relative",
+                    width: "200px",
+                    height: "120px"
+                  }}>
+                    <img
+                      src={imagePreviews.heroBackground || (typeof story.hero.backgroundImage === 'string' ? story.hero.backgroundImage : story.hero.backgroundImage?.preview)}
+                      alt="Hero background"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        borderRadius: "6px",
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage('hero', 'backgroundImage')}
+                      style={{
+                        position: "absolute",
+                        top: "-8px",
+                        right: "-8px",
+                        backgroundColor: "#ff4444",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: "20px",
+                        height: "20px",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -183,8 +287,55 @@ function Story() {
                 <textarea rows="3" value={story.philosophy.text2} onChange={(e) => handleInputChange('philosophy', 'text2', e.target.value)} />
               </div>
               <div className="x_form_group">
-                <label>Side Image URL</label>
-                <input type="text" value={story.philosophy.image} onChange={(e) => handleInputChange('philosophy', 'image', e.target.value)} />
+                <label>Side Image</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageUpload('philosophy', 'image', e.target.files[0])}
+                  className="x_form-control"
+                />
+                {(imagePreviews.philosophyImage || story.philosophy.image) && (
+                  <div style={{ 
+                    marginTop: "10px", 
+                    position: "relative",
+                    width: "150px",
+                    height: "150px"
+                  }}>
+                    <img
+                      src={imagePreviews.philosophyImage || (typeof story.philosophy.image === 'string' ? story.philosophy.image : story.philosophy.image?.preview)}
+                      alt="Philosophy image"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        borderRadius: "6px",
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage('philosophy', 'image')}
+                      style={{
+                        position: "absolute",
+                        top: "-8px",
+                        right: "-8px",
+                        backgroundColor: "#ff4444",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: "20px",
+                        height: "20px",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -242,7 +393,54 @@ function Story() {
               </div>
               <div className="x_form_group">
                 <label>Section Image</label>
-                <input type="text" value={story.craftsmanship.image} onChange={(e) => handleInputChange('craftsmanship', 'image', e.target.value)} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageUpload('craftsmanship', 'image', e.target.files[0])}
+                  className="x_form-control"
+                />
+                {(imagePreviews.craftsmanshipImage || story.craftsmanship.image) && (
+                  <div style={{ 
+                    marginTop: "10px", 
+                    position: "relative",
+                    width: "150px",
+                    height: "150px"
+                  }}>
+                    <img
+                      src={imagePreviews.craftsmanshipImage || (typeof story.craftsmanship.image === 'string' ? story.craftsmanship.image : story.craftsmanship.image?.preview)}
+                      alt="Craftsmanship image"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        borderRadius: "6px",
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage('craftsmanship', 'image')}
+                      style={{
+                        position: "absolute",
+                        top: "-8px",
+                        right: "-8px",
+                        backgroundColor: "#ff4444",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: "20px",
+                        height: "20px",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
               </div>
               <h6>Craft Points:</h6>
               {story.craftsmanship.points.map((point, index) => (
