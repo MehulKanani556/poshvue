@@ -210,9 +210,7 @@ const ShopPage = () => {
       try {
         setLoading(true);
         setError("");
-        const res = await client.get("/catalog/products", {
-          params: { page: 1, limit: 1000 },
-        });
+        const res = await client.get("/catalog/products");
         const items = Array.isArray(res.data.items) ? res.data.items : [];
         setAllProducts(items);
         setProducts(items);

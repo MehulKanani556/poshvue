@@ -52,7 +52,19 @@ export default function Product({ productId}) {
     };
     fetchProducts();
     return () => { mounted = false; };
-  }, [productId]);
+  }, [productId, refreshKey]); // Add refreshKey to dependency array
+
+  // Listen for product deletion events
+  useEffect(() => {
+    const handleProductDeleted = (event) => {
+      console.log('🗑️ Product deleted event received:', event.detail);
+      // Refresh products list when a product is deleted
+      setRefreshKey(prev => prev + 1);
+    };
+
+    window.addEventListener('productDeleted', handleProductDeleted);
+    return () => window.removeEventListener('productDeleted', handleProductDeleted);
+  }, []);
 
   // Fetch wishlist
   useEffect(() => {

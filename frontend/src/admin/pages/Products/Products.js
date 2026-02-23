@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FiEdit2, FiTrash2, FiPlus } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
 import Modal from "../../components/Modal";
+import { toast } from "react-toastify";
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -347,8 +348,16 @@ function Products() {
       setError("");
       await adminClient.delete(`/catalog/products/${deletingId}`);
       setProducts((prev) => prev.filter((prod) => String(prod._id) !== String(deletingId)));
+      
+      // Dispatch custom event to notify other components
+      window.dispatchEvent(new CustomEvent('productDeleted', {
+        detail: { deletedProductId: deletingId }
+      }));
+      
+      toast.success("Product deleted successfully");
     } catch (err) {
       setError(err.message || "Delete failed");
+      toast.error("Failed to delete product");
     } finally {
       setLoading(false);
     }
