@@ -40,6 +40,21 @@ function getCdnUrl(s3Key) {
   return s3Url;
 }
 
+// Additional fix for any existing URLs with -website
+function fixWebsiteUrl(url) {
+  if (typeof url !== 'string') return url;
+  
+  // Fix S3 URLs with -website
+  if (url.includes('s3-website.')) {
+    console.log('🔧 Fixing S3-website URL:', url);
+    const fixedUrl = url.replace('s3-website.', 's3.');
+    console.log('✅ Fixed S3 URL:', fixedUrl);
+    return fixedUrl;
+  }
+  
+  return url;
+}
+
 /**
  * Convert image buffer to WebP format using Sharp
  * @param {Buffer} buffer - Input image buffer
@@ -192,5 +207,7 @@ module.exports = {
   uploadBase64Image,
   convertToWebp,
   generateFilename,
+  getCdnUrl,
+  fixWebsiteUrl,
   uploadToS3,
 };
