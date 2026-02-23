@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
+import { Modal } from "bootstrap";
 import * as Yup from "yup";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import client from "../../api/client";
+import { useNavigate } from "react-router-dom";
 
 /* =======================
    Yup Validation Schemas
@@ -54,7 +56,24 @@ function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const otpRef = useRef([]);
   const modalRef = useRef(null);
+  const navigate = useNavigate();
+  const handleClose = () => {
+    if (modalRef.current) {
+      const modalInstance = Modal.getInstance(modalRef.current);
+      if (modalInstance) {
+        modalInstance.hide();
+      }
+    }
 
+    // Extra safety cleanup
+    document.body.classList.remove("modal-open");
+    document.body.style = "";
+
+    const backdrops = document.querySelectorAll(".modal-backdrop");
+    backdrops.forEach((el) => el.remove());
+
+    navigate("/");
+  };
   /* =======================
      Bootstrap Modal Init
   ======================= */
@@ -111,7 +130,7 @@ function Register() {
         <div className="modal-content z_glass_modal">
           <button
             className="z_modal_close"
-            onClick={() => (window.location.href = "/")}
+            onClick={handleClose}
           >
             ✕
           </button>
@@ -226,278 +245,278 @@ function Register() {
             }}
           >
             {({ values, setFieldValue }) => {
-            return (
-            <Form className="z_auth_form">
-              {mode === "register" && (
-                <>
-                  <Field
-                    name="name"
-                    placeholder="Full Name"
-                    className="z_auth_input"
-                  />
-                  <ErrorMessage
-                    name="name"
-                    component="div"
-                    className="z_error"
-                  />
-                </>
-              )}
+              return (
+                <Form className="z_auth_form">
+                  {mode === "register" && (
+                    <>
+                      <Field
+                        name="name"
+                        placeholder="Full Name"
+                        className="z_auth_input"
+                      />
+                      <ErrorMessage
+                        name="name"
+                        component="div"
+                        className="z_error"
+                      />
+                    </>
+                  )}
 
-              {mode === "register" && (
-                <>
-                  <Field
-                    type="tel"
-                    name="phone"
-                    placeholder="Phone Number (10 digits or +country code)"
-                    className="z_auth_input"
-                  />
-                  <ErrorMessage
-                    name="phone"
-                    component="div"
-                    className="z_error"
-                  />
-                  {/* <p style={{ fontSize: "12px", color: "#fff", marginTop: "5px" }}>
+                  {mode === "register" && (
+                    <>
+                      <Field
+                        type="tel"
+                        name="phone"
+                        placeholder="Phone Number (10 digits or +country code)"
+                        className="z_auth_input"
+                      />
+                      <ErrorMessage
+                        name="phone"
+                        component="div"
+                        className="z_error"
+                      />
+                      {/* <p style={{ fontSize: "12px", color: "#fff", marginTop: "5px" }}>
                     Example: 8160506549 or +918160506549
                   </p> */}
-                </>
-              )}
+                    </>
+                  )}
 
-              {(mode === "login" ||
-                mode === "register") && (
-                <>
-                  <Field
-                    type="email"
-                    name="email"
-                    placeholder="Email"
-                    className="z_auth_input"
-                  />
-                  <ErrorMessage
-                    name="email"
-                    component="div"
-                    className="z_error"
-                  />
-                </>
-              )}
-
-              {mode === "forgot" && (
-                <>
-                  <Field
-                    type="tel"
-                    name="phone"
-                    placeholder="Phone Number (10 digits or +country code)"
-                    className="z_auth_input"
-                  />
-                  <ErrorMessage
-                    name="phone"
-                    component="div"
-                    className="z_error"
-                  />
-                  <p style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>
-                    Example: 8160506549 or +918160506549
-                  </p>
-                </>
-              )}
-
-              {(mode === "login" || mode === "register") && (
-                <>
-                  <div style={{ position: "relative", width: "100%" }}>
-                    <Field
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      placeholder="Password"
-                      className="z_auth_input"
-                      style={{ paddingRight: "36px", width: "100%", boxSizing: "border-box" }}
-                    />
-                    <span
-                      onClick={() => setShowPassword((p) => !p)}
-                      style={{
-                        position: "absolute",
-                        right: "10px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        cursor: "pointer",
-                        color: "inherit",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-                    </span>
-                  </div>
-                  <ErrorMessage
-                    name="password"
-                    component="div"
-                    className="z_error"
-                  />
-                </>
-              )}
-
-              {mode === "otp" && (
-                <>
-                  <div style={{ marginBottom: "20px" }}>
-                    <p style={{ textAlign: "center", marginBottom: "10px", color: "#666" }}>
-                      Enter the 6-digit OTP sent to your phone
-                    </p>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "8px",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {[0, 1, 2, 3, 4, 5].map((index) => (
-                        <input
-                          key={index}
-                          maxLength="1"
-                          type="text"
-                          inputMode="numeric"
-                          value={(() => {
-                            const otpString = (values?.otp || "").toString();
-                            return otpString[index] || "";
-                          })()}
-                          ref={(el) => (otpRef.current[index] = el)}
-                          style={{
-                            width: "40px",
-                            height: "45px",
-                            fontSize: "20px",
-                            textAlign: "center",
-                            border: "2px solid #ddd",
-                            borderRadius: "8px",
-                            fontWeight: "bold",
-                          }}
-                          onChange={(e) => handleOtpChange(e.target.value, index, setFieldValue, values)}
-                          onKeyDown={(e) => handleOtpBack(e, index, setFieldValue, values)}
+                  {(mode === "login" ||
+                    mode === "register") && (
+                      <>
+                        <Field
+                          type="email"
+                          name="email"
+                          placeholder="Email"
+                          className="z_auth_input"
                         />
-                      ))}
+                        <ErrorMessage
+                          name="email"
+                          component="div"
+                          className="z_error"
+                        />
+                      </>
+                    )}
+
+                  {mode === "forgot" && (
+                    <>
+                      <Field
+                        type="tel"
+                        name="phone"
+                        placeholder="Phone Number (10 digits or +country code)"
+                        className="z_auth_input"
+                      />
+                      <ErrorMessage
+                        name="phone"
+                        component="div"
+                        className="z_error"
+                      />
+                      <p style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>
+                        Example: 8160506549 or +918160506549
+                      </p>
+                    </>
+                  )}
+
+                  {(mode === "login" || mode === "register") && (
+                    <>
+                      <div style={{ position: "relative", width: "100%" }}>
+                        <Field
+                          type={showPassword ? "text" : "password"}
+                          name="password"
+                          placeholder="Password"
+                          className="z_auth_input"
+                          style={{ paddingRight: "36px", width: "100%", boxSizing: "border-box" }}
+                        />
+                        <span
+                          onClick={() => setShowPassword((p) => !p)}
+                          style={{
+                            position: "absolute",
+                            right: "10px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            cursor: "pointer",
+                            color: "inherit",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                        </span>
+                      </div>
+                      <ErrorMessage
+                        name="password"
+                        component="div"
+                        className="z_error"
+                      />
+                    </>
+                  )}
+
+                  {mode === "otp" && (
+                    <>
+                      <div style={{ marginBottom: "20px" }}>
+                        <p style={{ textAlign: "center", marginBottom: "10px", color: "#666" }}>
+                          Enter the 6-digit OTP sent to your phone
+                        </p>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "8px",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {[0, 1, 2, 3, 4, 5].map((index) => (
+                            <input
+                              key={index}
+                              maxLength="1"
+                              type="text"
+                              inputMode="numeric"
+                              value={(() => {
+                                const otpString = (values?.otp || "").toString();
+                                return otpString[index] || "";
+                              })()}
+                              ref={(el) => (otpRef.current[index] = el)}
+                              style={{
+                                width: "40px",
+                                height: "45px",
+                                fontSize: "20px",
+                                textAlign: "center",
+                                border: "2px solid #ddd",
+                                borderRadius: "8px",
+                                fontWeight: "bold",
+                              }}
+                              onChange={(e) => handleOtpChange(e.target.value, index, setFieldValue, values)}
+                              onKeyDown={(e) => handleOtpBack(e, index, setFieldValue, values)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <ErrorMessage
+                        name="otp"
+                        component="div"
+                        className="z_error"
+                      />
+                    </>
+                  )}
+
+                  {mode === "reset" && (
+                    <>
+                      <div style={{ position: "relative", width: "100%" }}>
+                        <Field
+                          type={showNewPassword ? "text" : "password"}
+                          name="newPassword"
+                          placeholder="New Password"
+                          className="z_auth_input"
+                          style={{ paddingRight: "36px", width: "100%", boxSizing: "border-box" }}
+                        />
+                        <span
+                          onClick={() => setShowNewPassword((p) => !p)}
+                          style={{
+                            position: "absolute",
+                            right: "10px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            cursor: "pointer",
+                            color: "inherit",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          {showNewPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                        </span>
+                      </div>
+                      <ErrorMessage
+                        name="newPassword"
+                        component="div"
+                        className="z_error"
+                      />
+
+                      <div style={{ position: "relative", width: "100%" }}>
+                        <Field
+                          type={showConfirmPassword ? "text" : "password"}
+                          name="confirmPassword"
+                          placeholder="Confirm Password"
+                          className="z_auth_input"
+                          style={{ paddingRight: "36px", width: "100%", boxSizing: "border-box" }}
+                        />
+                        <span
+                          onClick={() => setShowConfirmPassword((p) => !p)}
+                          style={{
+                            position: "absolute",
+                            right: "10px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            cursor: "pointer",
+                            color: "inherit",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                        </span>
+                      </div>
+                      <ErrorMessage
+                        name="confirmPassword"
+                        component="div"
+                        className="z_error"
+                      />
+                    </>
+                  )}
+
+                  {mode === "login" && (
+                    <div className="z_auth_options">
+                      <label>
+                        <input type="checkbox" /> Remember me
+                      </label>
+                      <span
+                        onClick={() => setMode("forgot")}
+                        style={{ cursor: "pointer", color: "#007bff" }}
+                      >
+                        Forgot password?
+                      </span>
                     </div>
-                  </div>
-                  <ErrorMessage
-                    name="otp"
-                    component="div"
-                    className="z_error"
-                  />
-                </>
-              )}
+                  )}
 
-              {mode === "reset" && (
-                <>
-                  <div style={{ position: "relative", width: "100%" }}>
-                    <Field
-                      type={showNewPassword ? "text" : "password"}
-                      name="newPassword"
-                      placeholder="New Password"
-                      className="z_auth_input"
-                      style={{ paddingRight: "36px", width: "100%", boxSizing: "border-box" }}
-                    />
-                    <span
-                      onClick={() => setShowNewPassword((p) => !p)}
-                      style={{
-                        position: "absolute",
-                        right: "10px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        cursor: "pointer",
-                        color: "inherit",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      {showNewPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-                    </span>
-                  </div>
-                  <ErrorMessage
-                    name="newPassword"
-                    component="div"
-                    className="z_error"
-                  />
+                  <button type="submit" className="z_auth_submit">
+                    {mode === "login" && "Login"}
+                    {mode === "register" && "Create Account"}
+                    {mode === "forgot" && "Send OTP"}
+                    {mode === "otp" && "Verify OTP"}
+                    {mode === "reset" && "Update Password"}
+                  </button>
 
-                  <div style={{ position: "relative", width: "100%" }}>
-                    <Field
-                      type={showConfirmPassword ? "text" : "password"}
-                      name="confirmPassword"
-                      placeholder="Confirm Password"
-                      className="z_auth_input"
-                      style={{ paddingRight: "36px", width: "100%", boxSizing: "border-box" }}
-                    />
-                    <span
-                      onClick={() => setShowConfirmPassword((p) => !p)}
-                      style={{
-                        position: "absolute",
-                        right: "10px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        cursor: "pointer",
-                        color: "inherit",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-                    </span>
-                  </div>
-                  <ErrorMessage
-                    name="confirmPassword"
-                    component="div"
-                    className="z_error"
-                  />
-                </>
-              )}
-
-              {mode === "login" && (
-                <div className="z_auth_options">
-                  <label>
-                    <input type="checkbox" /> Remember me
-                  </label>
-                  <span
-                    onClick={() => setMode("forgot")}
-                    style={{ cursor: "pointer", color: "#007bff" }}
-                  >
-                    Forgot password?
-                  </span>
-                </div>
-              )}
-
-              <button type="submit" className="z_auth_submit">
-                {mode === "login" && "Login"}
-                {mode === "register" && "Create Account"}
-                {mode === "forgot" && "Send OTP"}
-                {mode === "otp" && "Verify OTP"}
-                {mode === "reset" && "Update Password"}
-              </button>
-
-              <p className="z_auth_switch">
-                {mode === "login" && (
-                  <>
-                    Don't have an account?{" "}
-                    <span onClick={() => setMode("register")}>Register</span>
-                  </>
-                )}
-                {mode === "register" && (
-                  <>
-                    Already have an account?{" "}
-                    <span onClick={() => setMode("login")}>Login</span>
-                  </>
-                )}
-                {mode === "forgot" && (
-                  <>
-                    Remember password?{" "}
-                    <span onClick={() => setMode("login")}>Back to Login</span>
-                  </>
-                )}
-                {mode === "otp" && (
-                  <>
-                    Didn't receive OTP?{" "}
-                    <span onClick={() => setMode("forgot")}>Resend</span>
-                  </>
-                )}
-                {mode === "reset" && (
-                  <>
-                    <span onClick={() => setMode("login")}>Back to Login</span>
-                  </>
-                )}
-              </p>
-            </Form>
-            );
+                  <p className="z_auth_switch">
+                    {mode === "login" && (
+                      <>
+                        Don't have an account?{" "}
+                        <span onClick={() => setMode("register")}>Register</span>
+                      </>
+                    )}
+                    {mode === "register" && (
+                      <>
+                        Already have an account?{" "}
+                        <span onClick={() => setMode("login")}>Login</span>
+                      </>
+                    )}
+                    {mode === "forgot" && (
+                      <>
+                        Remember password?{" "}
+                        <span onClick={() => setMode("login")}>Back to Login</span>
+                      </>
+                    )}
+                    {mode === "otp" && (
+                      <>
+                        Didn't receive OTP?{" "}
+                        <span onClick={() => setMode("forgot")}>Resend</span>
+                      </>
+                    )}
+                    {mode === "reset" && (
+                      <>
+                        <span onClick={() => setMode("login")}>Back to Login</span>
+                      </>
+                    )}
+                  </p>
+                </Form>
+              );
             }}
           </Formik>
         </div>

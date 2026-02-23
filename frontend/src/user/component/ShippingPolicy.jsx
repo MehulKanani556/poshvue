@@ -127,7 +127,7 @@ const ShippingPolicy = () => {
         {/* Footer Contact */}
         <div className="text-center mt-5">
           <p className="text-muted italic">{shippingPolicy.footerText}</p>
-          <a href={`mailto:${shippingPolicy.footerButtonEmail}`} className="btn btn-outline-dark px-4 rounded-0 d_btn_hover">
+          <a href="/ContactUs" className="btn btn-outline-dark px-4 rounded-0 d_btn_hover">
             {shippingPolicy.footerButtonText}
           </a>
         </div>

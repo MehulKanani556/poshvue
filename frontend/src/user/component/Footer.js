@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { API_ENDPOINTS } from "../../config/api";
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   const [email, setEmail] = useState("");
@@ -74,17 +75,17 @@ const Footer = () => {
             <h5 className="d_footer-col-title">Poshvue Fashion</h5>
             <ul className="d_footer-links">
               <li>
-                <a href="/StoreLocator">Store Locator</a>
+                <Link to="/StoreLocator">Store Locator</Link>
               </li>
               <li>
-                <a href="/OurStory">Our Story</a>
+                <Link to="/OurStory">Our Story</Link>
               </li>
-              {/* <li><a href="#">Video Shopping</a></li> */}
+              {/* <li><Link to="#">Video Shopping</Link></li> */}
               <li>
-                <a href="/Review">Add Reviews</a>
+                <Link to="/Review">Add Reviews</Link>
               </li>
               <li>
-                <a href="/blog">Blog</a>
+                <Link to="/blog">Blog</Link>
               </li>
             </ul>
           </div>
@@ -94,16 +95,16 @@ const Footer = () => {
             <ul className="d_footer-links">
               {/* <li><a href="/ContactUs">Contact Us</a></li> */}
               <li>
-                <a href="/TrackOrder">Track Order</a>
+                <Link to="/TrackOrder">Track Order</Link>
               </li>
               <li>
-                <a href="/wholesale">Wholesale</a>
+                <Link to="/wholesale">Wholesale</Link>
               </li>
               <li>
-                <a href="/GeneralFeedback">Feedback</a>
+                <Link to="/GeneralFeedback">Feedback</Link>
               </li>
               <li>
-                <a href="/Complain">Complain</a>
+                <Link to="/Complain">Complain</Link>
               </li>
             </ul>
           </div>
@@ -112,16 +113,16 @@ const Footer = () => {
             <h5 className="d_footer-col-title">Policies</h5>
             <ul className="d_footer-links">
               <li>
-                <a href="/ShippingPolicy">Shipping</a>
+                <Link to="/ShippingPolicy">Shipping</Link>
               </li>
               <li>
-                <a href="/ReturnPolicy">Return Policy</a>
+                <Link to="/ReturnPolicy">Return Policy</Link>
               </li>
               <li>
-                <a href="/PrivacyPolicy">Privacy</a>
+                <Link to="/PrivacyPolicy">Privacy</Link>
               </li>
               <li>
-                <a href="/TermAndConditions">T&C</a>
+                <Link to="/TermAndConditions">T&C</Link>
               </li>
               {/* <li><a href="#">Payment</a></li> */}
             </ul>

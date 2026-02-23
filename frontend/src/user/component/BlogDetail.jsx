@@ -248,11 +248,6 @@ function BlogDetail() {
           >
             <ArrowLeft size={18} /> Back to Blog
           </Button>
-          <div className="share-actions d-flex gap-3">
-            <Heart size={18} className="icon-btn" />
-            <Bookmark size={18} className="icon-btn" />
-            <Share2 size={18} className="icon-btn" />
-          </div>
         </div>
 
         <Row className="justify-content-center">

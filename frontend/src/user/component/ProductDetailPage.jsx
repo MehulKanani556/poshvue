@@ -32,7 +32,7 @@ import { useCurrency } from "../../context/CurrencyContext";
 import { toast } from "react-toastify";
 import Loader from "./Loader";
 
-function ProductDetailPageComponent() {}
+function ProductDetailPageComponent() { }
 
 const ProductDetailPage = () => {
   const { id } = useParams(); // product id from route
@@ -48,7 +48,7 @@ const ProductDetailPage = () => {
   const [wishlistIds, setWishlistIds] = useState([]);
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const token = localStorage.getItem("userToken");
-  
+
   // Listen for country changes and force re-render
   useEffect(() => {
     const handleCountryChange = () => {
@@ -255,11 +255,11 @@ const ProductDetailPage = () => {
     if (!product || !cartItems || cartItems.length === 0) {
       return false;
     }
-  
+
     const currentProductId = String(product._id || product.id || id);
     const currentSize = String(selectedSize || "").trim();
     const currentColorKey = colorKey(selectedColor);
-  
+
     return cartItems.some((item) => {
       // Handle product: could be ObjectId string or populated object
       let itemProductId = "";
@@ -272,22 +272,22 @@ const ProductDetailPage = () => {
       } else if (item.product) {
         itemProductId = String(item.product);
       }
-      
+
       const itemSize = String(item.size || "").trim();
       const itemColorKey = colorKey(item.color); // cart color is string like "Red"
-  
+
       // All three must match: product ID, size, and color
       const productMatch = itemProductId === currentProductId;
       const sizeMatch = itemSize === currentSize;
       const colorMatch = itemColorKey === currentColorKey && itemColorKey !== ""; // Empty colors don't match
-      
+
       // Special case: if no color in product and no color in cart, consider it a match
       const noColorMatch = !currentColorKey && !itemColorKey;
-  
+
       return productMatch && sizeMatch && (colorMatch || noColorMatch);
     });
   }, [product, cartItems, selectedSize, selectedColor, id]);
-  
+
   const isCurrentSelectionInCart = isAlreadyInCart || justAdded;
 
   const handleAddToBag = async () => {
@@ -401,8 +401,8 @@ const ProductDetailPage = () => {
     product?.images && product.images.length
       ? product.images
       : product?.image
-      ? [product.image]
-      : defaultProduct.images;
+        ? [product.image]
+        : defaultProduct.images;
 
   // Use currency context for formatting prices
   const formatPrice = formatPriceWithCurrency;
@@ -414,8 +414,7 @@ const ProductDetailPage = () => {
 
     const subtitle =
       (product?.productType &&
-        `${product.productType}${
-          product?.manufacturer ? ` • ${product.manufacturer}` : ""
+        `${product.productType}${product?.manufacturer ? ` • ${product.manufacturer}` : ""
         }`) ||
       product?.subtitle ||
       defaultProduct.subtitle;
@@ -488,16 +487,16 @@ const ProductDetailPage = () => {
       <Container className="g3-main-content py-lg-5 py-3">
         {/* BREADCRUMB */}
         <nav className="g3-breadcrumb mb-lg-4 mb-3">
-          <span 
-            className="g3-breadcrumb-link" 
+          <span
+            className="g3-breadcrumb-link"
             onClick={() => navigate("/")}
             style={{ cursor: "pointer" }}
           >
             Home
           </span>{" "}
           <FaChevronRight size={7} />{" "}
-          <span 
-            className="g3-breadcrumb-link" 
+          <span
+            className="g3-breadcrumb-link"
             onClick={() => {
               // Use productType if available (for Style filter), otherwise use primaryCategory
               const filterValue = product?.productType || displayProduct.primaryCategory;
@@ -520,9 +519,8 @@ const ProductDetailPage = () => {
                     {images.map((img, i) => (
                       <div
                         key={i}
-                        className={`g3-thumb-wrapper ${
-                          activeImg === i ? "active" : ""
-                        }`}
+                        className={`g3-thumb-wrapper ${activeImg === i ? "active" : ""
+                          }`}
                         onMouseEnter={() => setActiveImg(i)}
                       >
                         <img src={img} alt={`view-${i}`} />
@@ -553,9 +551,8 @@ const ProductDetailPage = () => {
                       <img
                         key={i}
                         src={img}
-                        className={`g3-m-thumb ${
-                          activeImg === i ? "active" : ""
-                        }`}
+                        className={`g3-m-thumb ${activeImg === i ? "active" : ""
+                          }`}
                         onClick={() => setActiveImg(i)}
                         alt="thumb"
                       />
@@ -606,17 +603,17 @@ const ProductDetailPage = () => {
                       : defaultProduct.sizes) || []
                   ).map((size) => (
                     <button
-                    key={size}
-                    className={`g3-size-pill ${selectedSize === size ? 'active' : ''}`}
-                    onClick={() => {
-                      setSelectedSize(size);
-                      setJustAdded(false); // અહિયાં રીસેટ થશે એટલે બટન પાછું "Add to Bag" થઈ જશે જો નવી સાઈઝ કાર્ટમાં ન હોય તો
-                    }}
-                  >
-                    {size}
-                  </button>
-                  
-                
+                      key={size}
+                      className={`g3-size-pill ${selectedSize === size ? 'active' : ''}`}
+                      onClick={() => {
+                        setSelectedSize(size);
+                        setJustAdded(false); // અહિયાં રીસેટ થશે એટલે બટન પાછું "Add to Bag" થઈ જશે જો નવી સાઈઝ કાર્ટમાં ન હોય તો
+                      }}
+                    >
+                      {size}
+                    </button>
+
+
                   ))}
                 </div>
               </div>
@@ -636,11 +633,10 @@ const ProductDetailPage = () => {
                         selectedColor.hex === c.hex &&
                         selectedColor.name === c.name;
                       return (
-                        <button  
+                        <button
                           key={idx}
-                          className={`g3-color-pill ${
-                            isActive ? "active" : ""
-                          }`}
+                          className={`g3-color-pill ${isActive ? "active" : ""
+                            }`}
                           onClick={() => {
                             setSelectedColor(c);
                             setJustAdded(false);
@@ -668,20 +664,20 @@ const ProductDetailPage = () => {
                   {isCurrentSelectionInCart
                     ? "ALREADY IN BAG"
                     : addingToCart
-                    ? "ADDING..."
-                    : "ADD TO BAG"}
+                      ? "ADDING..."
+                      : "ADD TO BAG"}
                 </Button>
-                <Button 
-                  variant="outline-dark" 
+                <Button
+                  variant="outline-dark"
                   className="g3-btn-wish"
                   onClick={toggleWishlist}
                   disabled={wishlistLoading}
                 >
-                  <FaHeart 
-                    style={{ 
+                  <FaHeart
+                    style={{
                       color: wishlistIds.includes(product?._id || product?.id || id) ? "#d9534f" : "inherit",
                       fill: wishlistIds.includes(product?._id || product?.id || id) ? "#d9534f" : "#0e0e0e"
-                    }} 
+                    }}
                   />
                 </Button>
               </div>
@@ -689,19 +685,22 @@ const ProductDetailPage = () => {
               <div className="g3-perks-box p-3 mb-4">
                 <Row className="g-0 text-center align-items-center">
                   <Col>
-                    <FaUndo className="mb-1 d-block mx-auto text-muted" />
-                    <small className="d-block">Easy Returns</small>
+                    <FaUndo className="perk-icon mb-1 d-block mx-auto text-muted" />
+                    <p className="perk-text d-block">Easy Returns</p>
                   </Col>
+
                   <Col className="border-start border-end">
-                    <FaGlobe className="mb-1 d-block mx-auto text-muted" />
-                    <small className="d-block">World Wide Shipping</small>
+                    <FaGlobe className="perk-icon mb-1 d-block mx-auto text-muted" />
+                    <p className="perk-text d-block">World Wide Shipping</p>
                   </Col>
+
                   <Col>
-                    <FaCheckCircle className="mb-1 d-block mx-auto text-muted" />
-                    <small className="d-block">Made in India</small>
+                    <FaCheckCircle className="perk-icon mb-1 d-block mx-auto text-muted" />
+                    <p className="perk-text d-block">Made in India</p>
                   </Col>
                 </Row>
               </div>
+
 
               <div className="g3-shipping-info mb-4">
                 <h6 className="fw-bold small mb-3">
@@ -726,7 +725,7 @@ const ProductDetailPage = () => {
                 <p className="mb-1 tracking-widest small">
                   WANT TO <strong>SHOP</strong>
                 </p>
-                <h4 className="fw-bold mb-2" style={{color:"#0a2845"}}>PREMIUM STORE COLLECTION?</h4>
+                <h4 className="fw-bold mb-2" style={{ color: "#0a2845" }}>PREMIUM STORE COLLECTION?</h4>
                 <p className="mb-3 small">SHIP IN 48H</p>
                 <button
                   className="rounded-0 px-4 py-2 small fw-bold z_poster_btn"
@@ -778,11 +777,11 @@ const ProductDetailPage = () => {
                       className="g3-support-btn w-100"
                       type="button"
                       onClick={() =>
-                        (window.location.href =
-                          "mailto:poshvuefashion@gmail.com?subject=Product%20Enquiry&body=" +
-                          encodeURIComponent(
-                            `Hello Poshvue,%0D%0A%0D%0AI have a question about "${displayProduct.name}".`
-                          ))
+                      (window.location.href =
+                        "mailto:poshvuefashion@gmail.com?subject=Product%20Enquiry&body=" +
+                        encodeURIComponent(
+                          `Hello Poshvue,%0D%0A%0D%0AI have a question about "${displayProduct.name}".`
+                        ))
                       }
                     >
                       <FaEnvelope className="text-danger me-1" /> Mail Us
@@ -1180,6 +1179,28 @@ const ProductDetailPage = () => {
         .g3-measure-card { background: #f9f9f9; border-radius: 8px; transition: 0.3s; border: 1px solid #eee; }
         .g3-measure-img-placeholder { background: #fff; height: 100px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1px dashed #ddd; }
         .g3-how-to-table td { font-size: 13px; }
+
+        /* Desktop / Main Screen */
+            .perk-icon {
+            font-size: 16px;
+            }
+
+            .perk-text {
+            font-size: 14px;
+            margin: 0;
+            }
+
+            /* Mobile Screen */
+            @media (max-width: 576px) {
+            .perk-icon {
+              font-size: 14px;
+            }
+
+            .perk-text {
+              font-size: 12px;
+            }
+            }
+
 
         @media (max-width: 767px) {
           .g3-main-viewport { aspect-ratio: 3/4; margin: 0 -15px; }
