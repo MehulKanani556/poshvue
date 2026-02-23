@@ -200,11 +200,31 @@ function Products() {
       setError("");
       const payload = { ...formData };
 
-      // prepare images: existing strings preserved, file objects converted to base64
+      // Handle images: upload files to AWS S3 first
       const existingUrls = (payload.images || []).filter((i) => typeof i === "string");
       const fileObjs = (payload.images || []).filter((i) => i && typeof i === "object" && i.file);
-      const fileBase64 = await Promise.all(fileObjs.map((f) => fileToDataUrl(f.file)));
-      payload.images = [...existingUrls, ...fileBase64];
+      
+      // Upload new images to AWS S3
+      const uploadedUrls = [];
+      for (const fileObj of fileObjs) {
+        try {
+          const formDataForUpload = new FormData();
+          formDataForUpload.append('images', fileObj.file);
+          
+          const uploadRes = await adminClient.post('/upload/product-images', formDataForUpload, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          
+          if (uploadRes.data.urls && uploadRes.data.urls.length > 0) {
+            uploadedUrls.push(...uploadRes.data.urls);
+          }
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          throw error;
+        }
+      }
+      
+      payload.images = [...existingUrls, ...uploadedUrls];
 
       // send category as name (backend resolveCategory will convert)
       if (!payload.name && payload.title) payload.name = payload.title;
@@ -244,7 +264,21 @@ function Products() {
     const editing = {
       id: product._id || null,
       name: product.title || product.name || "",
-      images: Array.isArray(product.images) ? product.images.slice() : [],
+      images: Array.isArray(product.images) ? product.images.map(img => {
+        // If image is already a string URL, keep it as is
+        if (typeof img === 'string') {
+          return img;
+        }
+        // If image is an object with file property, create preview
+        if (img && img.file) {
+          return {
+            file: img.file,
+            preview: URL.createObjectURL(img.file)
+          };
+        }
+        // If image is an object but no file, return null
+        return null;
+      }).filter(Boolean) : [], // Filter out null values
       colors: Array.isArray(product.colors) ? product.colors.slice() : [],
       sizes: Array.isArray(product.sizes) ? product.sizes.slice() : [],
       category: "",
@@ -1126,7 +1160,9 @@ function Products() {
                       <img
                         src={
                           product.images && product.images.length > 0
-                            ? product.images[0]
+                            ? typeof product.images[0] === 'string' 
+                              ? product.images[0]
+                              : product.images[0].preview || product.images[0].url || "https://via.placeholder.com/45"
                             : "https://via.placeholder.com/45"
                         }
                         alt={product.title || "Product"}
@@ -1136,6 +1172,10 @@ function Products() {
                           borderRadius: "6px",
                           objectFit: "cover",
                           border: "1px solid #eee",
+                        }}
+                        onError={(e) => {
+                          console.log('Image load error:', product.images[0]);
+                          e.target.src = "https://via.placeholder.com/45";
                         }}
                       />
                       <span style={{ fontWeight: "500" }}>{product.title || product.name || "Unnamed"}</span>

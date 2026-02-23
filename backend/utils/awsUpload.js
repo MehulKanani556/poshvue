@@ -22,11 +22,22 @@ const CLOUDFRONT_DOMAIN = process.env.AWS_CLOUDFRONT_DOMAIN; // e.g., d123456789
  * @returns {string} - CloudFront URL or S3 URL as fallback
  */
 function getCdnUrl(s3Key) {
+  // Always use CloudFront CDN if configured, fallback to S3 URL
   if (CLOUDFRONT_DOMAIN) {
     return `https://${CLOUDFRONT_DOMAIN}/${s3Key}`;
   }
+  
   // Fallback to S3 URL if CloudFront not configured
-  return `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${s3Key}`;
+  let s3Url = `https://${S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${s3Key}`;
+  
+  // Fix: Remove -website from S3 URL if present
+  if (s3Url.includes('-website')) {
+    console.log('🔧 Removing -website from S3 URL:', s3Url);
+    s3Url = s3Url.replace('-website', '');
+    console.log('✅ Fixed S3 URL:', s3Url);
+  }
+  
+  return s3Url;
 }
 
 /**
@@ -67,11 +78,15 @@ function generateFilename(originalName, prefix = 'image') {
 async function uploadToS3(buffer, filename, folder = 'uploads') {
   try {
     const key = `${folder}/${filename}`;
-    
+    console.log(`[AWS UPLOAD] Uploading to S3: bucket=${S3_BUCKET}, key=${key}`);
+
     // Generate cache-busting query string for EMA (Edge-Memory Acceleration)
     const timestamp = Date.now();
     const cacheKey = `${timestamp}-${crypto.randomBytes(4).toString('hex')}`;
     
+    const cacheControl = 'max-age=31536000, immutable'; // 1 year cache, immutable
+    console.log(`[AWS UPLOAD] Setting Cache-Control: ${cacheControl}`);
+
     const upload = new Upload({
       client: s3Client,
       params: {
@@ -79,7 +94,7 @@ async function uploadToS3(buffer, filename, folder = 'uploads') {
         Key: key,
         Body: buffer,
         ContentType: 'image/webp',
-        CacheControl: 'max-age=31536000, immutable', // 1 year cache, immutable
+        CacheControl: cacheControl,
         Metadata: {
           'cache-key': cacheKey,
           'ema-enabled': 'true',
@@ -92,12 +107,16 @@ async function uploadToS3(buffer, filename, folder = 'uploads') {
     });
 
     await upload.done();
-    
+    console.log(`[AWS UPLOAD] S3 upload successful for key: ${key}`);
+
     // Return the CDN URL with cache-busting for EMA
     const cdnUrl = getCdnUrl(key);
-    return `${cdnUrl}?v=${cacheKey}`;
+    const finalUrl = `${cdnUrl}?v=${cacheKey}`;
+    console.log(`[AWS UPLOAD] Final CDN URL: ${finalUrl}`);
+
+    return finalUrl;
   } catch (error) {
-    console.error('Error uploading to S3:', error);
+    console.error('[AWS UPLOAD] Error uploading to S3:', error);
     throw new Error('Failed to upload image to S3');
   }
 }
@@ -111,6 +130,7 @@ async function uploadToS3(buffer, filename, folder = 'uploads') {
  */
 async function processAndUploadImage(buffer, originalName, folder = 'uploads') {
   try {
+    console.log(`[AWS UPLOAD] Processing image '${originalName}' for folder '${folder}'`);
     // Convert to WebP
     const webpBuffer = await convertToWebp(buffer);
     
@@ -120,9 +140,10 @@ async function processAndUploadImage(buffer, originalName, folder = 'uploads') {
     // Upload to S3
     const s3Url = await uploadToS3(webpBuffer, filename, folder);
     
+    console.log(`[AWS UPLOAD] Successfully processed and uploaded '${originalName}'`);
     return s3Url;
   } catch (error) {
-    console.error('Error processing image:', error);
+    console.error(`[AWS UPLOAD] Error processing image '${originalName}':`, error);
     throw error;
   }
 }
@@ -134,11 +155,14 @@ async function processAndUploadImage(buffer, originalName, folder = 'uploads') {
  * @returns {Promise<Array>} - Array of S3 URLs
  */
 async function uploadMultipleImages(files, folder = 'uploads') {
+  console.log(`[AWS UPLOAD] Starting batch upload of ${files.length} images to folder '${folder}'`);
   const uploadPromises = files.map(file => 
     processAndUploadImage(file.buffer, file.originalname, folder)
   );
   
-  return Promise.all(uploadPromises);
+  const results = await Promise.all(uploadPromises);
+  console.log(`[AWS UPLOAD] Finished batch upload. ${results.length} images uploaded.`);
+  return results;
 }
 
 /**

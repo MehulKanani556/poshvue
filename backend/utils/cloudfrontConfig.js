@@ -56,7 +56,7 @@ const cloudfrontConfig = {
       Quantity: 2,
       Items: [
         {
-          PathPattern: '*/images/*',
+          PathPattern: '*.webp',
           TargetOriginId: 'S3-your-bucket-name',
           ViewerProtocolPolicy: 'redirect-to-https',
           MinTTL: 31536000, // 1 year for images
@@ -167,7 +167,7 @@ const cloudfrontConfig = {
     edgeCompression: true,
     // Cache invalidation settings
     invalidation: {
-      paths: ['/images/*'], // Paths to invalidate
+      paths: ['/*.webp'], // Paths to invalidate
       batchSize: 1000, // Max paths per invalidation
       callerReference: 'ema-invalidation'
     }

@@ -27,6 +27,7 @@ const addressRoutes = require('./address');
 const dashboardRoutes = require('./dashboard');
 const reportsRoutes = require('./reports');
 const shippingRoutes = require('./shipping');
+const uploadRoutes = require('./upload');
 
 router.use('/auth', authRoutes);
 router.use('/admin', adminRoutes);
@@ -53,5 +54,6 @@ router.use('/address', addressRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/reports', reportsRoutes);
 router.use('/shipping', shippingRoutes);
+router.use('/upload', uploadRoutes);
 
 module.exports = router;
