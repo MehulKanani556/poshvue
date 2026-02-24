@@ -1177,7 +1177,7 @@ function Checkout() {
         <h2 className="z_chck_heading">Checkout</h2>
         <div className="z_chck_main">
           {/* ================= Billing Details ================= */}
-          <div className="z_chck_billing">
+          <div className="z_chck_billing card p-3">
             <h3>Billing & Payment</h3>
             <Elements stripe={stripePromise}>
               <CheckoutForm
@@ -1197,7 +1197,7 @@ function Checkout() {
             </Elements>
           </div>
           {/* ================= Order Summary ================= */}
-          <div className="z_chck_summary">
+          <div className="z_chck_summary card p-3">
             <h3>Order Summary</h3>
             {cartItems.map((item) => {
               const localPrice = Math.round(

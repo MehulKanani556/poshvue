@@ -52,6 +52,28 @@ function Products() {
   const [selectedPriceCountryId, setSelectedPriceCountryId] = useState("");
   const ITEMS_PER_PAGE = 10;
 
+  // Validation state for per-field errors (used by handleSubmit and input handlers)
+  const [invalidFields, setInvalidFields] = useState({});
+
+  // Helper to apply error style to inputs
+  const getInputErrorStyle = (key) => {
+    if (!invalidFields || !invalidFields[key]) return {};
+    return {
+      borderColor: "#d93025",
+      boxShadow: "0 0 0 3px rgba(217,48,37,0.06)",
+    };
+  };
+
+  // Small helper to render field error under inputs
+  const renderFieldError = (key) => {
+    if (!invalidFields || !invalidFields[key]) return null;
+    return (
+      <div style={{ color: "#d93025", fontSize: 12, marginTop: 6 }}>
+        {invalidFields[key]}
+      </div>
+    );
+  };
+
   const totalPages = Math.ceil(products.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
@@ -132,12 +154,16 @@ function Products() {
     }
 
     if (name === "sizes") {
-      // accept comma-separated sizes and normalize to array of trimmed strings
-      const parts = value
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      // allow only digits and commas; remove any other characters immediately
+      const cleaned = String(value).replace(/[^0-9,]/g, "");
+      // collapse consecutive commas, trim leading/trailing commas
+      const normalized = cleaned.replace(/,+/g, ",").replace(/^,|,$/g, "");
+      const parts = normalized
+        ? normalized.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
       setFormData((prev) => ({ ...prev, sizes: parts }));
+      // clear sizes validation error when user types
+      if (invalidFields.sizes) setInvalidFields((prev) => { const copy = { ...prev }; delete copy.sizes; return copy; });
       return;
     }
 
@@ -199,6 +225,39 @@ function Products() {
     try {
       setLoading(true);
       setError("");
+      setInvalidFields({});
+      // Client-side validation
+      const clientErrors = {};
+      if (!formData.name || !String(formData.name).trim()) {
+        clientErrors["name"] = "Product name is required";
+      }
+      const stockVal = Number(formData.stock);
+      if (!Number.isFinite(stockVal) || stockVal < 0 || formData.stock === "") {
+        clientErrors["stock"] = "Enter valid stock quantity (>= 0)";
+      }
+      // Validate country prices: require at least one price > 0 when countries exist
+      const priceEntries = Object.entries(countryPrices || {});
+      const hasValidPrice = priceEntries.some(([cid, row]) => Number.isFinite(Number(row.price)) && Number(row.price) > 0);
+      if (countries.length > 0 && !hasValidPrice) {
+        clientErrors["pricesByCountry"] = "Provide price for at least one country";
+      }
+
+      // Validate sizes: each entry must be numeric
+      if (Array.isArray(formData.sizes) && formData.sizes.length) {
+        const invalidSizes = formData.sizes.filter((s) => !/^\d+$/.test(String(s)));
+        if (invalidSizes.length) {
+          clientErrors["sizes"] = "Sizes must be numbers separated by commas (e.g., 36,38)";
+        }
+      }
+
+      if (Object.keys(clientErrors).length) {
+        setInvalidFields(clientErrors);
+        const msg = Object.values(clientErrors).join(". ");
+        toast.error(msg);
+        setLoading(false);
+        return;
+      }
+
       const payload = { ...formData };
 
       // Handle images: upload files to AWS S3 first
@@ -252,10 +311,30 @@ function Products() {
       if (item) {
         if (editingId) setProducts((prev) => prev.map((p) => (String(p._id) === String(editingId) ? item : p)));
         else setProducts((prev) => [item, ...prev]);
+        setInvalidFields({});
       }
       resetForm();
     } catch (err) {
-      setError(err.message || "Save failed");
+      // Map server validation errors to field highlights if possible
+      const resp = err?.response?.data;
+      if (resp) {
+        // If server returned { errors: { field: 'msg' } } or { errors: [ ... ] }
+        if (resp.errors && typeof resp.errors === "object" && !Array.isArray(resp.errors)) {
+          setInvalidFields(resp.errors);
+          const msg = Object.values(resp.errors).join(". ");
+          toast.error(msg);
+        } else if (Array.isArray(resp.errors) && resp.errors.length) {
+          toast.error(resp.errors.join(". "));
+        } else if (resp.message) {
+          toast.error(resp.message);
+        } else {
+          toast.error("Save failed");
+        }
+        setError(resp.message || "Save failed");
+      } else {
+        setError(err.message || "Save failed");
+        toast.error(err.message || "Save failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -723,8 +802,10 @@ function Products() {
                   className="x_form-control"
                   value={Array.isArray(formData.sizes) ? formData.sizes.join(",") : ""}
                   onChange={handleInputChange}
+                  style={getInputErrorStyle("sizes")}
                   placeholder="Enter available sizes like 36,38,40"
                 />
+                {renderFieldError("sizes")}
               </div>
 
               {/* Basic Product Info */}
@@ -735,10 +816,12 @@ function Products() {
                   name="name"
                   className="x_form-control"
                   value={formData.name}
-                  onChange={handleInputChange}
+                  onChange={(e) => { setFormData(prev => ({ ...prev, name: e.target.value })); if (invalidFields.name) setInvalidFields(prev => { const copy = { ...prev }; delete copy.name; return copy; }); }}
+                  style={getInputErrorStyle("name")}
                   placeholder="Enter product name"
                   required
                 />
+                {renderFieldError("name")}
               </div>
 
               <div className="x_form-group">
@@ -793,6 +876,7 @@ function Products() {
                             className="x_form-control"
                             value={row.price}
                             onChange={(e) => handleCountryPriceChange(cid, "price", e.target.value)}
+                            style={getInputErrorStyle(`price_${cid}`)}
                           />
                           <input
                             type="number"
@@ -807,6 +891,7 @@ function Products() {
                                 e.target.value
                               )
                             }
+                            style={getInputErrorStyle(`discountPercent_${cid}`)}
                           />
                           <input
                             type="number"
@@ -815,6 +900,7 @@ function Products() {
                             className="x_form-control"
                             value={row.salePrice}
                             onChange={(e) => handleCountryPriceChange(cid, "salePrice", e.target.value)}
+                            style={getInputErrorStyle(`salePrice_${cid}`)}
                           />
                         </div>
                       );
@@ -840,10 +926,12 @@ function Products() {
                     name="stock"
                     className="x_form-control"
                     value={formData.stock}
-                    onChange={handleInputChange}
+                    onChange={(e) => { setFormData(prev => ({ ...prev, stock: e.target.value })); if (invalidFields.stock) setInvalidFields(prev => { const copy = { ...prev }; delete copy.stock; return copy; }); }}
+                    style={getInputErrorStyle("stock")}
                     placeholder="Enter stock quantity"
                     required
                   />
+                  {renderFieldError("stock")}
                 </div>
 
                 <div className="x_form-group">

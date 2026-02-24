@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { FiEdit2, FiSave, FiEye, FiPlus, FiTrash2, FiImage, FiType } from "react-icons/fi";
+import { FiSave, FiEye, FiPlus, FiTrash2 } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
+import { Heart, Star, Award, Users, ShieldCheck, ShoppingBag, Quote } from 'lucide-react';
 
 
 function Home() {
@@ -24,6 +25,18 @@ function Home() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [mode, setMode] = useState('edit');
+
+  const ICON_OPTIONS = [
+    'Heart',
+    'Star',
+    'Award',
+    'Users',
+    'ShieldCheck',
+    'ShoppingBag',
+    'Quote',
+  ];
+
+  const ICON_COMPONENTS = { Heart, Star, Award, Users, ShieldCheck, ShoppingBag, Quote };
 
   useEffect(() => {
     const fetchHomePoster = async () => {
@@ -342,13 +355,16 @@ function Home() {
           <section className="d_features-bg d_section-padding">
             <div className="container">
               <div className="row g-4">
-                {homePoster.whyChooseUs?.map((item, index) => (
-                  <div key={index} className="col-md-4 text-center">
-                    <div className="d_icon-box">{item.icon}</div>
-                    <h5 className="fw-bold mb-2">{item.title}</h5>
-                    <p className="d_text-muted small mb-0">{item.desc}</p>
-                  </div>
-                ))}
+                {homePoster.whyChooseUs?.map((item, index) => {
+                  const IconComp = ICON_COMPONENTS[item.icon];
+                  return (
+                    <div key={index} className="col-md-4 text-center">
+                      <div className="d_icon-box">{IconComp ? <IconComp size={28} /> : (item.icon || '•')}</div>
+                      <h5 className="fw-bold mb-2">{item.title}</h5>
+                      <p className="d_text-muted small mb-0">{item.desc}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </section>
@@ -379,7 +395,10 @@ function Home() {
           <section className="d_vision-section">
             <div className="container">
               <div className="d_vision-content">
-                <span className="d_quote-icon">{visionSection?.quoteIcon || '"'}</span>
+                <span className="d_quote-icon">{(() => {
+                  const IconComp = ICON_COMPONENTS[visionSection?.quoteIcon];
+                  return IconComp ? <IconComp size={36} /> : (visionSection?.quoteIcon || '"');
+                })()}</span>
                 <span className="d_vision-subtitle">{visionSection?.subtitle || 'Our Vision'}</span>
                 <h2 className="d_vision-text">
                   "{visionSection?.visionText || 'To be the global heart of Indian bridal wear...'}"
@@ -566,14 +585,15 @@ function Home() {
                   <div className="row">
                     <div className="col-md-3">
                       <label>Icon</label>
-                      <input
-                        type="text"
+                      <select
                         className="form-control"
                         value={item.icon}
                         onChange={(e) => handleInputChange('whyChooseUs', 'icon', e.target.value, index)}
                         disabled={mode === 'view'}
-                        placeholder="e.g., Award"
-                      />
+                      >
+                        <option value="">-- Select Icon --</option>
+                        {ICON_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
                     </div>
                     <div className="col-md-3">
                       <label>Title</label>
@@ -680,12 +700,14 @@ function Home() {
               <div className="grid_2">
                 <div className="x_form_group">
                   <label>Quote Icon</label>
-                  <input
-                    type="text"
+                  <select
                     value={visionSection?.quoteIcon || ''}
                     onChange={(e) => setVisionSection(prev => ({ ...prev, quoteIcon: e.target.value }))}
-                    placeholder='e.g., Quote'
-                  />
+                    className="form-control"
+                  >
+                    <option value="">-- Select Icon --</option>
+                    {ICON_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
                 </div>
                 <div className="x_form_group">
                   <label>Subtitle</label>

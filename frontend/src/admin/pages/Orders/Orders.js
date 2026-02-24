@@ -199,7 +199,7 @@ function Orders() {
                                 onChange={(e) =>
                                   handleStatusChange(order._id, e.target.value)
                                 }
-                                className="x_form-select"
+                                className="x_form-select w-auto"
                                 style={{ fontSize: "12px", padding: "4px" }}
                               >
                                 <option value="pending">Pending</option>

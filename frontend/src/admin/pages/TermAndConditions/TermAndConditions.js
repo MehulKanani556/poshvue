@@ -164,7 +164,7 @@ function TermAndConditions() {
             .d_terms_header h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 10px; letter-spacing: 1px; }
             .d_terms_header p { font-size: 1.1rem; opacity: 0.9; margin: 0; }
             .d_terms_content { padding: 40px; }
-            .d_privacy_section { margin-bottom: 35px; text-align: justify; }
+            .d_privacy_section { margin-bottom: 35px; text-align: justify;word-break: break-word; }
             .d_privacy_section:last-child { margin-bottom: 0; }
             .d_privacy_section p { color: #555; line-height: 1.8; font-size: 1rem; margin-bottom: 15px; }
             .d_privacy_section p:last-child { margin-bottom: 0; }

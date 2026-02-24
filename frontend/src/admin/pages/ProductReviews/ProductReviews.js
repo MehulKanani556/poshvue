@@ -304,7 +304,7 @@ function ProductReviews() {
                                   border: "1px solid #eee",
                                   cursor: "zoom-in",
                                 }}
-                                onClick={() => window.open(getImageUrl(img), "_blank")}
+                                // onClick={() => window.open(getImageUrl(img), "_blank")}
                               />
                             ))}
                           </div>
