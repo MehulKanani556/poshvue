@@ -1,19 +1,78 @@
 const Cart = require("../model/Cart");
 const Product = require("../model/Product");
 
+// Helper function to fix image URLs
+function makeAbsoluteImages(images, req) {
+  if (!Array.isArray(images)) return images;
+  const host = `${req.protocol}://${req.get('host')}`;
+
+  return images.map((img) => {
+    let finalImg = img;
+    
+    
+    // Fix -website in bucket name and s3-website. in domain
+    if (typeof img === 'string') {
+      // Multiple replacement strategies to catch all -website variations
+      finalImg = img
+        .replace('s3-website.', 's3.')  // Fix domain
+        .replace('-website.s3.', '.s3.')  // Fix bucket name
+        // .replace('-website', '');  // Remove -website from bucket name completely
+        
+    }
+    
+    // Then handle relative URLs
+    if (typeof finalImg === 'string' && finalImg.startsWith('/uploads/')) {
+      return host + finalImg;
+    }
+    
+    return finalImg; // Keep S3 URLs as-is (but fixed)
+  });
+}
+
 /* GET CART */
 exports.getCart = async (req, res) => {
   try {
-    const cart = await Cart.findOne({ user: req.user.id }).populate(
-      "items.product"
-    );
-    console.log("Fetched cart:", cart);
-    res.json(cart || { user: req.user.id, items: [] });
+    const cart = await Cart.findOne({ user: req.user.id }).populate("items.product");
+
+    if (!cart) {
+      return res.json({ user: req.user.id, items: [] });
+    }
+
+
+    // ❗ filter out items whose product is null
+    const originalItemsCount = cart.items.length;
+    cart.items = cart.items.filter((i) => {
+      const isValid = i.product !== null;
+      if (!isValid) {
+        console.log('🗑️ Removing null product item from cart:', i._id);
+      }
+      return isValid;
+    });
+
+    console.log('🛒 Cart after filtering:', cart.items.length, 'items');
+    console.log('🗑️ Removed', originalItemsCount - cart.items.length, 'null product items');
+
+    // Save the cleaned cart to database
+    if (originalItemsCount !== cart.items.length) {
+      await cart.save();
+      console.log('💾 Saved cleaned cart to database');
+    }
+
+    // Fix image URLs for all cart items
+    cart.items = cart.items.map(item => {
+      if (item.product && item.product.images) {
+        item.product.images = makeAbsoluteImages(item.product.images, req);
+      }
+      return item;
+    });
+
+    res.json(cart);
   } catch (err) {
-    console.error(err);
+    console.error('❌ Cart error:', err);
     res.status(500).json({ message: err.message });
   }
 };
+
 
 /* ADD TO CART */
 exports.addToCart = async (req, res) => {
@@ -115,7 +174,6 @@ exports.updateCartItem = async (req, res) => {
     // Populate product data before sending response
     await cart.populate("items.product");
 
-    console.log("Updated item quantity:", item);
     res.json(cart);
   } catch (err) {
     console.error("Error in updateCartItem:", err);
@@ -151,7 +209,6 @@ exports.removeFromCart = async (req, res) => {
     await cart.save();
     await cart.populate("items.product");
 
-    console.log("Removed item. Updated cart:", cart);
     res.json(cart);
   } catch (err) {
     console.error("Error in removeFromCart:", err);

@@ -32,12 +32,25 @@ function getCdnUrl(s3Key) {
   
   // Fix: Remove -website from S3 URL if present
   if (s3Url.includes('-website')) {
-    console.log('🔧 Removing -website from S3 URL:', s3Url);
     s3Url = s3Url.replace('-website', '');
-    console.log('✅ Fixed S3 URL:', s3Url);
   }
   
   return s3Url;
+}
+
+// Additional fix for any existing URLs with -website
+function fixWebsiteUrl(url) {
+  if (typeof url !== 'string') return url;
+  
+  // Fix S3 URLs with -website in domain and bucket name
+  if (url.includes('s3-website.') || url.includes('-website.s3.')) {
+    const fixedUrl = url
+      .replace('s3-website.', 's3.')  // Fix domain
+      .replace('-website.s3.', '.s3.');  // Fix bucket name
+    return fixedUrl;
+  }
+  
+  return url;
 }
 
 /**
@@ -78,14 +91,12 @@ function generateFilename(originalName, prefix = 'image') {
 async function uploadToS3(buffer, filename, folder = 'uploads') {
   try {
     const key = `${folder}/${filename}`;
-    console.log(`[AWS UPLOAD] Uploading to S3: bucket=${S3_BUCKET}, key=${key}`);
 
     // Generate cache-busting query string for EMA (Edge-Memory Acceleration)
     const timestamp = Date.now();
     const cacheKey = `${timestamp}-${crypto.randomBytes(4).toString('hex')}`;
     
     const cacheControl = 'max-age=31536000, immutable'; // 1 year cache, immutable
-    console.log(`[AWS UPLOAD] Setting Cache-Control: ${cacheControl}`);
 
     const upload = new Upload({
       client: s3Client,
@@ -107,12 +118,10 @@ async function uploadToS3(buffer, filename, folder = 'uploads') {
     });
 
     await upload.done();
-    console.log(`[AWS UPLOAD] S3 upload successful for key: ${key}`);
 
     // Return the CDN URL with cache-busting for EMA
     const cdnUrl = getCdnUrl(key);
     const finalUrl = `${cdnUrl}?v=${cacheKey}`;
-    console.log(`[AWS UPLOAD] Final CDN URL: ${finalUrl}`);
 
     return finalUrl;
   } catch (error) {
@@ -130,7 +139,6 @@ async function uploadToS3(buffer, filename, folder = 'uploads') {
  */
 async function processAndUploadImage(buffer, originalName, folder = 'uploads') {
   try {
-    console.log(`[AWS UPLOAD] Processing image '${originalName}' for folder '${folder}'`);
     // Convert to WebP
     const webpBuffer = await convertToWebp(buffer);
     
@@ -140,7 +148,6 @@ async function processAndUploadImage(buffer, originalName, folder = 'uploads') {
     // Upload to S3
     const s3Url = await uploadToS3(webpBuffer, filename, folder);
     
-    console.log(`[AWS UPLOAD] Successfully processed and uploaded '${originalName}'`);
     return s3Url;
   } catch (error) {
     console.error(`[AWS UPLOAD] Error processing image '${originalName}':`, error);
@@ -155,13 +162,11 @@ async function processAndUploadImage(buffer, originalName, folder = 'uploads') {
  * @returns {Promise<Array>} - Array of S3 URLs
  */
 async function uploadMultipleImages(files, folder = 'uploads') {
-  console.log(`[AWS UPLOAD] Starting batch upload of ${files.length} images to folder '${folder}'`);
   const uploadPromises = files.map(file => 
     processAndUploadImage(file.buffer, file.originalname, folder)
   );
   
   const results = await Promise.all(uploadPromises);
-  console.log(`[AWS UPLOAD] Finished batch upload. ${results.length} images uploaded.`);
   return results;
 }
 
@@ -192,5 +197,7 @@ module.exports = {
   uploadBase64Image,
   convertToWebp,
   generateFilename,
+  getCdnUrl,
+  fixWebsiteUrl,
   uploadToS3,
 };

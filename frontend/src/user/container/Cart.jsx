@@ -94,7 +94,7 @@ function Cart() {
 
       const payload = {
         cartItems: cartItems.map((item) => ({
-          productId: item.product._id,
+          productId: item.product?._id,
           quantity: item.quantity,
         })),
         address: "Default Address", // Cart doesn't have address, using default
@@ -226,11 +226,9 @@ function Cart() {
         return;
       }
       try {
-        console.log("Cart fetched:");
         const res = await axios.get(API_ENDPOINTS.CART, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        console.log("Cart fetched:", res.data.items);
         setCartItems(res.data.items || []);
       } catch (err) {
         console.error("Error fetching cart:", err);
@@ -264,7 +262,6 @@ function Cart() {
         { productId, qty, size: size ?? null, color: color ?? null },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      console.log("Updated quantity response:", res.data.items);
       setCartItems(res.data.items || []);
     } catch (err) {
       console.error("Error updating quantity:", err);
@@ -273,6 +270,7 @@ function Cart() {
   };
 
   const increaseQty = (item) => {
+    if (!item.product?._id) return;
     updateQty(
       { productId: item.product._id, size: item.size, color: item.color },
       item.quantity + 1,
@@ -280,7 +278,7 @@ function Cart() {
   };
 
   const decreaseQty = (item) => {
-    if (item.quantity > 1) {
+    if (item.quantity > 1 && item.product?._id) {
       updateQty(
         { productId: item.product._id, size: item.size, color: item.color },
         item.quantity - 1,
@@ -291,11 +289,8 @@ function Cart() {
   // Remove item
   const deleteItem = async (item) => {
     const token = localStorage.getItem("userToken");
-    if (!token) {
-      // alert("Please login to continue");
-      navigate("/register");
-      return;
-    }
+    if (!token || !item.product?._id) return;
+
     try {
       const res = await axios.delete(
         `${API_ENDPOINTS.CART}/remove/${item.product._id}?size=${encodeURIComponent(
@@ -303,9 +298,8 @@ function Cart() {
         )}&color=${encodeURIComponent(item.color || "")}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        },
+        }
       );
-      console.log("Delete response:", res.data.items);
       setCartItems(res.data.items || []);
       toast.success("Item removed from cart");
     } catch (err) {
@@ -313,10 +307,31 @@ function Cart() {
       toast.error(err.response?.data?.message || "Failed to remove item");
     }
   };
-  const getImageUrl = (img) => {
-    if (!img) return wishEmptyImg; // fallback
-    if (img.startsWith("http")) return img;
-    return `http://localhost:5000${img}`;
+  const getImageUrl = (product) => {
+    if (!product || !product.images || product.images.length === 0) {
+      return wishEmptyImg;
+    }
+
+    const img = product.images[0];
+
+    // If it's already a full HTTP/HTTPS URL (AWS S3/CloudFront), return as-is
+    if (img && img.startsWith("http")) {
+      // Fix -website URLs in frontend as well
+      const fixedImg = img
+        .replace('s3-website.', 's3.')  // Fix domain
+        .replace('-website.s3.', '.s3.')  // Fix bucket name
+        .replace('-website', '');  // Remove -website from bucket name
+      
+      return fixedImg;
+    }
+
+    // For local uploads, construct localhost URL
+    if (img) {
+      const localUrl = `http://localhost:5000${img}`;
+      return localUrl;
+    }
+
+    return wishEmptyImg;
   };
 
   // Validate and apply coupon
@@ -414,21 +429,25 @@ function Cart() {
                 </div>
 
                 {/* ITEMS */}
-                {cartItems.map((item) => (
+                {cartItems.filter(item => item.product?._id).map((item) => (
                   <div
                     key={`${item.product._id}-${item.size || "nosize"}-${item.color || "nocolor"}`}
                     className="z_cart_row"
                   >
                     <div className="z_cart_product">
                       <img
-                        src={getImageUrl(item.product.images[0])}
-                        alt={item.product.title}
+                        src={getImageUrl(item.product)}
+                        alt={item.product?.title || "Product"}
                         className="d_product-img"
-                        onClick={() => navigate(`/product/${item.product._id}`)}
+                        onClick={() => {
+                          if (item.product?._id) {
+                            navigate(`/product/${item.product._id}`);
+                          }
+                        }}
                       />
                       {/* <img src={item.product.images[0]} alt={item.name} /> */}
                       <div>
-                        <h6>{item.product.title}</h6>
+                        <h6>{item.product?.title || "Product"}</h6>
                         <p>
                           Size: {item.size || "N/A"} | Color:{" "}
                           {item.color || "N/A"}

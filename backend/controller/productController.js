@@ -6,6 +6,7 @@ const writeFile = promisify(fs.writeFile);
 const mkdir = promisify(fs.mkdir);
 const unlink = promisify(fs.unlink);
 const { uploadBase64Image } = require('../utils/awsUpload');
+const { fixWebsiteUrl } = require('../utils/awsUpload');
 
 const { Product, Category, ShippingPolicy, Country } = require('../model');
 
@@ -88,11 +89,21 @@ function makeAbsoluteImages(images, req) {
   if (!Array.isArray(images)) return images;
   const host = `${req.protocol}://${req.get('host')}`;
 
-  return images.map((img) =>
-    typeof img === 'string' && img.startsWith('/uploads/')
-      ? host + img
-      : img // Keep S3 URLs as-is
-  );
+  return images.map((img) => {
+    let finalImg = img;
+    
+    // First fix any -website URLs
+    if (typeof img === 'string') {
+      finalImg = fixWebsiteUrl(img);
+    }
+    
+    // Then handle relative URLs
+    if (typeof finalImg === 'string' && finalImg.startsWith('/uploads/')) {
+      return host + finalImg;
+    }
+    
+    return finalImg; // Keep S3 URLs as-is (but fixed)
+  });
 }
 
 async function resolveCategory(body) {
