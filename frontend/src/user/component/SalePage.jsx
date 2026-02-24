@@ -159,7 +159,7 @@ const SalePage = () => {
     } catch (err) {
       if (err.response?.status === 401) {
         toast.warning("Please login to use wishlist");
-        navigate("/login");
+        navigate("/Login");
       } else {
         toast.error(err?.response?.data?.message || "Something went wrong");
       }
@@ -183,7 +183,7 @@ const SalePage = () => {
     } catch (err) {
       if (err.response?.status === 401) {
         toast.warning("Please login to add items to cart");
-        navigate("/login");
+        navigate("/Login");
       } else {
         toast.error(err?.response?.data?.message || "Something went wrong");
       }

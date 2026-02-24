@@ -202,7 +202,8 @@ function App() {
                   <Header />
                   <Routes>
                     <Route path="/" element={<Main />} />
-                    <Route path="/Register" element={<Register />} />
+                    <Route path="/Register" element={<Register mode="register" />} />
+                    <Route path="/Login" element={<Register mode="login" />} />
                     <Route path="/heroslider" element={<HeroSlider />} />
                     <Route path="/ShopPage" element={<ShopPage />} />
                     <Route path="/SalePage" element={<SalePage />} />

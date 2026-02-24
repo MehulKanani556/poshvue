@@ -3,6 +3,43 @@
  * This file contains CloudFront distribution settings for optimal image caching
  */
 
+// Try to use AWS SDK v3 first, fallback to v2
+let AWS;
+let cloudfront;
+
+try {
+  // AWS SDK v3
+  const { CloudFrontClient, CreateInvalidationCommand } = require('@aws-sdk/client-cloudfront');
+  
+  const cloudfrontClient = new CloudFrontClient({
+    region: process.env.AWS_REGION || 'us-east-1',
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    }
+  });
+  
+  // Create wrapper for v2 compatibility
+  cloudfront = {
+    createInvalidation: async (params) => {
+      const command = new CreateInvalidationCommand(params);
+      return await cloudfrontClient.send(command);
+    }
+  };
+  
+  AWS = require('aws-sdk');
+} catch (error) {
+  console.log('⚠️ Using AWS SDK v2 as fallback');
+  // AWS SDK v2
+  AWS = require('aws-sdk');
+  
+  cloudfront = new AWS.CloudFront({
+    region: process.env.AWS_REGION || 'us-east-1',
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  });
+}
+
 const cloudfrontConfig = {
   // CloudFront Distribution Configuration
   distributionConfig: {
@@ -11,10 +48,10 @@ const cloudfrontConfig = {
       Quantity: 1,
       Items: [
         {
-          Id: 'S3-your-bucket-name', // Replace with your S3 bucket name
+          Id: `S3-${process.env.AWS_S3_BUCKET}`,
           DomainName: `${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com`,
           S3OriginConfig: {
-            OriginAccessIdentity: '' // Use OAI if needed
+            OriginAccessIdentity: process.env.CLOUDFRONT_OAI || ''
           }
         }
       ]
@@ -22,7 +59,7 @@ const cloudfrontConfig = {
 
     // Default Cache Behavior with EMA
     DefaultCacheBehavior: {
-      TargetOriginId: 'S3-your-bucket-name',
+      TargetOriginId: `S3-${process.env.AWS_S3_BUCKET}`,
       ViewerProtocolPolicy: 'redirect-to-https',
       TrustedSigners: { Quantity: 0 },
       TrustedKeyGroups: { Quantity: 0 },
@@ -57,7 +94,7 @@ const cloudfrontConfig = {
       Items: [
         {
           PathPattern: '*.webp',
-          TargetOriginId: 'S3-your-bucket-name',
+          TargetOriginId: `S3-${process.env.AWS_S3_BUCKET}`,
           ViewerProtocolPolicy: 'redirect-to-https',
           MinTTL: 31536000, // 1 year for images
           MaxTTL: 31536000,
@@ -86,7 +123,7 @@ const cloudfrontConfig = {
         },
         {
           PathPattern: '*',
-          TargetOriginId: 'S3-your-bucket-name',
+          TargetOriginId: `S3-${process.env.AWS_S3_BUCKET}`,
           ViewerProtocolPolicy: 'redirect-to-https',
           MinTTL: 86400, // 1 day for other content
           MaxTTL: 31536000,
@@ -181,9 +218,6 @@ const cloudfrontConfig = {
  * @returns {Promise} - Invalidation result
  */
 async function createEMAInvalidation(paths, distributionId) {
-  const AWS = require('aws-sdk');
-  const cloudfront = new AWS.CloudFront();
-  
   const params = {
     DistributionId: distributionId,
     InvalidationBatch: {
@@ -196,11 +230,15 @@ async function createEMAInvalidation(paths, distributionId) {
   };
 
   try {
-    const result = await cloudfront.createInvalidation(params).promise();
-    console.log('EMA Invalidation created:', result.Invalidation.Id);
-    return result;
+    const result = await cloudfront.createInvalidation(params);
+    
+    // Handle both v2 and v3 SDK responses
+    const invalidation = result.Invalidation || result.$response?.Invalidation;
+    
+    console.log('✅ EMA Invalidation created:', invalidation.Id);
+    return { Invalidation: invalidation };
   } catch (error) {
-    console.error('Error creating EMA invalidation:', error);
+    console.error('❌ Error creating EMA invalidation:', error);
     throw error;
   }
 }

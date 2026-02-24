@@ -196,7 +196,7 @@ function CheckoutForm({
     try {
       const token = localStorage.getItem("userToken");
       if (!token) {
-        navigate("/login");
+        navigate("/Login");
         setLoading(false);
         return;
       }
@@ -942,7 +942,7 @@ function Checkout() {
     const fetchCart = async () => {
       const token = localStorage.getItem("userToken");
       if (!token) {
-        navigate("/login");
+        navigate("/Login");
         return;
       }
       try {

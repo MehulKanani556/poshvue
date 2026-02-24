@@ -45,18 +45,30 @@ const resetSchema = Yup.object({
     .required("Confirm password required"),
 });
 
-function Register() {
-  const [mode, setMode] = useState("login");
+function Register({ mode: initialMode = "login" }) {
+  const [mode, setMode] = useState(initialMode);
   const [resetToken, setResetToken] = useState("");
   const [forgotEmail, setForgotEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [errorType, setErrorType] = useState(""); // Error type: validation, network, auth, server
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const otpRef = useRef([]);
   const modalRef = useRef(null);
   const navigate = useNavigate();
+
+  // Error type management
+  const setError = (message, type = "server") => {
+    setApiError(message);
+    setErrorType(type);
+  };
+
+  const clearError = () => {
+    setApiError("");
+    setErrorType("");
+  };
   const handleClose = () => {
     if (modalRef.current) {
       const modalInstance = Modal.getInstance(modalRef.current);
@@ -145,10 +157,22 @@ function Register() {
 
           {apiError && (
             <div style={{
-              background: "#ffebee",
-              color: "#c62828",
-              padding: "10px",
-              borderRadius: "4px",
+              background: errorType === "validation" ? "#fff3cd" : 
+                         errorType === "auth" ? "#f8d7da" :
+                         errorType === "network" ? "#d1ecf1" :
+                         "#ffebee", // default server error
+              color: errorType === "validation" ? "#856404" : 
+                     errorType === "auth" ? "#721c24" :
+                     errorType === "network" ? "#0c5460" :
+                     "#c62828", // default server error
+              border: `1px solid ${
+                errorType === "validation" ? "#ffeaa7" :
+                errorType === "auth" ? "#f5c6cb" :
+                errorType === "network" ? "#bee5eb" :
+                "#f5c6cb" // default server error
+              }`,
+              padding: "12px 16px",
+              borderRadius: "8px",
               marginBottom: "15px",
               fontSize: "14px"
             }}>
@@ -169,7 +193,7 @@ function Register() {
             validationSchema={getSchema()}
             onSubmit={async (values, { setSubmitting }) => {
               try {
-                setApiError("");
+                clearError();
                 setLoading(true);
 
                 if (mode === "register") {
@@ -183,7 +207,7 @@ function Register() {
                   const { token, user } = res.data || {};
                   if (token && user) {
                     if (user.role === "admin") {
-                      setApiError("Admin accounts cannot be registered from this page.");
+                      setError("Admin accounts cannot be registered from this page.", "auth");
                       return;
                     }
                     localStorage.setItem("userToken", token);
@@ -200,7 +224,7 @@ function Register() {
                   const { token, user } = res.data || {};
                   if (token && user) {
                     if (user.role === "admin") {
-                      setApiError("Admin accounts should login from the admin panel.");
+                      setError("Admin accounts should login from the admin panel.", "auth");
                       return;
                     }
                     localStorage.setItem("userToken", token);
@@ -236,8 +260,24 @@ function Register() {
                   // alert("Password reset successfully! Please login with your new password.");
                 }
               } catch (err) {
-                const msg = err?.response?.data?.message || "Something went wrong";
-                setApiError(msg);
+                // Type-wise error handling
+                if (err?.response?.status === 400) {
+                  setError(err?.response?.data?.message || "Validation failed", "validation");
+                } else if (err?.response?.status === 401) {
+                  setError(err?.response?.data?.message || "Unauthorized access", "auth");
+                } else if (err?.response?.status === 403) {
+                  setError(err?.response?.data?.message || "Access forbidden", "auth");
+                } else if (err?.response?.status === 404) {
+                  setError(err?.response?.data?.message || "Service not found", "server");
+                } else if (err?.response?.status === 429) {
+                  setError("Too many requests. Please try again later.", "server");
+                } else if (err?.response?.status >= 500) {
+                  setError("Server error. Please try again later.", "server");
+                } else if (err?.code === "NETWORK_ERROR" || !err?.response) {
+                  setError("Network error. Please check your connection.", "network");
+                } else {
+                  setError(err?.response?.data?.message || "Something went wrong", "server");
+                }
               } finally {
                 setLoading(false);
                 setSubmitting(false);
@@ -275,9 +315,6 @@ function Register() {
                         component="div"
                         className="z_error"
                       />
-                      {/* <p style={{ fontSize: "12px", color: "#fff", marginTop: "5px" }}>
-                    Example: 8160506549 or +918160506549
-                  </p> */}
                     </>
                   )}
 
@@ -311,9 +348,6 @@ function Register() {
                         component="div"
                         className="z_error"
                       />
-                      <p style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>
-                        Example: 8160506549 or +918160506549
-                      </p>
                     </>
                   )}
 
@@ -354,7 +388,7 @@ function Register() {
                   {mode === "otp" && (
                     <>
                       <div style={{ marginBottom: "20px" }}>
-                        <p style={{ textAlign: "center", marginBottom: "10px", color: "#666" }}>
+                        <p style={{ textAlign: "center", marginBottom: "10px", color: "#fff" }}>
                           Enter the 6-digit OTP sent to your phone
                         </p>
                         <div
@@ -468,7 +502,10 @@ function Register() {
                         <input type="checkbox" /> Remember me
                       </label>
                       <span
-                        onClick={() => setMode("forgot")}
+                        onClick={() => {
+                          clearError();
+                          setMode("forgot");
+                        }}
                         style={{ cursor: "pointer", color: "#007bff" }}
                       >
                         Forgot password?
@@ -488,30 +525,45 @@ function Register() {
                     {mode === "login" && (
                       <>
                         Don't have an account?{" "}
-                        <span onClick={() => setMode("register")}>Register</span>
+                        <span onClick={() => {
+                          clearError();
+                          setMode("register");
+                        }}>Register</span>
                       </>
                     )}
                     {mode === "register" && (
                       <>
                         Already have an account?{" "}
-                        <span onClick={() => setMode("login")}>Login</span>
+                        <span onClick={() => {
+                          clearError();
+                          setMode("login");
+                        }}>Login</span>
                       </>
                     )}
                     {mode === "forgot" && (
                       <>
                         Remember password?{" "}
-                        <span onClick={() => setMode("login")}>Back to Login</span>
+                        <span onClick={() => {
+                          clearError();
+                          setMode("login");
+                        }}>Back to Login</span>
                       </>
                     )}
                     {mode === "otp" && (
                       <>
                         Didn't receive OTP?{" "}
-                        <span onClick={() => setMode("forgot")}>Resend</span>
+                        <span onClick={() => {
+                          clearError();
+                          setMode("forgot");
+                        }}>Resend</span>
                       </>
                     )}
                     {mode === "reset" && (
                       <>
-                        <span onClick={() => setMode("login")}>Back to Login</span>
+                        <span onClick={() => {
+                          clearError();
+                          setMode("login");
+                        }}>Back to Login</span>
                       </>
                     )}
                   </p>

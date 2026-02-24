@@ -97,7 +97,7 @@ export default function Product({ productId}) {
     
     if (!token) {
       toast.warning("Please login to add items to wishlist");
-      navigate("/login");
+      navigate("/Login");
       return;
     }
 
@@ -130,7 +130,7 @@ export default function Product({ productId}) {
     } catch (err) {
       if (err.response?.status === 401) {
         toast.error("Please login to use wishlist");
-        navigate("/login");
+        navigate("/Login");
       } else {
         toast.error(err?.response?.data?.message || "Something went wrong");
       }

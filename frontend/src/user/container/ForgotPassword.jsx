@@ -219,7 +219,7 @@ function ForgotPassword() {
         {/* Step 2: Verify OTP */}
         {step === 2 && (
           <form onSubmit={handleVerifyOTP}>
-            <p style={{ color: "#666", textAlign: "center", marginBottom: "20px" }}>
+            <p style={{ color: "#fff", textAlign: "center", marginBottom: "20px" }}>
               Enter the 6-digit OTP sent to your phone
             </p>
 

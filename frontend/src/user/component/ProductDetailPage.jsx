@@ -199,7 +199,7 @@ const ProductDetailPage = () => {
   const toggleWishlist = async () => {
     if (!token) {
       toast.warning("Please login to add items to wishlist");
-      navigate("/register");
+      navigate("/Register");
       return;
     }
 
@@ -233,7 +233,7 @@ const ProductDetailPage = () => {
     } catch (err) {
       if (err.response?.status === 401) {
         toast.error("Please login to use wishlist");
-        navigate("/register");
+        navigate("/Register");
       } else {
         toast.error(err?.response?.data?.message || "Something went wrong");
       }
@@ -294,7 +294,7 @@ const ProductDetailPage = () => {
     const token = localStorage.getItem("userToken");
     if (!token) {
       toast.warning("Please login to add items to cart");
-      navigate("/register");
+      navigate("/Register");
       return;
     }
 

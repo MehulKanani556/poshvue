@@ -222,7 +222,7 @@ function Cart() {
       const token = localStorage.getItem("userToken");
       if (!token) {
         toast.warning("Please login to continue");
-        navigate("/register");
+        navigate("/Register");
         return;
       }
       try {
@@ -253,7 +253,7 @@ function Cart() {
     const token = localStorage.getItem("userToken");
     if (!token) {
       // alert("Please login to continue");
-      navigate("/register");
+      navigate("/Register");
       return;
     }
     try {
