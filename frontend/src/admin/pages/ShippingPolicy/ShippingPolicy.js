@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FiEdit2, FiSave, FiEye, FiPlus, FiTrash2, FiType, FiImage } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
+import { Link } from "react-router-dom";
 
 function ShippingPolicy() {
   const [shippingPolicy, setShippingPolicy] = useState({
@@ -134,7 +135,7 @@ function ShippingPolicy() {
 
       <div className="x_page_header">
         <h3>Shipping Policy Management</h3>
-        <div style={{ display: 'flex', gap: '10px' }} className="x_header_btn"> 
+        <div style={{ display: 'flex', gap: '10px' }} className="x_header_btn">
           <button className="x_btn x_btn-secondary" onClick={() => setMode(mode === 'edit' ? 'preview' : 'edit')}>
             <FiEye /> {mode === 'edit' ? 'Switch to Preview' : 'Back to Edit'}
           </button>
@@ -278,7 +279,7 @@ function ShippingPolicy() {
                 {shippingPolicy?.infoCards?.map((card, index) => (
                   <div key={index} className="col-12 col-md-6 col-xl-4">
                     <div className="d_info_card">
-                      <div style={{fontSize: '1.7rem', color: '#d4af37', marginBottom: '15px'}}>
+                      <div style={{ fontSize: '1.7rem', color: '#d4af37', marginBottom: '15px' }}>
                         {card.icon}
                       </div>
                       <h5>{card.title}</h5>
@@ -304,9 +305,9 @@ function ShippingPolicy() {
 
             <div className="d_shipping_footer">
               <p>{shippingPolicy?.footerText || 'Questions about your delivery?'}</p>
-              <a href={`mailto:${shippingPolicy?.footerButtonEmail || 'support@example.com'}`} className="d_footer_btn">
+              <Link to="/ContactUs" className="d_footer_btn">
                 {shippingPolicy?.footerButtonText || 'Contact Concierge'}
-              </a>
+              </Link>
             </div>
           </div>
         </div>

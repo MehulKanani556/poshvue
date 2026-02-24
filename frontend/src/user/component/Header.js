@@ -56,6 +56,56 @@ const Header = () => {
 
   const [loading, setLoading] = useState(false);
 
+  // Counts for wishlist and cart (badges)
+  const [cartCount, setCartCount] = useState(0);
+  const [wishlistCount, setWishlistCount] = useState(0);
+
+  // Fetch counts from backend
+  const fetchCounts = async () => {
+    const token = localStorage.getItem("userToken");
+    if (!token) {
+      setCartCount(0);
+      setWishlistCount(0);
+      return;
+    }
+    try {
+      const [cartRes, wishRes] = await Promise.all([
+        client.get("/cart", { headers: { Authorization: `Bearer ${token}` } }),
+        client.get("/wishlist", { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      const cartItems = cartRes?.data?.items || [];
+      const wishItems = wishRes?.data?.items || [];
+      setCartCount(Array.isArray(cartItems) ? cartItems.length : 0);
+      setWishlistCount(Array.isArray(wishItems) ? wishItems.length : 0);
+    } catch (err) {
+      console.error("Header counts fetch error:", err?.response?.data || err.message);
+    }
+  };
+
+  // Refresh counts when login state changes
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchCounts();
+    } else {
+      setCartCount(0);
+      setWishlistCount(0);
+    }
+  }, [isLoggedIn]);
+
+  // Refresh counts on focus and optional custom events
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const refresh = () => fetchCounts();
+    window.addEventListener("focus", refresh);
+    window.addEventListener("cartUpdated", refresh);
+    window.addEventListener("wishlistUpdated", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("cartUpdated", refresh);
+      window.removeEventListener("wishlistUpdated", refresh);
+    };
+  }, [isLoggedIn]);
+
 
 
   const userDropdownRef = useRef(null);
@@ -898,6 +948,42 @@ const Header = () => {
 
           color: #0a2845;
 
+          position: relative;
+
+        }
+
+
+
+        .d_count-badge {
+
+          position: absolute;
+
+          top: -4px;
+
+          right: -4px;
+
+          background: #e53935;
+
+          color: #fff;
+
+          font-size: 10px;
+
+          line-height: 1;
+
+          padding: 2px 5px;
+
+          border-radius: 999px;
+
+          min-width: 16px;
+
+          height: 16px;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: center;
+
         }
 
 
@@ -953,7 +1039,42 @@ const Header = () => {
           z-index: 1999;
 
         }
-
+ .d_icon-group {
+        display: flex;
+        gap: 12px;
+      }
+      .d_header_icon {
+        height: 20px;
+        width: 20px;
+      }
+      .d_icon-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #0a2845;
+        position: relative; /* allow absolute badge positioning */
+      }
+      /* Count badge (circle) */
+      .d_count-badge {
+        position: absolute;
+        top: -2px;
+        right: -4px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        border-radius: 16px;
+        background: #0a2845;
+        color: #fff;
+        font-size: 10px;
+        line-height: 16px;
+        text-align: center;
+        font-weight: 600;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.2);
+      }
 
 
         .d_overlay.d_active { display: block; }
@@ -1075,9 +1196,9 @@ const Header = () => {
                 alt={selectedCountry.name}
               />
               <span>{selectedCountry.name}</span>
-              <span style={{ 
-                color: '#4CAF50', 
-                fontSize: '11px', 
+              <span style={{
+                color: '#4CAF50',
+                fontSize: '11px',
                 marginLeft: '5px',
                 fontWeight: 'bold'
               }}>
@@ -1488,11 +1609,31 @@ const Header = () => {
 
             <Heart className="d_header_icon" />
 
+            {isLoggedIn && wishlistCount > 0 && (
+
+              <span className="d_count-badge">
+
+                {wishlistCount > 99 ? "99+" : wishlistCount}
+
+              </span>
+
+            )}
+
           </button>
 
           <button className="d_icon-btn" onClick={() => navigate("/cart")}>
 
             <ShoppingBag className="d_header_icon" />
+
+            {isLoggedIn && cartCount > 0 && (
+
+              <span className="d_count-badge">
+
+                {cartCount > 99 ? "99+" : cartCount}
+
+              </span>
+
+            )}
 
           </button>
 
@@ -1520,7 +1661,7 @@ const Header = () => {
 
           <strong>MENU</strong>
 
-          <X size={24} onClick={() => setShowMobileMenu(false)} style={{color:"#0a2845"}} />
+          <X size={24} onClick={() => setShowMobileMenu(false)} style={{ color: "#0a2845" }} />
 
         </div>
 
