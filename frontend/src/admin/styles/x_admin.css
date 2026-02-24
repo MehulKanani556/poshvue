@@ -1110,6 +1110,9 @@ input[type="url"].x_form-control {
   .x_pres {
     padding: 1.5rem 0rem;
   }
+  .x_modal-body {
+  padding: 8px;
+}
 }
 
 /* Extra Small Mobile - 320px */

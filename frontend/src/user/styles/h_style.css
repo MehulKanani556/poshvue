@@ -31,11 +31,15 @@
   font-size: 15px;
   line-height: 1.7;
   color: #555;
+  word-break: break-word;
+
   list-style-position: inside;
 }
 
 /* Content spacing */
 .terms-content p {
+  word-break: break-word;
+
   color: #555;
   margin-bottom: 14px;
 }

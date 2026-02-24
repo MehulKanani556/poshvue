@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { FiEdit2, FiSave, FiEye, FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiSave, FiEye, FiPlus, FiTrash2 } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
+import { Heart, Star, Award, Users, ShieldCheck, ShoppingBag, Quote } from 'lucide-react';
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -35,6 +36,25 @@ function AboutUs() {
   const [error, setError] = useState("");
   const [mode, setMode] = useState('edit');
   const [ourStoryImagePreview, setOurStoryImagePreview] = useState(null);
+  const ICON_OPTIONS = [
+    'Heart',
+    'Star',
+    'Award',
+    'Users',
+    'ShieldCheck',
+    'ShoppingBag',
+    'Quote',
+  ];
+
+  const ICON_COMPONENTS = {
+    Heart,
+    Star,
+    Award,
+    Users,
+    ShieldCheck,
+    ShoppingBag,
+    Quote,
+  };
 
   useEffect(() => {
     const fetchAboutUs = async () => {
@@ -758,13 +778,18 @@ function AboutUs() {
           <section className="d_features-bg d_section-padding">
             <div className="container">
               <div className="row g-4">
-                {aboutUs.whyChooseUs?.map((item, index) => (
-                  <div key={index} className="col-md-4 text-center">
-                    <div className="d_icon-box">{item.icon}</div>
-                    <h5 className="fw-bold mb-2">{item.title}</h5>
-                    <p className="d_text-muted small mb-0">{item.desc}</p>
-                  </div>
-                ))}
+                {aboutUs.whyChooseUs?.map((item, index) => {
+                  const IconComp = ICON_COMPONENTS[item.icon];
+                  return (
+                    <div key={index} className="col-md-4 text-center">
+                        <div className="d_icon-box">
+                          {IconComp ? <IconComp size={28} /> : (item.icon || '•')}
+                        </div>
+                      <h5 className="fw-bold mb-2">{item.title}</h5>
+                      <p className="d_text-muted small mb-0">{item.desc}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </section>
@@ -773,7 +798,12 @@ function AboutUs() {
           <section className="d_vision-section">
             <div className="container">
               <div className="d_vision-content">
-                <span className="d_quote-icon">"</span>
+                <span className="d_quote-icon">
+                  {(() => {
+                    const IconComp = ICON_COMPONENTS[aboutUs.visionSection?.quoteIcon];
+                    return IconComp ? <IconComp size={36} /> : '"';
+                  })()}
+                </span>
                 <span className="d_section-subtitle text-white opacity-75">{aboutUs.visionSection?.subtitle || 'Our Vision'}</span>
                 <h2 className="d_vision-text">
                   "{aboutUs.visionSection?.visionText || 'To be the global heart of Indian bridal wear...'}"
@@ -786,7 +816,12 @@ function AboutUs() {
 
           {/* Experience Banner */}
           <div className="text-center py-5">
-            <div className="text-muted mb-3" style={{fontSize: '28px'}}>{aboutUs.experienceBanner?.icon || '🛍️'}</div>
+            <div className="text-muted mb-3" style={{fontSize: '28px'}}>
+              {(() => {
+                const IconComp = ICON_COMPONENTS[aboutUs.experienceBanner?.icon];
+                return IconComp ? <IconComp size={28} /> : (aboutUs.experienceBanner?.icon || '🛍️');
+              })()}
+            </div>
             <h5 className="fw-bold text-uppercase">{aboutUs.experienceBanner?.title || 'Experience Luxury'}</h5>
             <p className="text-muted small">{aboutUs.experienceBanner?.description || 'Flagship Store: Surat, Gujarat, India'}</p>
           </div>
@@ -962,13 +997,16 @@ function AboutUs() {
                   </button>
                   <div className="grid_2">
                     <div className="x_form_group">
-                      <label>Icon</label>
-                      <input
-                        type="text"
-                        value={item.icon}
-                        onChange={(e) => handleInputChange('whyChooseUs', 'icon', e.target.value, index)}
-                        placeholder="e.g., Award"
-                      />
+                        <label>Icon</label>
+                        <select
+                          value={item.icon}
+                          onChange={(e) => handleInputChange('whyChooseUs', 'icon', e.target.value, index)}
+                        >
+                          <option value="">-- Select Icon --</option>
+                          {ICON_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
                     </div>
                     <div className="x_form_group">
                       <label>Title</label>
@@ -1004,12 +1042,15 @@ function AboutUs() {
               <div className="grid_2">
                 <div className="x_form_group">
                   <label>Quote Icon</label>
-                  <input
-                    type="text"
+                  <select
                     value={aboutUs.visionSection.quoteIcon}
                     onChange={(e) => handleInputChange('visionSection', 'quoteIcon', e.target.value)}
-                    placeholder="e.g., Quote"
-                  />
+                  >
+                    <option value="">-- Select Icon --</option>
+                    {ICON_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="x_form_group">
                   <label>Subtitle</label>
@@ -1050,12 +1091,15 @@ function AboutUs() {
               <div className="grid_2">
                 <div className="x_form_group">
                   <label>Icon</label>
-                  <input
-                    type="text"
+                  <select
                     value={aboutUs.experienceBanner.icon}
                     onChange={(e) => handleInputChange('experienceBanner', 'icon', e.target.value)}
-                    placeholder="e.g., ShoppingBag"
-                  />
+                  >
+                    <option value="">-- Select Icon --</option>
+                    {ICON_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="x_form_group">
                   <label>Title</label>

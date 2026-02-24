@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Container, Row, Col, Form, Button } from "react-bootstrap";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import client from "../../api/client";
+import client, { getUserOrders } from "../../api/client";
 import { toast } from "react-toastify";
 
 /* =============================
@@ -18,6 +18,59 @@ const COMPLAIN_TYPES = [
 ];
 
 function Complain() {
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState(null);
+
+  useEffect(() => {
+    const loadOrders = async () => {
+      setOrdersLoading(true);
+      setOrdersError(null);
+      try {
+        const userInfoRaw = localStorage.getItem('userInfo');
+        if (!userInfoRaw) return;
+        const userInfo = JSON.parse(userInfoRaw);
+        if (!userInfo?._id) return;
+
+        const res = await getUserOrders(userInfo._id);
+        const data = res.data;
+
+        // Normalize different possible response shapes to an array
+        let list = [];
+        if (Array.isArray(data)) {
+          list = data;
+        } else if (Array.isArray(data?.orders)) {
+          list = data.orders;
+        } else if (Array.isArray(data?.data)) {
+          list = data.data;
+        } else if (Array.isArray(data?.item)) {
+          list = data.item;
+        } else if (Array.isArray(data?.items)) {
+          list = data.items;
+        } else if (Array.isArray(data?.results)) {
+          list = data.results;
+        } else {
+          // If API returned an object representing a single order, wrap it
+          if (data && (data._id || data.id || data.orderNumber)) list = [data];
+        }
+
+        setOrders(list);
+        if (!list || list.length === 0) {
+          // Log raw response to help debug backend shape when no orders found
+          // (Keep this console.log for dev troubleshooting)
+          console.log('getUserOrders returned empty list, raw response:', data);
+        }
+      } catch (err) {
+        setOrdersError(err?.response?.data?.message || err.message || 'Failed to load orders');
+        console.warn('Failed to fetch user orders', err);
+      }
+      finally {
+        setOrdersLoading(false);
+      }
+    };
+
+    loadOrders();
+  }, []);
   const formik = useFormik({
     initialValues: {
       name: "",
@@ -35,7 +88,7 @@ function Complain() {
       mobile: Yup.string()
         .matches(/^[0-9]{10}$/, "Mobile must be 10 digits")
         .required("Mobile is required"),
-      orderNumber: Yup.string().required("Order number is required"),
+  orderNumber: Yup.string().required("Order number is required"),
       subject: Yup.string().min(3).required("Subject is required"),
       complaintType: Yup.string().required("Select complaint type"),
       message: Yup.string().min(10).required("Message is required"),
@@ -45,15 +98,26 @@ function Complain() {
       try {
         setSubmitting(true);
 
+        // Build payload; if the selected order matches a fetched order, include both orderId and orderNumber
         const payload = {
           name: values.name,
           email: values.email,
           mobile: values.mobile,
-          orderNumber: values.orderNumber,
           subject: values.subject,
           complaintType: values.complaintType,
           message: values.message,
         };
+
+        if (values.orderNumber) {
+          const matched = orders.find(o => (o._id || o.id) === values.orderNumber);
+          if (matched) {
+            payload.orderId = matched._id || matched.id;
+            payload.orderNumber = matched.orderNumber || (matched._id || matched.id);
+          } else {
+            // Forward whatever user supplied
+            payload.orderNumber = values.orderNumber;
+          }
+        }
 
         await client.post("/support/complaints", payload);
 
@@ -124,11 +188,32 @@ function Complain() {
                 </Col>
 
                 <Col md={6} className="mb-3">
-                  <Form.Control
-                    name="orderNumber"
-                    placeholder="Enter Order Number *"
-                    {...formik.getFieldProps("orderNumber")}
-                  />
+                  {ordersLoading ? (
+                    <Form.Select disabled>
+                      <option>Loading orders...</option>
+                    </Form.Select>
+                  ) : (orders && orders.length > 0 && !ordersError) ? (
+                    <Form.Select
+                      name="orderNumber"
+                      {...formik.getFieldProps("orderNumber")}
+                    >
+                      <option value="">Select Order</option>
+                      {orders.map((o) => (
+                        <option key={o._id || o.id} value={o._id || o.id}>
+                          {o.orderNumber || o._id || o.id}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  ) : (
+                    <>
+                      <Form.Control
+                        name="orderNumber"
+                        placeholder="Enter Order Number *"
+                        {...formik.getFieldProps("orderNumber")}
+                      />
+                      <small className="text-muted">No orders were found for your account — you can paste your order number above.</small>
+                    </>
+                  )}
                 </Col>
 
                 <Col md={6} className="mb-3">
