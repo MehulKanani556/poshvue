@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { FiMail, FiPhone } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
+import CustomDropdown from "../../components/CustomDropdown";
 
 function Users() {
   const [users, setUsers] = useState([]);
@@ -116,19 +117,20 @@ function Users() {
             </div>
 
             <div className="x_form-group">
-              <label className="x_form-label">Status</label>
-              <select
-                className="x_form-select"
+              <CustomDropdown
+                label="Status"
+                options={[
+                  { value: 'All', label: 'All' },
+                  { value: 'Active', label: 'Active' },
+                  { value: 'Inactive', label: 'Inactive' }
+                ]}
                 value={filterStatus}
-                onChange={(e) => {
-                  setFilterStatus(e.target.value);
+                onChange={(value) => {
+                  setFilterStatus(value);
                   setCurrentPage(1);
                 }}
-              >
-                <option value="All">All</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
+                placeholder="Select status"
+              />
             </div>
           </div>
         </div>

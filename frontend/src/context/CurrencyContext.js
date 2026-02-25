@@ -170,11 +170,12 @@ export const CurrencyProvider = ({ children }) => {
 
     loadCountries();
 
-    const refreshInterval = setInterval(() => refreshCountries(), 5 * 60 * 1000);
+    // Commented out automatic refresh to prevent unwanted reloads
+    // const refreshInterval = setInterval(() => refreshCountries(), 5 * 60 * 1000);
 
-    return () => clearInterval(refreshInterval);
+    // return () => clearInterval(refreshInterval);
 
-  }, [refreshCountries]);
+  }, []);
 
 
 
