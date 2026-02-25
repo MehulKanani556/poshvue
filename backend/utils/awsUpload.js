@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
 const sharp = require('sharp');
 const crypto = require('crypto');
@@ -191,10 +191,141 @@ async function uploadBase64Image(dataUrl, folder = 'uploads') {
   }
 }
 
+/**
+ * Extract S3 key from S3 or CloudFront URL
+ * @param {string} imageUrl - S3 or CDN URL
+ * @returns {string} - S3 object key
+ */
+function extractS3Key(imageUrl) {
+  try {
+    if (!imageUrl || typeof imageUrl !== 'string') {
+      console.warn('❌ Invalid URL provided:', imageUrl);
+      return null;
+    }
+
+    console.log('🔍 Extracting key from URL:', imageUrl);
+
+    // Remove query string (cache-busting) and whitespace
+    const urlWithoutQuery = imageUrl.split('?')[0].trim();
+
+    // Pattern 1: CloudFront URL
+    // https://poshvue-images-2026.s3.eu-north-1.amazonaws.com/products/image.webp
+    const cloudFrontMatch = urlWithoutQuery.match(/https:\/\/[^/]+\/(.+)$/);
+    if (cloudFrontMatch) {
+      const key = cloudFrontMatch[1];
+      console.log('✅ Extracted key (CloudFront pattern):', key);
+      return key;
+    }
+
+    // Pattern 2: S3 Direct URL with bucket.s3.region format
+    // https://bucket.s3.region.amazonaws.com/path/to/image.webp
+    const s3DirectMatch = urlWithoutQuery.match(/https:\/\/[^.]+\.[^/]+\/(.+)$/);
+    if (s3DirectMatch) {
+      const key = s3DirectMatch[1];
+      console.log('✅ Extracted key (S3 direct pattern):', key);
+      return key;
+    }
+
+    // Pattern 3: Fallback - extract everything after domain
+    const fallbackMatch = urlWithoutQuery.match(/amazonaws\.com\/(.+)$/);
+    if (fallbackMatch) {
+      const key = fallbackMatch[1];
+      console.log('✅ Extracted key (fallback pattern):', key);
+      return key;
+    }
+
+    // Pattern 4: Simple domain extraction
+    const parts = urlWithoutQuery.split('/');
+    if (parts.length > 3) {
+      const key = parts.slice(3).join('/');
+      console.log('✅ Extracted key (simple pattern):', key);
+      return key;
+    }
+
+    console.warn('❌ Could not extract S3 key from URL:', imageUrl);
+    return null;
+  } catch (error) {
+    console.error('❌ Error extracting S3 key:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Delete a single image from S3
+ * @param {string} imageUrl - Image URL (S3 or CloudFront)
+ * @returns {Promise<{success: boolean, url: string, key: string, error?: string}>} - Delete result
+ */
+async function deleteImageFromS3(imageUrl) {
+  try {
+    if (!imageUrl) {
+      console.warn('⚠️  No URL provided for deletion');
+      return { success: false, url: imageUrl, key: null, error: 'No URL provided' };
+    }
+
+    const key = extractS3Key(imageUrl);
+    if (!key) {
+      console.warn('❌ Could not extract S3 key from URL:', imageUrl);
+      return { success: false, url: imageUrl, key: null, error: 'Could not extract key' };
+    }
+
+    console.log(`🗑️  Attempting to delete: ${key}`);
+
+    const deleteCommand = new DeleteObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+    });
+
+    const response = await s3Client.send(deleteCommand);
+    console.log(`✅ Successfully deleted: ${key}`, response);
+    
+    return { success: true, url: imageUrl, key: key };
+  } catch (error) {
+    console.error(`❌ Error deleting image from S3:`, error.message);
+    return { success: false, url: imageUrl, key: null, error: error.message };
+  }
+}
+
+/**
+ * Delete multiple images from S3
+ * @param {Array<string>} imageUrls - Array of image URLs
+ * @returns {Promise<{total: number, deleted: number, failed: number, results: Array}>} - Deletion summary
+ */
+async function deleteMultipleImagesFromS3(imageUrls) {
+  console.log(`\n🗑️  Starting deletion of ${imageUrls?.length || 0} images...`);
+  
+  if (!Array.isArray(imageUrls) || imageUrls.length === 0) {
+    console.log('⚠️  No images to delete');
+    return { total: 0, deleted: 0, failed: 0, results: [] };
+  }
+
+  const deletePromises = imageUrls.map(url => deleteImageFromS3(url));
+  const results = await Promise.all(deletePromises);
+  
+  const deleted = results.filter(r => r.success).length;
+  const failed = results.filter(r => !r.success).length;
+  
+  console.log(`\n📊 Deletion Summary:`);
+  console.log(`   Total: ${results.length}`);
+  console.log(`   ✅ Deleted: ${deleted}`);
+  console.log(`   ❌ Failed: ${failed}`);
+  
+  if (failed > 0) {
+    console.log('\n⚠️  Failed deletions:');
+    results.filter(r => !r.success).forEach(r => {
+      console.log(`   - ${r.url} (Error: ${r.error})`);
+    });
+  }
+  
+  return { total: results.length, deleted, failed, results };
+}
+
 module.exports = {
   processAndUploadImage,
   uploadMultipleImages,
   uploadBase64Image,
+  deleteImageFromS3,
+  deleteMultipleImagesFromS3,
+  extractS3Key,
   convertToWebp,
   generateFilename,
   getCdnUrl,

@@ -5,8 +5,11 @@ const { promisify } = require('util');
 const writeFile = promisify(fs.writeFile);
 const mkdir = promisify(fs.mkdir);
 const unlink = promisify(fs.unlink);
-const { uploadBase64Image } = require('../utils/awsUpload');
-const { fixWebsiteUrl } = require('../utils/awsUpload');
+const { 
+  uploadBase64Image, 
+  fixWebsiteUrl,
+  deleteMultipleImagesFromS3 
+} = require('../utils/awsUpload');
 
 const { Product, Category, ShippingPolicy, Country } = require('../model');
 
@@ -259,6 +262,9 @@ exports.create = async (req, res) => {
 // exports.update = async (req, res) => {
 exports.update = async (req, res) => {
   try {
+    console.log('\n========== PRODUCT UPDATE START ==========');
+    console.log('Product ID:', req.params.id);
+    
     const body = mapAdminToProduct(req.body);
     await resolveCategory(body);
 
@@ -268,24 +274,53 @@ exports.update = async (req, res) => {
     const imagesProvided = Array.isArray(req.body.images);
 
     if (imagesProvided) {
-      body.images = await processImagesArray(body.images);
+      // 🟢 Step 1: Get old images from database
+      const oldImages = Array.isArray(existing.images) ? existing.images : [];
+      console.log(`\n📸 Found ${oldImages.length} old images in database`);
+
+      // 🟢 Step 2: Process new images first (to ensure they upload successfully)
+      console.log('\n📤 Processing and uploading new images...');
+      const newImages = await processImagesArray(body.images);
+      console.log(`✅ Successfully processed ${newImages.length} new images`);
+      
+      // 🟢 Step 3: Only delete images that are being replaced
+      // Find images to delete (old images that are not in the new set)
+      const newImageUrls = new Set(newImages);
+      const imagesToDelete = oldImages.filter(oldImg => !newImageUrls.has(oldImg));
+      
+      if (imagesToDelete.length > 0) {
+        console.log(`🗑️  Deleting ${imagesToDelete.length} old images from S3...`);
+        const deleteResult = await deleteMultipleImagesFromS3(imagesToDelete);
+        console.log(`\n✅ Deletion complete: ${deleteResult.deleted}/${deleteResult.total} deleted successfully`);
+        if (deleteResult.failed > 0) {
+          console.warn(`⚠️  Warning: ${deleteResult.failed} images failed to delete from S3`);
+        }
+      } else {
+        console.log('ℹ️  No images to delete - keeping existing images');
+      }
+      
+      // 🟢 Step 4: Replace images in database
+      body.images = newImages;
+      console.log(`✅ Ready to update database with ${newImages.length} new images`);
     } else {
       delete body.images;
     }
 
-    // remove ensureBasePriceFromCountry (deleted)
+    // Update product in database
+    console.log('\n💾 Updating product in database...');
     const updated = await Product.findByIdAndUpdate(
       req.params.id,
       body,
       { new: true }
     ).populate('categories');
 
-    // ✅ Note: With S3, we don't need to delete local files anymore
-    // Old images will remain in S3 - you may want to implement S3 cleanup later if needed
+    console.log('✅ Product updated in database');
+
     if (imagesProvided) {
-      // No local file cleanup needed with S3
-      console.log('Images updated, S3 handles storage automatically');
+      console.log(`✅ Images updated: old deleted from S3, ${body.images.length} new images stored`);
     }
+    
+    console.log('========== PRODUCT UPDATE COMPLETE ==========\n');
 
     const obj = updated.toObject();
     obj.images = makeAbsoluteImages(obj.images, req);
