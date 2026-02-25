@@ -5,6 +5,7 @@ import * as Yup from "yup";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { loadStripe } from "@stripe/stripe-js";
+import { CreditCard, QrCode, ShieldCheck, CheckCircle2 } from "lucide-react";
 import {
   Elements,
   CardElement,
@@ -561,86 +562,111 @@ function CheckoutForm({
             </div>
             {/* Payment Method Selection */}
             <div className="z_chck_form_group mt-3">
-              <label>Payment Method</label>
-              <div
-                className="payment-methods"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "10px",
-                }}
-              >
+              <label className="fw-bold mb-2">Select Payment Method</label>
+              <div className="z_payment_methods_container">
                 {isIndia && (
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      cursor: "pointer",
-                    }}
+                  <div
+                    className={`z_payment_option_card ${selectedPaymentMethod === "upi" ? "active" : ""}`}
+                    onClick={() => setSelectedPaymentMethod("upi")}
                   >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="upi"
-                      checked={selectedPaymentMethod === "upi"}
-                      onChange={(e) => setSelectedPaymentMethod(e.target.value)}
-                      style={{ marginRight: "8px" }}
-                    />
-                    <span>UPI</span>
-                  </label>
-                )}
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="card"
-                    checked={selectedPaymentMethod === "card"}
-                    onChange={(e) => setSelectedPaymentMethod(e.target.value)}
-                    style={{ marginRight: "8px" }}
-                  />
-                  <span>Card (Credit/Debit)</span>
-                </label>
-              </div>
-            </div>
-            {/* UPI ID Input */}
-            {selectedPaymentMethod === "upi" && (
-              <div className="z_chck_form_group">
-                <label>UPI ID</label>
-                <input
-                  type="text"
-                  placeholder="yourname@paytm"
-                  value={upiId}
-                  onChange={(e) => setUpiId(e.target.value)}
-                  style={{ width: "100%", padding: "8px", marginTop: "5px" }}
-                />
-                <small
-                  style={{ color: "#666", display: "block", marginTop: "5px" }}
-                >
-                  Enter your UPI ID (e.g., yourname@paytm, yourname@phonepe)
-                </small>
-              </div>
-            )}
-            {/* Card Details (only for card payment) */}
-            {selectedPaymentMethod === "card" && HAS_STRIPE && (
-              <div className="z_chck_form_group mt-3">
-                <div className="payment-card">
-                  <div className="payment-card-header">Card Details</div>
-                  <div className="payment-card-body">
-                    <div className="z_chck_card_element">
-                      <CardElement options={{ hidePostalCode: true }} />
+                    <div className="z_payment_icon">
+                      <QrCode size={20} />
                     </div>
-                    <small className="text-muted">
-                      Enter card details to pay with card
-                    </small>
+                    <div className="z_payment_info">
+                      <span>UPI</span>
+                      <small>Google Pay, PhonePe, Paytm & more</small>
+                    </div>
+                    <div className="z_payment_check"></div>
                   </div>
+                )}
+                
+                <div
+                  className={`z_payment_option_card ${selectedPaymentMethod === "card" ? "active" : ""}`}
+                  onClick={() => setSelectedPaymentMethod("card")}
+                >
+                  <div className="z_payment_icon">
+                    <CreditCard size={20} />
+                  </div>
+                  <div className="z_payment_info">
+                    <span>Card (Credit/Debit)</span>
+                    <small>Visa, Mastercard, AMEX, RuPay</small>
+                  </div>
+                  <div className="z_payment_check"></div>
                 </div>
               </div>
+            </div>
+
+            {/* UPI ID Input */}
+            {selectedPaymentMethod === "upi" && (
+              <div className="z_upi_input_wrapper animate__animated animate__fadeIn">
+                <div className="z_chck_form_group">
+                  <label className="mb-2">Enter UPI ID</label>
+                  <div className="z_upi_input_group">
+                    <input
+                      type="text"
+                      placeholder="username@bank"
+                      value={upiId}
+                      onChange={(e) => setUpiId(e.target.value)}
+                    />
+                  </div>
+                  <div className="z_upi_suggestions">
+                    {["@paytm", "@okaxis", "@okicici", "@apl", "@ybl"].map((handle) => (
+                      <span 
+                        key={handle} 
+                        className="z_upi_tag"
+                        onClick={() => {
+                          const name = upiId.split("@")[0] || "username";
+                          setUpiId(name + handle);
+                        }}
+                      >
+                        {handle}
+                      </span>
+                    ))}
+                  </div>
+                  <small className="text-muted mt-2 d-block">
+                    A payment request will be sent to your UPI app
+                  </small>
+                </div>
+              </div>
+            )}
+
+            {/* Card Details (only for card payment) */}
+            {selectedPaymentMethod === "card" && HAS_STRIPE && (
+              <div className="z_card_input_wrapper animate__animated animate__fadeIn">
+                <div className="z_chck_form_group">
+                  <label className="mb-2">Card Details</label>
+                  <div className="z_card_element_container">
+                    <CardElement 
+                      options={{ 
+                        hidePostalCode: true,
+                        style: {
+                          base: {
+                            fontSize: '15px',
+                            color: '#0a2845',
+                            fontFamily: 'Inter, sans-serif',
+                            '::placeholder': {
+                              color: '#aab7c4',
+                            },
+                          },
+                          invalid: {
+                            color: '#dc3545',
+                          },
+                        }
+                      }} 
+                    />
+                  </div>
+                  <div className="z_payment_badges">
+                     <img src="https://img.icons8.com/color/48/000000/visa.png" alt="Visa" className="z_payment_badge" />
+                     <img src="https://img.icons8.com/color/48/000000/mastercard.png" alt="Mastercard" className="z_payment_badge" />
+                     <img src="https://img.icons8.com/color/48/000000/amex.png" alt="AMEX" className="z_payment_badge" />
+                     <img src="https://img.icons8.com/color/48/000000/rupay.png" alt="RuPay" className="z_payment_badge" />
+                   </div>
+                   <div className="d-flex align-items-center mt-2 gap-1 text-muted">
+                     <ShieldCheck size={14} />
+                     <small>Your payment is secured with 256-bit encryption</small>
+                   </div>
+                 </div>
+               </div>
             )}
             <button
               type="submit"
@@ -1178,7 +1204,7 @@ function Checkout() {
         <div className="z_chck_main">
           {/* ================= Billing Details ================= */}
           <div className="z_chck_billing card p-3">
-            <h3>Billing & Payment</h3>
+            <h3 className="mb-3">Billing & Payment</h3>
             <Elements stripe={stripePromise}>
               <CheckoutForm
                 cartItems={cartItems}
@@ -1198,75 +1224,77 @@ function Checkout() {
           </div>
           {/* ================= Order Summary ================= */}
           <div className="z_chck_summary card p-3">
-            <h3>Order Summary</h3>
-            {cartItems.map((item) => {
-              const localPrice = Math.round(
-                getConvertedPrice(item.product, "salePrice") *
-                  (item.quantity || 0),
-              );
-              const inrPrice = toINR(localPrice);
-              return (
-                <div
-                  key={`${item.product._id}-${item.size || "nosize"}-${item.color || "nocolor"}`}
-                  className="z_chck_summary_item"
-                >
-                  <span>
-                    {item.product.title} x {item.quantity}
-                  </span>
-                  <span>
-                    {selectedCountry?.currencySymbol || "₹"}
-                    {localPrice.toLocaleString("en-IN")}
-                  </span>
-                </div>
-              );
-            })}
-
-            <div className="z_chck_summary_item">
-              <span>Subtotal</span>
-              <span>
-                {selectedCountry?.currencySymbol || "₹"}
-                {Math.round(subTotal).toLocaleString("en-IN")}
-                {/* <small className="text-muted d-block">
-                  (₹{toINR(subTotal).toLocaleString("en-IN")})
-                </small> */}
-              </span>
+            <h3 className="mb-3">Order Summary</h3>
+            <div className="z_chck_summary_products">
+              {cartItems.map((item) => {
+                const localPrice = Math.round(
+                  getConvertedPrice(item.product, "salePrice") *
+                    (item.quantity || 0),
+                );
+                return (
+                  <div
+                    key={`${item.product._id}-${item.size || "nosize"}-${item.color || "nocolor"}`}
+                    className="z_chck_product_item"
+                  >
+                    <div className="z_chck_product_img_wrap">
+                      <img
+                        src={item.product.images?.[0] || "/placeholder.jpg"}
+                        alt={item.product.title}
+                      />
+                      <span className="z_chck_product_qty_badge">{item.quantity}</span>
+                    </div>
+                    <div className="z_chck_product_info">
+                      <span className="z_chck_product_name">{item.product.title}</span>
+                      <div className="z_chck_product_meta">
+                        {item.size && <span>Size: {item.size}</span>}
+                        {item.color && <span>Color: {item.color}</span>}
+                      </div>
+                    </div>
+                    <div className="z_chck_product_price">
+                      {selectedCountry?.currencySymbol || "₹"}
+                      {localPrice.toLocaleString("en-IN")}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            {appliedCoupon && discount > 0 && (
+            <div className="z_chck_summary_details mt-2">
               <div className="z_chck_summary_item">
-                <span>Discount ({appliedCoupon.code})</span>
+                <span>Subtotal</span>
                 <span>
-                  -{selectedCountry?.currencySymbol || "₹"}
-                  {Math.round(discount).toLocaleString("en-IN")}
-                  {/* <small className="text-muted d-block">
-                    (-₹{toINR(discount).toLocaleString("en-IN")})
-                  </small> */}
+                  {selectedCountry?.currencySymbol || "₹"}
+                  {Math.round(subTotal).toLocaleString("en-IN")}
                 </span>
               </div>
-            )}
 
-            <div className="z_chck_summary_item">
-              <span>
-                Shipping ({isInternational ? "International" : "Domestic"})
-              </span>
-              <span>
-                {selectedCountry?.currencySymbol || "₹"}
-                {Math.round(shippingCharges).toLocaleString("en-IN")}
-                {/* <small className="text-muted d-block">
-                  (₹{toINR(shippingCharges).toLocaleString("en-IN")})
-                </small> */}
-              </span>
-            </div>
+              {appliedCoupon && discount > 0 && (
+                <div className="z_chck_summary_item">
+                  <span>Discount ({appliedCoupon.code})</span>
+                  <span>
+                    -{selectedCountry?.currencySymbol || "₹"}
+                    {Math.round(discount).toLocaleString("en-IN")}
+                  </span>
+                </div>
+              )}
 
-            <div className="z_chck_summary_total">
-              <span>Total</span>
-              <span>
-                {selectedCountry?.currencySymbol || "₹"}
-                {Math.round(total).toLocaleString("en-IN")}
-                {/* <small className="text-muted d-block mt-1">
-                  (₹{toINR(total).toLocaleString("en-IN")})
-                </small> */}
-              </span>
+              <div className="z_chck_summary_item">
+                <span>
+                  Shipping ({isInternational ? "International" : "Domestic"})
+                </span>
+                <span>
+                  {selectedCountry?.currencySymbol || "₹"}
+                  {Math.round(shippingCharges).toLocaleString("en-IN")}
+                </span>
+              </div>
+
+              <div className="z_chck_summary_total">
+                <span>Total</span>
+                <span>
+                  {selectedCountry?.currencySymbol || "₹"}
+                  {Math.round(total).toLocaleString("en-IN")}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -1274,4 +1302,5 @@ function Checkout() {
     </section>
   );
 }
+
 export default Checkout;
