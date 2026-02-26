@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FiEdit2, FiTrash2, FiPlus, FiX } from "react-icons/fi";
 import { FiStar } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
+import CustomDropdown from "../../components/CustomDropdown";
 
 function Reviews() {
     const [reviews, setReviews] = useState([]);
@@ -180,16 +181,15 @@ function Reviews() {
                             {editingId ? (
                                 <>
                                     <div className="x_form-group">
-                                        <label className="x_form-label">Status</label>
-                                        <select
-                                            name="status"
-                                            className="x_form-select"
+                                        <CustomDropdown
+                                            label="Status"
+                                            options={[
+                                                { label: "Pending", value: "pending" },
+                                                { label: "Approved", value: "approved" }
+                                            ]}
                                             value={formData.status}
-                                            onChange={handleInputChange}
-                                        >
-                                            <option value="pending">Pending</option>
-                                            <option value="approved">Approved</option>
-                                        </select>
+                                            onChange={(val) => setFormData(prev => ({ ...prev, status: val }))}
+                                        />
                                     </div>
                                     <p style={{ fontSize: "12px", color: "#7f8c8d", marginTop: "10px" }}>
                                         Note: You can only change the status. Product and user cannot be changed.
@@ -226,19 +226,15 @@ function Reviews() {
                             )}
 
                             <div className="x_form-group">
-                                <label className="x_form-label">Rating (1-5)</label>
-                                <select
-                                    name="star"
-                                    className="x_form-select"
+                                <CustomDropdown
+                                    label="Rating (1-5)"
+                                    options={[1, 2, 3, 4, 5].map((s) => ({
+                                        label: `${s} Star${s > 1 ? "s" : ""}`,
+                                        value: s
+                                    }))}
                                     value={formData.star}
-                                    onChange={handleInputChange}
-                                >
-                                    {[1, 2, 3, 4, 5].map((s) => (
-                                        <option key={s} value={s}>
-                                            {s} Star{s > 1 ? "s" : ""}
-                                        </option>
-                                    ))}
-                                </select>
+                                    onChange={(val) => setFormData(prev => ({ ...prev, star: parseInt(val) }))}
+                                />
                             </div>
 
                             <div className="x_form-group">

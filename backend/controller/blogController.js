@@ -1,4 +1,55 @@
 const { Blog } = require('../model');
+const { uploadBase64Image, fixWebsiteUrl } = require('../utils/awsUpload');
+
+/* -------------------- Helpers -------------------- */
+
+// Helper function to make image URLs absolute for local files (if any) and fix S3 URLs
+function makeAbsoluteImages(images, req) {
+  if (!Array.isArray(images)) return images;
+  const host = `${req.protocol}://${req.get('host')}`;
+
+  return images.map((img) => {
+    let finalImg = img;
+    
+    // First fix any -website URLs
+    if (typeof img === 'string') {
+      finalImg = fixWebsiteUrl(img);
+    }
+    
+    // Then handle relative URLs
+    if (typeof finalImg === 'string' && finalImg.startsWith('/uploads/')) {
+      return host + finalImg;
+    }
+    
+    return finalImg; // Keep S3 URLs as-is (but fixed)
+  });
+}
+
+// Helper function to save base64 image to AWS S3
+async function saveBase64Image(dataUrl) {
+  try {
+    return await uploadBase64Image(dataUrl, 'blogs');
+  } catch (error) {
+    console.error('Error uploading base64 image to S3:', error);
+    throw error;
+  }
+}
+
+async function processImagesArray(images) {
+  const out = [];
+
+  for (const img of images) {
+    if (typeof img === 'string' && img.startsWith('data:')) {
+      const saved = await saveBase64Image(img);
+      out.push(saved);
+    } else if (typeof img === 'string') {
+      // Keep S3 URLs as-is, but fix them if needed
+      out.push(fixWebsiteUrl(img));
+    }
+  }
+
+  return out;
+}
 
 function slugify(str) {
   return String(str || '')
@@ -47,7 +98,14 @@ exports.list = async (req, res) => {
       Blog.find(query).sort(sort).skip((page - 1) * limit).limit(Number(limit)),
       Blog.countDocuments(query),
     ]);
-    return res.json({ items, total, page: Number(page), limit: Number(limit) });
+
+    const processedItems = items.map(item => {
+      const obj = item.toObject();
+      obj.images = makeAbsoluteImages(obj.images, req);
+      return obj;
+    });
+
+    return res.json({ items: processedItems, total, page: Number(page), limit: Number(limit) });
   } catch (err) {
     return res.status(500).json({ message: 'Server error' });
   }
@@ -57,7 +115,11 @@ exports.get = async (req, res) => {
   try {
     const item = await Blog.findOne({ slug: req.params.slug });
     if (!item) return res.status(404).json({ message: 'Not found' });
-    return res.json({ item });
+    
+    const obj = item.toObject();
+    obj.images = makeAbsoluteImages(obj.images, req);
+
+    return res.json({ item: obj });
   } catch (err) {
     return res.status(500).json({ message: 'Server error' });
   }
@@ -66,9 +128,31 @@ exports.get = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const body = mapAdminToBlog(req.body);
+
+    // Handle AWS S3 uploaded files from middleware
+    let imagePaths = [];
+    if (req.s3FileUrls && req.s3FileUrls.length > 0) {
+      imagePaths = req.s3FileUrls;
+    }
+
+    // Handle images array from body (might contain base64 or existing URLs)
+    if (body.images && Array.isArray(body.images)) {
+      const processedImages = await processImagesArray(body.images);
+      imagePaths.push(...processedImages);
+    }
+
+    // Remove duplicates and set images
+    if (imagePaths.length > 0) {
+      body.images = [...new Set(imagePaths)];
+    }
+
     const item = await Blog.create(body);
-    return res.status(201).json({ item });
+    const obj = item.toObject();
+    obj.images = makeAbsoluteImages(obj.images, req);
+
+    return res.status(201).json({ item: obj });
   } catch (err) {
+    console.error('Error in blog create:', err);
     return res.status(400).json({ message: 'Invalid data' });
   }
 };
@@ -76,10 +160,36 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const body = mapAdminToBlog(req.body);
+
+    // Handle AWS S3 uploaded files from middleware
+    let imagePaths = [];
+    if (req.s3FileUrls && req.s3FileUrls.length > 0) {
+      imagePaths = req.s3FileUrls;
+    }
+
+    // Handle images array from body (might contain base64 or existing URLs)
+    if (body.images && Array.isArray(body.images)) {
+      const processedImages = await processImagesArray(body.images);
+      imagePaths.push(...processedImages);
+    }
+
+    // If we have any images (from S3 or processed base64), update the body
+    if (imagePaths.length > 0) {
+      body.images = [...new Set(imagePaths)];
+    } else if (req.body.images === null || (Array.isArray(req.body.images) && req.body.images.length === 0)) {
+      // If images were explicitly cleared
+      body.images = [];
+    }
+
     const item = await Blog.findByIdAndUpdate(req.params.id, body, { new: true });
     if (!item) return res.status(404).json({ message: 'Not found' });
-    return res.json({ item });
+    
+    const obj = item.toObject();
+    obj.images = makeAbsoluteImages(obj.images, req);
+
+    return res.json({ item: obj });
   } catch (err) {
+    console.error('Error in blog update:', err);
     return res.status(400).json({ message: 'Invalid data' });
   }
 };

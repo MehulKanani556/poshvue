@@ -118,6 +118,7 @@ function Users() {
 
             <div className="x_form-group">
               <CustomDropdown
+              padding="12px 12px" 
                 label="Status"
                 options={[
                   { value: 'All', label: 'All' },

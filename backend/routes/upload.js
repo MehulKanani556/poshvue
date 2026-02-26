@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { auth, requireRole } = require('../middleware/auth');
-const { uploadCategoryImage, uploadCategoryToS3, uploadBlogImages, uploadBlogToS3, uploadStoryImages, uploadStoryToS3, uploadProductImages, uploadProductsToS3 } = require('../middleware/upload');
+const { uploadCategoryImage, uploadCategoryToS3, uploadBlogImages, uploadBlogToS3, uploadStoryImages, uploadStoryToS3, uploadProductImages, uploadProductsToS3, uploadHomeImages, uploadHomeToS3 } = require('../middleware/upload');
 const uploadController = require('../controller/uploadController');
 
 // Category image upload endpoint
@@ -15,5 +15,8 @@ router.post('/story-image', auth, requireRole('admin'), uploadStoryImages, uploa
 
 // Product images upload endpoint
 router.post('/product-images', auth, requireRole('admin'), uploadProductImages, uploadProductsToS3, uploadController.uploadMultiple);
+
+// Home poster images upload endpoint
+router.post('/home-image', auth, requireRole('admin'), uploadHomeImages, uploadHomeToS3, uploadController.uploadSingle);
 
 module.exports = router;

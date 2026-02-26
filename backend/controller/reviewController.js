@@ -1,5 +1,27 @@
 const { Review, Order } = require('../model');
-const { uploadBase64Image } = require('../utils/awsUpload');
+const { uploadBase64Image, fixWebsiteUrl } = require('../utils/awsUpload');
+
+/* -------------------- Helpers -------------------- */
+
+// Helper function to make image URLs absolute and fix S3 URLs
+function makeAbsoluteImages(images, req) {
+  if (!images) return images;
+  const host = `${req.protocol}://${req.get('host')}`;
+
+  const processUrl = (url) => {
+    if (typeof url !== 'string') return url;
+    let finalUrl = fixWebsiteUrl(url);
+    if (finalUrl.startsWith('/uploads/')) {
+      return host + finalUrl;
+    }
+    return finalUrl;
+  };
+
+  if (Array.isArray(images)) {
+    return images.map(processUrl);
+  }
+  return processUrl(images);
+}
 
 function mapAdminToReview(payload) {
   const body = { ...payload };
@@ -37,7 +59,18 @@ exports.list = async (req, res) => {
         .limit(Number(limit)),
       Review.countDocuments(query),
     ]);
-    return res.json({ items, total, page: Number(page), limit: Number(limit) });
+
+    const processedItems = items.map(item => {
+      const obj = item.toObject();
+      if (obj.image) obj.image = makeAbsoluteImages(obj.image, req);
+      if (obj.images) obj.images = makeAbsoluteImages(obj.images, req);
+      if (obj.product && obj.product.images) {
+        obj.product.images = makeAbsoluteImages(obj.product.images, req);
+      }
+      return obj;
+    });
+
+    return res.json({ items: processedItems, total, page: Number(page), limit: Number(limit) });
   } catch (err) {
     return res.status(500).json({ message: 'Server error' });
   }
@@ -134,7 +167,14 @@ exports.create = async (req, res) => {
       .populate('product', 'title name images salePrice')
       .populate('user', 'name email');
     
-    return res.status(201).json({ item: populatedItem });
+    const obj = populatedItem.toObject();
+    if (obj.image) obj.image = makeAbsoluteImages(obj.image, req);
+    if (obj.images) obj.images = makeAbsoluteImages(obj.images, req);
+    if (obj.product && obj.product.images) {
+      obj.product.images = makeAbsoluteImages(obj.product.images, req);
+    }
+    
+    return res.status(201).json({ item: obj });
   } catch (err) {
     console.error('Review create error:', err);
     return res.status(400).json({ message: err.message || 'Invalid data' });
@@ -208,7 +248,7 @@ exports.getProductsWithReviews = async (req, res) => {
           productMap.set(productId, {
             _id: review.product._id,
             name: productName,
-            image: productImage,
+            image: makeAbsoluteImages(productImage, req),
             salePrice: review.product.salePrice || 0,
             reviewCount: 0,
             reviews: []
@@ -227,8 +267,8 @@ exports.getProductsWithReviews = async (req, res) => {
           _id: review._id,
           rating: review.rating,
           comment: review.comment,
-          image: reviewImages[0] || review.image, // Legacy field
-          images: reviewImages, // New array field
+          image: makeAbsoluteImages(reviewImages[0] || review.image, req), // Legacy field
+          images: makeAbsoluteImages(reviewImages, req), // New array field
           status: review.status,
           user: review.user ? {
             name: review.user.name,
@@ -293,7 +333,7 @@ exports.getReviewableProducts = async (req, res) => {
             productMap.set(productId, {
               _id: item.product._id,
               name: item.product.name || item.name,
-              image: productImage,
+              image: makeAbsoluteImages(productImage, req),
               salePrice: item.product.salePrice || item.price,
               orderId: order._id,
               orderDate: order.createdAt

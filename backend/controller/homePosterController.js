@@ -1,4 +1,52 @@
 const HomePoster = require('../model/HomePoster');
+const { uploadBase64Image, fixWebsiteUrl } = require('../utils/awsUpload');
+
+/* -------------------- Helpers -------------------- */
+
+// Helper function to make image URLs absolute and fix S3 URLs
+function makeAbsoluteImages(obj, req) {
+  if (!obj) return obj;
+  const host = `${req.protocol}://${req.get('host')}`;
+
+  const processUrl = (url) => {
+    if (typeof url !== 'string') return url;
+    let finalUrl = fixWebsiteUrl(url);
+    if (finalUrl.startsWith('/uploads/')) {
+      return host + finalUrl;
+    }
+    return finalUrl;
+  };
+
+  // Process mainContent image
+  if (obj.mainContent && obj.mainContent.image) {
+    obj.mainContent.image = processUrl(obj.mainContent.image);
+  }
+
+  // Process cards images
+  if (Array.isArray(obj.cards)) {
+    obj.cards = obj.cards.map(card => ({
+      ...card,
+      image: processUrl(card.image)
+    }));
+  }
+
+  return obj;
+}
+
+// Helper to save image (handles base64 or existing URLs)
+async function saveImage(dataUrl) {
+  if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
+    try {
+      // Still support base64 just in case, it also converts to WebP
+      return await uploadBase64Image(dataUrl, 'home');
+    } catch (error) {
+      console.error('Error uploading home image to S3:', error);
+      throw error;
+    }
+  }
+  // If it's already an S3 URL or other URL, just fix it
+  return fixWebsiteUrl(dataUrl);
+}
 
 const getHomePoster = async (req, res) => {
   try {
@@ -28,7 +76,11 @@ const getHomePoster = async (req, res) => {
           { image: "https://i.pinimg.com/736x/6d/92/52/6d9252ddbe90bf144e25505c229e174b.jpg", title: "LEHENGAS", buttonText: "SHOP NOW" }
         ]
       };
+    } else {
+      homePoster = homePoster.toObject();
     }
+
+    homePoster = makeAbsoluteImages(homePoster, req);
     res.json(homePoster);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -37,9 +89,30 @@ const getHomePoster = async (req, res) => {
 
 const updateHomePoster = async (req, res) => {
   try {
-    const updatedHomePoster = await HomePoster.findOneAndUpdate({}, req.body, { new: true, upsert: true });
-    res.json(updatedHomePoster);
+    const body = { ...req.body };
+
+    // Process mainContent image
+    if (body.mainContent && body.mainContent.image) {
+      body.mainContent.image = await saveImage(body.mainContent.image);
+    }
+
+    // Process cards images
+    if (Array.isArray(body.cards)) {
+      for (let i = 0; i < body.cards.length; i++) {
+        if (body.cards[i].image) {
+          body.cards[i].image = await saveImage(body.cards[i].image);
+        }
+      }
+    }
+
+    const updatedHomePoster = await HomePoster.findOneAndUpdate({}, body, { new: true, upsert: true });
+    
+    const obj = updatedHomePoster.toObject();
+    const processed = makeAbsoluteImages(obj, req);
+    
+    res.json(processed);
   } catch (error) {
+    console.error('Error updating home poster:', error);
     res.status(500).json({ message: error.message });
   }
 };

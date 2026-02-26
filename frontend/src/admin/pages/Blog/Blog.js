@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FiEdit2, FiTrash2, FiPlus, FiX } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
 import Modal from "../../components/Modal";
+import CustomDropdown from "../../components/CustomDropdown";
 
 function Blog() {
   const [blogs, setBlogs] = useState([]);
@@ -209,18 +210,17 @@ function Blog() {
               </div>
 
               <div className="x_form-group">
-                <label className="x_form-label">Category</label>
-                <select
-                  name="category"
-                  className="x_form-select"
+                <CustomDropdown
+                  label="Category"
+                  options={[
+                    { label: "Trends", value: "trends" },
+                    { label: "Styling", value: "styling" },
+                    { label: "Heritage", value: "heritage" },
+                    { label: "Other", value: "other" }
+                  ]}
                   value={formData.category}
-                  onChange={handleInputChange}
-                >
-                  <option value="trends">Trends</option>
-                  <option value="styling">Styling</option>
-                  <option value="heritage">Heritage</option>
-                  <option value="other">Other</option>
-                </select>
+                  onChange={(val) => setFormData(prev => ({ ...prev, category: val }))}
+                />
               </div>
 
               <div className="x_form-group">
