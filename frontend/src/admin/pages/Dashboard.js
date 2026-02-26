@@ -239,7 +239,7 @@ function Dashboard() {
                     <tr>
                       <th>Product Name</th>
                       <th>Price</th>
-                      <th>Total Orders</th>
+                      <th className="text-center">Total Orders</th>
                       <th>Color</th>
                       {/* <th>Size</th> */}
                     </tr>
@@ -250,7 +250,7 @@ function Dashboard() {
                       <tr key={idx}>
                         <td>{product.title}</td>
                         <td>₹{product.price}</td>
-                        <td>{product.quantity}</td>
+                        <td className="text-center">{product.quantity}</td>
                         <td>{product.color || "N/A"}</td>
                         {/* <td>{product.size || "N/A"}</td> */}
                       </tr>

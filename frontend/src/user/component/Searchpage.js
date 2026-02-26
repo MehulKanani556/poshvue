@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import LazyImage from "../../components/LazyImage";
 import { useLocation, useNavigate } from "react-router-dom";
 import client from "../../api/client";
 import { useCurrency } from "../../context/CurrencyContext";
@@ -85,7 +86,7 @@ const SearchPage = () => {
                                 }}
                             >
                                 {product.images && product.images[0] && (
-                                    <img
+                                    <LazyImage
                                         src={product.images[0]}
                                         alt={product.title}
                                         style={{

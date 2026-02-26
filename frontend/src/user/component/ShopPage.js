@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Heart,
-  ShoppingCart,
   ChevronDown,
   ChevronUp,
   X,
@@ -15,6 +14,7 @@ import { useCurrency } from "../../context/CurrencyContext";
 import { toast } from "react-toastify";
 import Loader from "./Loader";
 import { Link, NavLink } from "react-router-dom";
+import LazyImage from "../../components/LazyImage";
 
 const ShopPage = () => {
   // Logic updated: Max 2 categories open at once
@@ -861,7 +861,7 @@ const ShopPage = () => {
                           stroke="black"
                         />
                       </button>
-                      <img
+                      <LazyImage
                         src={
                           Array.isArray(product.images)
                             ? product.images[0]

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import LazyImage from "../../components/LazyImage";
 import {
   Container,
   Row,
@@ -523,7 +524,7 @@ const ProductDetailPage = () => {
                           }`}
                         onMouseEnter={() => setActiveImg(i)}
                       >
-                        <img src={img} alt={`view-${i}`} />
+                        <LazyImage src={img} alt={`view-${i}`} />
                       </div>
                     ))}
                   </div>
@@ -531,7 +532,7 @@ const ProductDetailPage = () => {
 
                 <Col md={10} xs={12}>
                   <div className="g3-main-viewport">
-                    <img
+                    <LazyImage
                       src={images[activeImg] || images[0]}
                       alt={product?.name || "product"}
                       className="g3-featured-img"
