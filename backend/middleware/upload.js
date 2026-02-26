@@ -58,6 +58,16 @@ const uploadBlogImages = multer({
   fileFilter: fileFilter
 });
 
+// Multer configuration for home poster - max 5 images, 5MB each
+const uploadHomeImages = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB per file
+    files: 5 // Max 5 files for home
+  },
+  fileFilter: fileFilter
+});
+
 // Multer configuration for stories - max 1 image, 5MB
 const uploadStoryImages = multer({
   storage: storage,
@@ -195,6 +205,37 @@ const uploadStoryToS3 = async (req, res, next) => {
 };
 
 /**
+ * Middleware to handle AWS S3 upload for home poster
+ */
+const uploadHomeToS3 = async (req, res, next) => {
+  try {
+    console.log('UploadHomeToS3 middleware - req.files:', req.files ? req.files.length : 'undefined');
+    
+    if (!req.files || req.files.length === 0) {
+      console.log('No files to upload, proceeding to next middleware');
+      return next();
+    }
+
+    console.log('Processing', req.files.length, 'home images for S3 upload');
+    
+    // Process uploaded files and upload to S3 with WebP conversion
+    const s3Urls = await uploadMultipleImages(req.files, 'home');
+    
+    console.log('Home S3 upload successful, URLs:', s3Urls);
+    
+    // Replace file information with S3 URLs
+    req.s3FileUrls = s3Urls;
+    req.files = undefined; // Clear multer files to free memory
+    
+    next();
+  } catch (error) {
+    console.error('Error uploading home images to S3:', error);
+    console.error('Error details:', error.stack);
+    return res.status(500).json({ message: 'Failed to upload home images', error: error.message });
+  }
+};
+
+/**
  * Middleware to handle AWS S3 upload for reviews
  */
 const uploadReviewToS3 = async (req, res, next) => {
@@ -231,9 +272,11 @@ module.exports = {
   uploadCategoryImage: uploadCategoryImage.single('image'), // 'image' is the field name, max 1 file
   uploadBlogImages: uploadBlogImages.array('images', 5), // 'images' is the field name, max 5 files
   uploadStoryImages: uploadStoryImages.single('image'), // 'image' is the field name, max 1 file
+  uploadHomeImages: uploadHomeImages.any(), // Accept any files for home
   uploadProductsToS3,
   uploadCategoryToS3,
   uploadBlogToS3,
   uploadStoryToS3,
+  uploadHomeToS3,
   uploadReviewToS3
 };

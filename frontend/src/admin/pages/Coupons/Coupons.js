@@ -3,6 +3,7 @@ import { FiEdit2, FiTrash2, FiPlus } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
 import Modal from "../../components/Modal";
 import RuleGenerator from "../../components/RuleGenerator";
+import CustomDropdown from "../../components/CustomDropdown";
 
 /*
   This component:
@@ -263,16 +264,16 @@ function Coupons() {
                 </div>
 
                 <div className="x_form-group">
-                  <label className="x_form-label">Discount Type</label>
-                  <select
-                    name="type"
-                    className="x_form-select"
+                  <CustomDropdown
+                  padding="10px 12px"
+                    label="Discount Type"
+                    options={[
+                      { label: "Percent (%)", value: "percent" },
+                      { label: "Fixed Amount", value: "fixed" }
+                    ]}
                     value={formData.type}
-                    onChange={onChange}
-                  >
-                    <option value="percent">Percent (%)</option>
-                    <option value="fixed">Fixed Amount</option>
-                  </select>
+                    onChange={(val) => setFormData(prev => ({ ...prev, type: val }))}
+                  />
                 </div>
 
                 <div className="x_form-group">
@@ -310,16 +311,16 @@ function Coupons() {
                 </div>
 
                 <div className="x_form-group">
-                  <label className="x_form-label">Status</label>
-                  <select
-                    name="status"
-                    className="x_form-select"
+                  <CustomDropdown
+                  padding="10px 12px"
+                    label="Status"
+                    options={[
+                      { label: "Active", value: "Active" },
+                      { label: "Inactive", value: "Inactive" }
+                    ]}
                     value={formData.status}
-                    onChange={onChange}
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
+                    onChange={(val) => setFormData(prev => ({ ...prev, status: val }))}
+                  />
                 </div>
                 <div className="x_form-group">
                   <label className="x_form-label">Condition / Notes</label>

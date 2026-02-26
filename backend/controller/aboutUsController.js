@@ -1,4 +1,42 @@
 const AboutUs = require('../model/AboutUs');
+const { uploadBase64Image, fixWebsiteUrl } = require('../utils/awsUpload');
+
+/* -------------------- Helpers -------------------- */
+
+// Helper function to make image URLs absolute and fix S3 URLs
+function makeAbsoluteImages(obj, req) {
+  if (!obj) return obj;
+  const host = `${req.protocol}://${req.get('host')}`;
+
+  const processUrl = (url) => {
+    if (typeof url !== 'string') return url;
+    let finalUrl = fixWebsiteUrl(url);
+    if (finalUrl.startsWith('/uploads/')) {
+      return host + finalUrl;
+    }
+    return finalUrl;
+  };
+
+  // Process ourStory image
+  if (obj.ourStory && obj.ourStory.image) {
+    obj.ourStory.image = processUrl(obj.ourStory.image);
+  }
+
+  return obj;
+}
+
+// Helper to save image (handles base64 or existing URLs)
+async function saveImage(dataUrl, folder = 'about') {
+  if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
+    try {
+      return await uploadBase64Image(dataUrl, folder);
+    } catch (error) {
+      console.error(`Error uploading ${folder} image to S3:`, error);
+      throw error;
+    }
+  }
+  return fixWebsiteUrl(dataUrl);
+}
 
 const getAboutUs = async (req, res) => {
   try {
@@ -40,7 +78,11 @@ const getAboutUs = async (req, res) => {
           description: "Flagship Store: Surat, Gujarat, India",
         },
       };
+    } else {
+      aboutUs = aboutUs.toObject();
     }
+    
+    aboutUs = makeAbsoluteImages(aboutUs, req);
     res.json(aboutUs);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -49,9 +91,21 @@ const getAboutUs = async (req, res) => {
 
 const updateAboutUs = async (req, res) => {
   try {
-    const updatedAboutUs = await AboutUs.findOneAndUpdate({}, req.body, { new: true, upsert: true });
-    res.json(updatedAboutUs);
+    const body = { ...req.body };
+
+    // Process ourStory image
+    if (body.ourStory && body.ourStory.image) {
+      body.ourStory.image = await saveImage(body.ourStory.image, 'about');
+    }
+
+    const updatedAboutUs = await AboutUs.findOneAndUpdate({}, body, { new: true, upsert: true });
+    
+    const obj = updatedAboutUs.toObject();
+    const processed = makeAbsoluteImages(obj, req);
+    
+    res.json(processed);
   } catch (error) {
+    console.error('Error updating about us:', error);
     res.status(500).json({ message: error.message });
   }
 };

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiEdit, FiEye, FiTruck } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
+import CustomDropdown from "../../components/CustomDropdown";
 
 function Orders() {
   const navigate = useNavigate();
@@ -122,19 +123,20 @@ function Orders() {
         <div className="x_card-body">
           <div className="x_grid x_grid-2">
             <div className="x_form-group">
-              <label className="x_form-label">Filter by Status</label>
-              <select 
-                className="x_form-select"
+              <CustomDropdown
+              padding="10px 12px"
+                label="Filter by Status"
+                options={[
+                  { label: "All Status", value: "" },
+                  { label: "Pending", value: "pending" },
+                  { label: "Paid", value: "paid" },
+                  { label: "Shipped", value: "shipped" },
+                  { label: "Delivered", value: "delivered" },
+                  { label: "Cancelled", value: "cancelled" }
+                ]}
                 value={statusFilter}
-                onChange={(e) => handleStatusFilterChange(e.target.value)}
-              >
-                <option value="">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="paid">Paid</option>
-                <option value="shipped">Shipped</option>
-                <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+                onChange={(val) => handleStatusFilterChange(val)}
+              />
             </div>
             <div className="x_form-group">
               <label className="x_form-label">Date Range</label>
@@ -194,20 +196,22 @@ function Orders() {
                           <td>{order.items?.length || 0}</td>
                           <td>
                             {editOrderId === order._id ? (
-                              <select
-                                value={order.status}
-                                onChange={(e) =>
-                                  handleStatusChange(order._id, e.target.value)
-                                }
-                                className="x_form-select w-auto"
-                                style={{ fontSize: "12px", padding: "4px" }}
-                              >
-                                <option value="pending">Pending</option>
-                                <option value="paid">Paid</option>
-                                <option value="shipped">Shipped</option>
-                                <option value="delivered">Delivered</option>
-                                <option value="cancelled">Cancelled</option>
-                              </select>
+                              <div style={{ width: "130px" }}>
+                                <CustomDropdown                                
+                                  options={[
+                                    { label: "Pending", value: "pending" },
+                                    { label: "Paid", value: "paid" },
+                                    { label: "Shipped", value: "shipped" },
+                                    { label: "Delivered", value: "delivered" },
+                                    { label: "Cancelled", value: "cancelled" }
+                                  ]}
+                                  value={order.status}
+
+                                  onChange={(val) => handleStatusChange(order._id, val)}
+                                  className="x_form-select-sm"
+                                  padding="4px 10px"
+                                />
+                              </div>
                             ) : (
                               <span
                                 style={{

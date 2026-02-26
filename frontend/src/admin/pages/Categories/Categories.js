@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FiEdit2, FiTrash2, FiPlus } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
 import Modal from "../../components/Modal";
+import CustomDropdown from "../../components/CustomDropdown";
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -263,16 +264,16 @@ function Categories() {
               </div>
 
               <div className="x_form-group">
-                <label className="x_form-label">Status</label>
-                <select
-                  name="status"
-                  className="x_form-select"
+                <CustomDropdown
+                padding="10px 12px"
+                  label="Status"
+                  options={[
+                    { label: "Active", value: "Active" },
+                    { label: "Inactive", value: "Inactive" }
+                  ]}
                   value={formData.status}
-                  onChange={handleInputChange}
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
+                  onChange={(val) => setFormData(prev => ({ ...prev, status: val }))}
+                />
               </div>
             </div>
 

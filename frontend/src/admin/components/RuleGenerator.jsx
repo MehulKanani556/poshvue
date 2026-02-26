@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { FiPlus, FiTrash2, FiChevronDown, FiChevronUp } from "react-icons/fi";
+import CustomDropdown from "./CustomDropdown";
 
 /**
  * RuleGenerator Component
@@ -194,20 +195,13 @@ function RuleGenerator({ initialRules = [], onChange }) {
                 }}
               >
                 <div className="x_form-group" style={{ marginBottom: "10px" }}>
-                  <label className="x_form-label" style={{ fontSize: "12px" }}>
-                    Rule Type
-                  </label>
-                  <select
-                    className="x_form-select"
+                  <CustomDropdown
+                  padding="10px 12px"
+                    label="Rule Type"
+                    options={RULE_TYPES.map(t => ({ label: t.label, value: t.value }))}
                     value={rule.type}
-                    onChange={(e) => updateRule(idx, "type", e.target.value)}
-                  >
-                    {RULE_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => updateRule(idx, "type", val)}
+                  />
                 </div>
 
                 {/* Rule-specific fields */}

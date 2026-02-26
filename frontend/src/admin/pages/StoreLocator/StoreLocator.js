@@ -1,25 +1,103 @@
 import React, { useState, useEffect } from "react";
-import { FiEdit2, FiEye, FiSave, FiPlus, FiTrash2, FiMapPin, FiPhone, FiMail, FiClock } from "react-icons/fi";
+import { FiEdit2, FiEye, FiSave, FiPlus, FiTrash2, FiMapPin, FiPhone, FiMail, FiClock, FiUpload } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
 
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(fr.result);
-    fr.onerror = reject;
-    fr.readAsDataURL(file);
-  });
-}
+// Image Uploader Component (Same as in Home.js)
+const ImageUploader = ({ value, onChange, label }) => {
+    const [preview, setPreview] = useState(value);
+    const [uploading, setUploading] = useState(false);
+  
+    useEffect(() => {
+      setPreview(value);
+    }, [value]);
+  
+    const handleFileChange = async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        try {
+          setUploading(true);
+          // Create preview immediately
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setPreview(reader.result);
+          };
+          reader.readAsDataURL(file);
+  
+          // Upload to server (using stores folder)
+          const formData = new FormData();
+          formData.append('image', file);
+          
+          const res = await adminClient.post('/upload/home-image', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+  
+          if (res.data.success && res.data.url) {
+            onChange(res.data.url);
+            setPreview(res.data.url);
+          }
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          alert('Failed to upload image');
+        } finally {
+          setUploading(false);
+        }
+      }
+    };
+  
+    return (
+      <div className="image-uploader-container">
+        <label className="x_form_label">{label}</label>
+        <div className="uploader-wrapper">
+          <div className="preview-box">
+            {uploading ? (
+              <div className="upload-loader">Uploading...</div>
+            ) : preview ? (
+              <img src={preview} alt="Preview" />
+            ) : (
+              <div className="no-image">No Image</div>
+            )}
+          </div>
+          <div className="uploader-controls">
+            <input
+              type="text"
+              className="form-control mb-2"
+              value={value || ''}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="Image URL"
+            />
+            <label className={`upload-btn ${uploading ? 'disabled' : ''}`}>
+              <FiUpload /> {uploading ? 'Uploading...' : 'Upload Image'}
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleFileChange} 
+                hidden 
+                disabled={uploading}
+              />
+            </label>
+          </div>
+        </div>
+        <style>{`
+          .image-uploader-container { margin-bottom: 20px; }
+          .uploader-wrapper { display: flex; gap: 15px; align-items: flex-start; }
+          .preview-box { width: 100px; height: 100px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #f8f9fa; }
+          .preview-box img { width: 100%; height: 100%; object-fit: cover; }
+          .no-image { font-size: 10px; color: #999; }
+          .upload-loader { font-size: 10px; color: #b08d57; font-weight: 600; }
+          .uploader-controls { flex: 1; }
+          .upload-btn { display: inline-flex; align-items: center; gap: 8px; background: #f0f0f0; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; border: 1px solid #ddd; }
+          .upload-btn:hover { background: #e8e8e8; }
+          .upload-btn.disabled { opacity: 0.6; cursor: not-allowed; }
+        `}</style>
+      </div>
+    );
+};
 
 function StoreLocator() {
     const [pageData, setPageData] = useState(null);
     const [pageLoading, setPageLoading] = useState(false);
     const [savingPage, setSavingPage] = useState(false);
     const [mode, setMode] = useState('edit');
-    const [imagePreviews, setImagePreviews] = useState({
-        bannerImage: null,
-        storeImages: {}
-    });
 
     useEffect(() => {
         const fetchPage = async () => {
@@ -36,85 +114,13 @@ function StoreLocator() {
         fetchPage();
     }, []);
 
-    const handlePageChange = (field, value, isFile = false) => {
-        // Handle file upload for banner image
-        if (field === 'bannerImage' && isFile && value && value.file) {
-            const preview = URL.createObjectURL(value.file);
-            setImagePreviews(prev => ({
-                ...prev,
-                bannerImage: preview
-            }));
-            setPageData(prev => ({ ...(prev || {}), bannerImage: { file: value.file, preview } }));
-            return;
-        }
-        
+    const handlePageChange = (field, value) => {
         setPageData(prev => ({ ...(prev || {}), [field]: value }));
     };
     
-    const handleStoreChange = (index, field, value, isFile = false) => {
-        // Handle file upload for store images
-        if (field === 'image' && isFile && value && value.file) {
-            const preview = URL.createObjectURL(value.file);
-            setImagePreviews(prev => ({
-                ...prev,
-                storeImages: {
-                    ...prev.storeImages,
-                    [index]: preview
-                }
-            }));
-            
-            const stores = (pageData?.stores || []).slice();
-            stores[index] = { ...(stores[index] || {}), image: { file: value.file, preview } };
-            setPageData(prev => ({ ...(prev || {}), stores: stores }));
-            return;
-        }
-        
+    const handleStoreChange = (index, field, value) => {
         const stores = (pageData?.stores || []).slice();
         stores[index] = { ...(stores[index] || {}), [field]: value };
-        setPageData(prev => ({ ...(prev || {}), stores: stores }));
-    };
-    
-    const handleBannerImageUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            handlePageChange('bannerImage', { file }, true);
-        }
-    };
-    
-    const handleStoreImageUpload = (index, e) => {
-        const file = e.target.files[0];
-        if (file) {
-            handleStoreChange(index, 'image', { file }, true);
-        }
-    };
-    
-    const removeBannerImage = () => {
-        if (imagePreviews.bannerImage && pageData?.bannerImage && typeof pageData.bannerImage === 'object') {
-            URL.revokeObjectURL(imagePreviews.bannerImage);
-        }
-        setImagePreviews(prev => ({
-            ...prev,
-            bannerImage: null
-        }));
-        setPageData(prev => ({ ...(prev || {}), bannerImage: null }));
-    };
-    
-    const removeStoreImage = (index) => {
-        if (imagePreviews.storeImages[index] && pageData?.stores?.[index]?.image && typeof pageData.stores[index].image === 'object') {
-            URL.revokeObjectURL(imagePreviews.storeImages[index]);
-        }
-        
-        setImagePreviews(prev => {
-            const newStoreImages = { ...prev.storeImages };
-            delete newStoreImages[index];
-            return {
-                ...prev,
-                storeImages: newStoreImages
-            };
-        });
-        
-        const stores = (pageData?.stores || []).slice();
-        stores[index] = { ...(stores[index] || {}), image: null };
         setPageData(prev => ({ ...(prev || {}), stores: stores }));
     };
 
@@ -145,21 +151,6 @@ function StoreLocator() {
             setSavingPage(true);
             
             const payload = { ...pageData };
-            
-            // Handle banner image: convert file object to base64 if needed
-            if (payload.bannerImage && typeof payload.bannerImage === 'object' && payload.bannerImage.file) {
-                payload.bannerImage = await fileToDataUrl(payload.bannerImage.file);
-            }
-            
-            // Handle store images: convert file objects to base64 if needed
-            if (payload.stores && Array.isArray(payload.stores)) {
-                payload.stores = payload.stores.map(store => {
-                    if (store.image && typeof store.image === 'object' && store.image.file) {
-                        return { ...store, image: fileToDataUrl(store.image.file) };
-                    }
-                    return store;
-                });
-            }
             
             await adminClient.put('/store-locator', payload || {});
             // alert('Store locator page saved');
@@ -240,55 +231,11 @@ function StoreLocator() {
                                         <textarea rows={2} value={pageData?.subtitle || ''} onChange={(e) => handlePageChange('subtitle', e.target.value)} placeholder="e.g., Visit our beautiful locations" />
                                     </div>
                                     <div className="x_form_group">
-                                        <label>Banner Image</label>
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handleBannerImageUpload}
-                                            className="x_form-control"
+                                        <ImageUploader
+                                            label="Banner Image"
+                                            value={pageData?.bannerImage}
+                                            onChange={(val) => handlePageChange('bannerImage', val)}
                                         />
-                                        {(imagePreviews.bannerImage || pageData?.bannerImage) && (
-                                            <div style={{ 
-                                                marginTop: "10px", 
-                                                position: "relative",
-                                                width: "200px",
-                                                height: "120px"
-                                            }}>
-                                                <img
-                                                    src={imagePreviews.bannerImage || (typeof pageData?.bannerImage === 'string' ? pageData?.bannerImage : pageData?.bannerImage?.preview)}
-                                                    alt="Banner preview"
-                                                    style={{
-                                                        width: "100%",
-                                                        height: "100%",
-                                                        objectFit: "cover",
-                                                        borderRadius: "6px",
-                                                        border: "1px solid #ddd",
-                                                    }}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={removeBannerImage}
-                                                    style={{
-                                                        position: "absolute",
-                                                        top: "-8px",
-                                                        right: "-8px",
-                                                        backgroundColor: "#ff4444",
-                                                        color: "white",
-                                                        border: "none",
-                                                        borderRadius: "50%",
-                                                        width: "20px",
-                                                        height: "20px",
-                                                        cursor: "pointer",
-                                                        fontSize: "12px",
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        justifyContent: "center",
-                                                    }}
-                                                >
-                                                    ×
-                                                </button>
-                                            </div>
-                                        )}
                                     </div>
 
                                     <div className="x_form_group">
@@ -331,55 +278,11 @@ function StoreLocator() {
                                                     </div>
                                                 </div>
                                                 <div className="x_form_group">
-                                                    <label>Store Image</label>
-                                                    <input
-                                                        type="file"
-                                                        accept="image/*"
-                                                        onChange={(e) => handleStoreImageUpload(idx, e)}
-                                                        className="x_form-control"
+                                                    <ImageUploader
+                                                        label="Store Image"
+                                                        value={store.image}
+                                                        onChange={(val) => handleStoreChange(idx, 'image', val)}
                                                     />
-                                                    {(imagePreviews.storeImages[idx] || store.image) && (
-                                                        <div style={{ 
-                                                            marginTop: "10px", 
-                                                            position: "relative",
-                                                            width: "120px",
-                                                            height: "120px"
-                                                        }}>
-                                                            <img
-                                                                src={imagePreviews.storeImages[idx] || (typeof store.image === 'string' ? store.image : store.image?.preview)}
-                                                                alt={`Store ${idx} image`}
-                                                                style={{
-                                                                    width: "100%",
-                                                                    height: "100%",
-                                                                    objectFit: "cover",
-                                                                    borderRadius: "6px",
-                                                                    border: "1px solid #ddd",
-                                                                }}
-                                                            />
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => removeStoreImage(idx)}
-                                                                style={{
-                                                                    position: "absolute",
-                                                                    top: "-8px",
-                                                                    right: "-8px",
-                                                                    backgroundColor: "#ff4444",
-                                                                    color: "white",
-                                                                    border: "none",
-                                                                    borderRadius: "50%",
-                                                                    width: "20px",
-                                                                    height: "20px",
-                                                                    cursor: "pointer",
-                                                                    fontSize: "12px",
-                                                                    display: "flex",
-                                                                    alignItems: "center",
-                                                                    justifyContent: "center",
-                                                                }}
-                                                            >
-                                                                ×
-                                                            </button>
-                                                        </div>
-                                                    )}
                                                 </div>
                                                 <div className="x_form_group">
                                                     <label>Google Maps Embed URL</label>

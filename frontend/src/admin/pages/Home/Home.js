@@ -1,8 +1,99 @@
 import React, { useState, useEffect } from "react";
-import { FiSave, FiEye, FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiSave, FiEye, FiPlus, FiTrash2, FiUpload } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
 import { Heart, Star, Award, Users, ShieldCheck, ShoppingBag, Quote } from 'lucide-react';
+import CustomDropdown from "../../components/CustomDropdown";
 
+// Image Uploader Component
+const ImageUploader = ({ value, onChange, label }) => {
+  const [preview, setPreview] = useState(value);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    setPreview(value);
+  }, [value]);
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        setUploading(true);
+        // Create preview immediately
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+
+        // Upload to server
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        const res = await adminClient.post('/upload/home-image', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        if (res.data.success && res.data.url) {
+          onChange(res.data.url);
+          setPreview(res.data.url);
+        }
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('Failed to upload image');
+      } finally {
+        setUploading(false);
+      }
+    }
+  };
+
+  return (
+    <div className="image-uploader-container">
+      <label className="x_form_label">{label}</label>
+      <div className="uploader-wrapper">
+        <div className="preview-box">
+          {uploading ? (
+            <div className="upload-loader">Uploading...</div>
+          ) : preview ? (
+            <img src={preview} alt="Preview" />
+          ) : (
+            <div className="no-image">No Image</div>
+          )}
+        </div>
+        <div className="uploader-controls">
+          <input
+            type="text"
+            className="form-control mb-2"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Image URL"
+          />
+          <label className={`upload-btn ${uploading ? 'disabled' : ''}`}>
+            <FiUpload /> {uploading ? 'Uploading...' : 'Upload Image'}
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleFileChange} 
+              hidden 
+              disabled={uploading}
+            />
+          </label>
+        </div>
+      </div>
+      <style>{`
+        .image-uploader-container { margin-bottom: 20px; }
+        .uploader-wrapper { display: flex; gap: 15px; align-items: flex-start; }
+        .preview-box { width: 100px; height: 100px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #f8f9fa; }
+        .preview-box img { width: 100%; height: 100%; object-fit: cover; }
+        .no-image { font-size: 10px; color: #999; }
+        .upload-loader { font-size: 10px; color: #b08d57; font-weight: 600; }
+        .uploader-controls { flex: 1; }
+        .upload-btn { display: inline-flex; align-items: center; gap: 8px; background: #f0f0f0; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; border: 1px solid #ddd; }
+        .upload-btn:hover { background: #e8e8e8; }
+        .upload-btn.disabled { opacity: 0.6; cursor: not-allowed; }
+      `}</style>
+    </div>
+  );
+};
 
 function Home() {
   const [homePoster, setHomePoster] = useState({
@@ -200,6 +291,7 @@ function Home() {
         .x_card_header h3 { margin: 0; font-size: 1.1rem; color: #0a2845c2; font-weight: 600; }
         .x_card_body { padding: 25px; }
         .grid_2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid_2 > * { min-width: 0; max-width: 100%; word-wrap: break-word; }
         .x_form_group { margin-bottom: 20px; }
         .x_form_group label { display: block; margin-bottom: 8px; font-weight: 500; color: #555; font-size: 0.9rem; }
         .x_form_group input, .x_form_group textarea { width: 100%; padding: 10px 15px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; transition: border-color 0.3s; }
@@ -453,29 +545,26 @@ function Home() {
                       />
                     </div>
                     <div className="x_form_group">
-                      <label>Image URL</label>
-                      <input
-                        type="text"
-                        placeholder="https://example.com/banner-image.jpg"
+                      <ImageUploader
+                        label="Slide Image"
                         value={slide.image}
-                        onChange={(e) => handleSliderChange(index, 'image', e.target.value)}
+                        onChange={(val) => handleSliderChange(index, 'image', val)}
                       />
                     </div>
                   </div>
                   <div className="grid_2">
-                    <div className="x_form_group ">
-                      <label>Text Position</label>
-                      <select
-                        className="custom-select"
+                    <div className="x_form_group">
+                      <CustomDropdown
+                      padding="10px 12px"
+                        label="Text Position"
+                        options={[
+                          { label: "Start (Left)", value: "start" },
+                          { label: "Center", value: "center" },
+                          { label: "End (Right)", value: "end" }
+                        ]}
                         value={slide.textPosition || 'center'}
-                        onChange={(e) =>
-                          handleSliderChange(index, 'textPosition', e.target.value)
-                        }
-                      >
-                        <option value="start">Start (Left)</option>
-                        <option value="center">Center</option>
-                        <option value="end">End (Right)</option>
-                      </select>
+                        onChange={(val) => handleSliderChange(index, 'textPosition', val)}
+                      />
                     </div>
                   </div>
 
@@ -561,13 +650,10 @@ function Home() {
                   />
                 </div>
                 <div className="col-md-6">
-                  <label>Image URL</label>
-                  <input
-                    type="text"
-                    className="form-control"
+                  <ImageUploader
+                    label="Main Image"
                     value={homePoster.mainContent.image}
-                    onChange={(e) => handleInputChange('mainContent', 'image', e.target.value)}
-                    disabled={mode === 'view'}
+                    onChange={(val) => handleInputChange('mainContent', 'image', val)}
                   />
                 </div>
               </div>
@@ -584,16 +670,14 @@ function Home() {
                 <div key={index} className="border p-3 mb-3 rounded">
                   <div className="row">
                     <div className="col-md-3">
-                      <label>Icon</label>
-                      <select
-                        className="form-control"
+                      <CustomDropdown
+                      padding="10px 12px"
+                        label="Icon"
+                        options={ICON_OPTIONS.map(opt => ({ label: opt, value: opt }))}
                         value={item.icon}
-                        onChange={(e) => handleInputChange('whyChooseUs', 'icon', e.target.value, index)}
-                        disabled={mode === 'view'}
-                      >
-                        <option value="">-- Select Icon --</option>
-                        {ICON_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                      </select>
+                        onChange={(val) => handleInputChange('whyChooseUs', 'icon', val, index)}
+                        placeholder="Select Icon"
+                      />
                     </div>
                     <div className="col-md-3">
                       <label>Title</label>
@@ -643,13 +727,10 @@ function Home() {
                 <div key={index} className="border p-3 mb-3 rounded">
                   <div className="row">
                     <div className="col-md-4">
-                      <label>Image URL</label>
-                      <input
-                        type="text"
-                        className="form-control"
+                      <ImageUploader
+                        label="Card Image"
                         value={card.image}
-                        onChange={(e) => handleInputChange('cards', 'image', e.target.value, index)}
-                        disabled={mode === 'view'}
+                        onChange={(val) => handleInputChange('cards', 'image', val, index)}
                       />
                     </div>
                     <div className="col-md-3">
@@ -699,15 +780,14 @@ function Home() {
             <div className="x_card_body">
               <div className="grid_2">
                 <div className="x_form_group">
-                  <label>Quote Icon</label>
-                  <select
+                  <CustomDropdown
+                  padding="10px 12px"
+                    label="Quote Icon"
+                    options={ICON_OPTIONS.map(opt => ({ label: opt, value: opt }))}
                     value={visionSection?.quoteIcon || ''}
-                    onChange={(e) => setVisionSection(prev => ({ ...prev, quoteIcon: e.target.value }))}
-                    className="form-control"
-                  >
-                    <option value="">-- Select Icon --</option>
-                    {ICON_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                  </select>
+                    onChange={(val) => setVisionSection(prev => ({ ...prev, quoteIcon: val }))}
+                    placeholder="Select Icon"
+                  />
                 </div>
                 <div className="x_form_group">
                   <label>Subtitle</label>

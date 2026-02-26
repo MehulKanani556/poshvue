@@ -3,7 +3,7 @@ const router = express.Router();
 const blog = require('../controller/blogController');
 const review = require('../controller/reviewController');
 const { auth, requireRole } = require('../middleware/auth');
-const { uploadReviewImages, uploadReviewToS3 } = require('../middleware/upload');
+const { uploadReviewImages, uploadReviewToS3, uploadBlogImages, uploadBlogToS3 } = require('../middleware/upload');
 
 // Public content endpoints
 router.get('/blogs', blog.list);
@@ -18,8 +18,8 @@ router.put('/reviews/:id/status', auth, requireRole('admin'), review.updateStatu
 router.delete('/reviews/:id', auth, requireRole('admin'), review.remove);
 
 // Admin-only blog management
-router.post('/blogs', auth, requireRole('admin'), blog.create);
-router.put('/blogs/:id', auth, requireRole('admin'), blog.update);
+router.post('/blogs', auth, requireRole('admin'), uploadBlogImages, uploadBlogToS3, blog.create);
+router.put('/blogs/:id', auth, requireRole('admin'), uploadBlogImages, uploadBlogToS3, blog.update);
 router.delete('/blogs/:id', auth, requireRole('admin'), blog.remove);
 
 module.exports = router;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FiSave, FiEye, FiPlus, FiTrash2 } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
+import CustomDropdown from "../../components/CustomDropdown";
 import { Heart, Star, Award, Users, ShieldCheck, ShoppingBag, Quote } from 'lucide-react';
 
 function fileToDataUrl(file) {
@@ -303,6 +304,7 @@ function AboutUs() {
         .x_card_header h3 { margin: 0; font-size: 1.1rem; color: #0a2845c2; font-weight: 600; }
         .x_card_body { padding: 25px; }
         .grid_2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid_2 > * { min-width: 0; max-width: 100%; word-wrap: break-word; }
         .x_form_group { margin-bottom: 20px; }
         .x_form_group label { display: block; margin-bottom: 8px; font-weight: 500; color: #555; font-size: 0.9rem; }
         .x_form_group input, .x_form_group textarea { width: 100%; padding: 10px 15px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; transition: border-color 0.3s; }
@@ -997,16 +999,14 @@ function AboutUs() {
                   </button>
                   <div className="grid_2">
                     <div className="x_form_group">
-                        <label>Icon</label>
-                        <select
-                          value={item.icon}
-                          onChange={(e) => handleInputChange('whyChooseUs', 'icon', e.target.value, index)}
-                        >
-                          <option value="">-- Select Icon --</option>
-                          {ICON_OPTIONS.map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
+                      <CustomDropdown
+                      padding="10px 12px"
+                        label="Icon"
+                        options={ICON_OPTIONS.map(opt => ({ label: opt, value: opt }))}
+                        value={item.icon}
+                        onChange={(val) => handleInputChange('whyChooseUs', 'icon', val, index)}
+                        placeholder="Select Icon"
+                      />
                     </div>
                     <div className="x_form_group">
                       <label>Title</label>
@@ -1041,16 +1041,14 @@ function AboutUs() {
             <div className="x_card_body">
               <div className="grid_2">
                 <div className="x_form_group">
-                  <label>Quote Icon</label>
-                  <select
+                  <CustomDropdown
+                  padding="10px 12px"
+                    label="Quote Icon"
+                    options={ICON_OPTIONS.map(opt => ({ label: opt, value: opt }))}
                     value={aboutUs.visionSection.quoteIcon}
-                    onChange={(e) => handleInputChange('visionSection', 'quoteIcon', e.target.value)}
-                  >
-                    <option value="">-- Select Icon --</option>
-                    {ICON_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => handleInputChange('visionSection', 'quoteIcon', val)}
+                    placeholder="Select Icon"
+                  />
                 </div>
                 <div className="x_form_group">
                   <label>Subtitle</label>
@@ -1090,16 +1088,14 @@ function AboutUs() {
             <div className="x_card_body">
               <div className="grid_2">
                 <div className="x_form_group">
-                  <label>Icon</label>
-                  <select
+                  <CustomDropdown
+                  padding="10px 12px"
+                    label="Icon"
+                    options={ICON_OPTIONS.map(opt => ({ label: opt, value: opt }))}
                     value={aboutUs.experienceBanner.icon}
-                    onChange={(e) => handleInputChange('experienceBanner', 'icon', e.target.value)}
-                  >
-                    <option value="">-- Select Icon --</option>
-                    {ICON_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => handleInputChange('experienceBanner', 'icon', val)}
+                    placeholder="Select Icon"
+                  />
                 </div>
                 <div className="x_form_group">
                   <label>Title</label>

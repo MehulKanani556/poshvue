@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FiEdit2, FiTrash2, FiPlus } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
 import Modal from "../../components/Modal";
+import CustomDropdown from "../../components/CustomDropdown";
 import { toast } from "react-toastify";
 
 function fileToDataUrl(file) {
@@ -263,18 +264,18 @@ function Products() {
       // Handle images: upload files to AWS S3 first
       const existingUrls = (payload.images || []).filter((i) => typeof i === "string");
       const fileObjs = (payload.images || []).filter((i) => i && typeof i === "object" && i.file);
-      
+
       // Upload new images to AWS S3
       const uploadedUrls = [];
       for (const fileObj of fileObjs) {
         try {
           const formDataForUpload = new FormData();
           formDataForUpload.append('images', fileObj.file);
-          
+
           const uploadRes = await adminClient.post('/upload/product-images', formDataForUpload, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
-          
+
           if (uploadRes.data.urls && uploadRes.data.urls.length > 0) {
             uploadedUrls.push(...uploadRes.data.urls);
           }
@@ -283,7 +284,7 @@ function Products() {
           throw error;
         }
       }
-      
+
       payload.images = [...existingUrls, ...uploadedUrls];
 
       // send category as name (backend resolveCategory will convert)
@@ -427,12 +428,12 @@ function Products() {
       setError("");
       await adminClient.delete(`/catalog/products/${deletingId}`);
       setProducts((prev) => prev.filter((prod) => String(prod._id) !== String(deletingId)));
-      
+
       // Dispatch custom event to notify other components
       window.dispatchEvent(new CustomEvent('productDeleted', {
         detail: { deletedProductId: deletingId }
       }));
-      
+
       toast.success("Product deleted successfully");
     } catch (err) {
       setError(err.message || "Delete failed");
@@ -825,18 +826,15 @@ function Products() {
               </div>
 
               <div className="x_form-group">
-                <label className="x_form-label">Category</label>
-                <select
-                  name="category"
-                  className="x_form-select"
+                <CustomDropdown
+                  padding="10px 12px"
+                  label="Category"
+                  options={categories.map(cat => ({ label: cat.name, value: cat.name }))}
                   value={formData.category}
-                  onChange={handleInputChange}
-                >
-                  <option value="">Select category</option>
-                  {categories.map((cat) => (
-                    <option key={cat._id} value={cat.name}>{cat.name}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setFormData(prev => ({ ...prev, category: val }))}
+                  placeholder="Select category"
+                  searchable
+                />
               </div>
 
               {/* Pricing Section */}
@@ -935,17 +933,17 @@ function Products() {
                 </div>
 
                 <div className="x_form-group">
-                  <label className="x_form-label">Status</label>
-                  <select
-                    name="status"
-                    className="x_form-select"
+                  <CustomDropdown
+                    padding="10px 12px"
+                    label="Status"
+                    options={[
+                      { label: "Active", value: "Active" },
+                      { label: "Inactive", value: "Inactive" },
+                      { label: "Out of Stock", value: "Out of Stock" }
+                    ]}
                     value={formData.status}
-                    onChange={handleInputChange}
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                    <option value="Out of Stock">Out of Stock</option>
-                  </select>
+                    onChange={(val) => setFormData(prev => ({ ...prev, status: val }))}
+                  />
                 </div>
               </div>
 
@@ -1181,29 +1179,6 @@ function Products() {
        .x_data-table tbody tr:hover {
            background-color: #fcfcfc;
        }
-       
-       .aa-select {
-        padding: 4px 8px;
-        border-radius: 6px;
-        border: 1px solid #ddd;
-        font-size: 12px;
-        min-width: 140px;
-        background-color: #fff;
-        color: #0a2845 !important;
-        transition: all 0.2s ease;
-      }
-
-      /* Hover */
-      .aa-select:hover {
-        border-color: #0c345a !important;
-      }
-
-      /* Focus / Active */
-      .aa-select:focus {
-        outline: none;
-        border-color: #0a2845 !important;
-        box-shadow: 0 0 0 2px rgba(10, 40, 69, 0.25);
-      }
 
        @media (max-width: 1350px) and (min-width: 769px) {
            .x_table-wrapper {
@@ -1222,24 +1197,18 @@ function Products() {
                   <th>Product</th>
                   <th>Category</th>
                   <th>
-                    <div style={{ display: "flex", gap: "6px", alignItems: "flex-start" }}>
-                      <span>Price</span>
-                      <select
-                        className="aa-select"
-                        value={selectedPriceCountryId}
-                        onChange={(e) => setSelectedPriceCountryId(e.target.value)}
-                      >
-                        <option value="" disabled hidden>
-                          --- Select country ---
-                        </option>
-
-                        {countries.map((c) => (
-                          <option key={c._id} value={String(c._id)}>
-                            {c.name} ({c.currencySymbol})
-                          </option>
-                        ))}
-                      </select>
-
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ whiteSpace: "nowrap" }}>Price</span>
+                      <div style={{ minWidth: "auto" }}>
+                        <CustomDropdown
+                          options={countries.map((c) => ({ label: `${c.name} (${c.currencySymbol})`, value: String(c._id) }))}
+                          value={selectedPriceCountryId}
+                          onChange={(val) => setSelectedPriceCountryId(val)}
+                          placeholder="Select country"
+                          searchable
+                          padding="4px 10px"
+                        />
+                      </div>
                     </div>
                   </th>
                   <th>Stock</th>
@@ -1257,7 +1226,7 @@ function Products() {
                       <img
                         src={
                           product.images && product.images.length > 0
-                            ? typeof product.images[0] === 'string' 
+                            ? typeof product.images[0] === 'string'
                               ? product.images[0]
                               : product.images[0].preview || product.images[0].url || "https://via.placeholder.com/45"
                             : "https://via.placeholder.com/45"
