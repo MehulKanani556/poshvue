@@ -3,7 +3,12 @@ const router = express.Router();
 const product = require('../controller/productController');
 const category = require('../controller/categoryController');
 const { auth, requireRole } = require('../middleware/auth');
-const { uploadProductImages, uploadProductsToS3 } = require('../middleware/upload');
+const { 
+  uploadProductImages, 
+  uploadProductsToS3,
+  uploadCategoryImage,
+  uploadCategoryToS3
+} = require('../middleware/upload');
 
 // Middleware to log incoming headers for debugging file uploads
 const logHeaders = (req, res, next) => {
@@ -21,8 +26,8 @@ router.get('/categories/:id', category.get);
 router.post('/products', auth, requireRole('admin'), logHeaders, uploadProductImages, uploadProductsToS3, product.create);
 router.put('/products/:id', auth, requireRole('admin'), logHeaders, uploadProductImages, uploadProductsToS3, product.update);
 router.delete('/products/:id', auth, requireRole('admin'), product.remove);
-router.post('/categories', auth, requireRole('admin'), category.create);
-router.put('/categories/:id', auth, requireRole('admin'), category.update);
+router.post('/categories', auth, requireRole('admin'), uploadCategoryImage, uploadCategoryToS3, category.create);
+router.put('/categories/:id', auth, requireRole('admin'), uploadCategoryImage, uploadCategoryToS3, category.update);
 router.delete('/categories/:id', auth, requireRole('admin'), category.remove);
 
 module.exports = router;

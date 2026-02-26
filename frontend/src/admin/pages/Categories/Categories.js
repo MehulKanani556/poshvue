@@ -98,18 +98,30 @@ function Categories() {
     try {
       setLoading(true);
       setError("");
-      const payload = { ...formData };
+      
+      const formDataToSend = new FormData();
+      formDataToSend.append("name", formData.name);
+      formDataToSend.append("description", formData.description || "");
+      formDataToSend.append("status", formData.status);
 
-      // Handle image: existing URL preserved, file object converted to base64
-      if (payload.image && typeof payload.image === 'object' && payload.image.file) {
-        payload.image = await fileToDataUrl(payload.image.file);
+      // Handle image
+      if (formData.image && typeof formData.image === 'object' && formData.image.file) {
+        // If it's a new file object, append as file
+        formDataToSend.append("image", formData.image.file);
+      } else if (typeof formData.image === 'string') {
+        // If it's an existing URL, append as string
+        formDataToSend.append("image", formData.image);
       }
 
       if (editingId) {
-        const res = await adminClient.put(`/catalog/categories/${editingId}`, payload);
+        const res = await adminClient.put(`/catalog/categories/${editingId}`, formDataToSend, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
         setCategories((prev) => prev.map((c) => (c._id === editingId ? res.data.item : c)));
       } else {
-        const res = await adminClient.post("/catalog/categories", payload);
+        const res = await adminClient.post("/catalog/categories", formDataToSend, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
         setCategories((prev) => [res.data.item, ...prev]);
       }
       resetForm();

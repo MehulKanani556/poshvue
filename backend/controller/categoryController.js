@@ -1,4 +1,23 @@
 const { Category } = require('../model');
+const { uploadBase64Image } = require('../utils/awsUpload');
+
+async function processCategoryImage(body, req) {
+  // 1. Handle S3 upload from middleware (FormData)
+  if (req.s3FileUrls && req.s3FileUrls.length > 0) {
+    body.image = req.s3FileUrls[0];
+    return;
+  }
+
+  // 2. Handle base64 image from body (JSON)
+  if (typeof body.image === 'string' && body.image.startsWith('data:')) {
+    try {
+      const saved = await uploadBase64Image(body.image, 'categories');
+      body.image = saved;
+    } catch (error) {
+      console.error('Error uploading base64 category image:', error);
+    }
+  }
+}
 
 function mapAdminToCategory(payload) {
   const body = { ...payload };
@@ -38,11 +57,16 @@ exports.get = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const body = mapAdminToCategory(req.body);
+    
+    // Process image (S3 or base64)
+    await processCategoryImage(body, req);
+
     // slug from name if not provided
     if (body.name && !body.slug) body.slug = body.name.toLowerCase().replace(/\s+/g, '-');
     const item = await Category.create(body);
     return res.status(201).json({ item });
   } catch (err) {
+    console.error('Category create error:', err);
     return res.status(400).json({ message: 'Invalid data' });
   }
 };
@@ -50,11 +74,16 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const body = mapAdminToCategory(req.body);
+
+    // Process image (S3 or base64)
+    await processCategoryImage(body, req);
+
     if (body.name && !body.slug) body.slug = body.name.toLowerCase().replace(/\s+/g, '-');
     const item = await Category.findByIdAndUpdate(req.params.id, body, { new: true });
     if (!item) return res.status(404).json({ message: 'Not found' });
     return res.json({ item });
   } catch (err) {
+    console.error('Category update error:', err);
     return res.status(400).json({ message: 'Invalid data' });
   }
 };
