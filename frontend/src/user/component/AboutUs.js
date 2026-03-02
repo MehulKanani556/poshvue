@@ -3,8 +3,10 @@ import { Heart, Star, Award, Users, ShieldCheck, ShoppingBag, Quote } from 'luci
 import '../styles/d_style.css';
 import client from '../../api/client';
 import Loader from './Loader';
+import { useNavigate } from 'react-router-dom';
 
 const AboutUs = () => {
+  const navigate = useNavigate();
   const [aboutUsData, setAboutUsData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,7 +63,7 @@ const AboutUs = () => {
 
   if (loading) {
     return (
-      <Loader fullScreen  text="Loading Data..." />
+      <Loader fullScreen text="Loading Data..." />
     );
   }
 
@@ -82,7 +84,7 @@ const AboutUs = () => {
   };
   return (
     <div className="d_about-wrapper">
- 
+
 
       {/* Hero Header */}
       <section className="d_about-hero">
@@ -97,9 +99,9 @@ const AboutUs = () => {
         <div className="container">
           <div className="row align-items-center">
             <div className="col-lg-6">
-              <img 
-                src={aboutUsData.ourStory?.image} 
-                alt="Wedding Dress" 
+              <img
+                src={aboutUsData.ourStory?.image}
+                alt="Wedding Dress"
                 className="d_story-img"
               />
             </div>
@@ -111,7 +113,7 @@ const AboutUs = () => {
               )) : (
                 <p className="d_text-muted">{aboutUsData.ourStory?.description || 'Welcome to Poshvue...'}</p>
               )}
-              
+
               <div className="d-flex gap-3 mt-4 d_stat-flex">
                 {aboutUsData.ourStory?.stats?.map((stat, index) => (
                   <div key={index} className="d_stat-card">
@@ -150,7 +152,11 @@ const AboutUs = () => {
               "{aboutUsData.visionSection?.visionText}"
             </h2>
             <hr className="d_vision-hr" />
-            <button className="btn btn-outline-light mt-4 px-4 py-2 rounded-0 small">{aboutUsData.visionSection?.buttonText}</button>
+            <button className="btn btn-outline-light mt-4 px-4 py-2 rounded-0 small"
+              onClick={() => navigate("/OurStory")}
+            >
+              {aboutUsData.visionSection?.buttonText}
+            </button>
           </div>
         </div>
       </section>

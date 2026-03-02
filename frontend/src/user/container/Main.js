@@ -72,7 +72,7 @@ function Main() {
               <hr className="d_vision-hr" />
               <button
                 className="btn btn-outline-light mt-4 px-4 py-2 rounded-0 small"
-                onClick={() => navigate("/ShopPage")}
+                onClick={() => navigate("/OurStory")}
               >
                 {visionData.buttonText || 'DISCOVER MORE'}
               </button>
