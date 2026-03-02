@@ -17,6 +17,11 @@ async function processCategoryImage(body, req) {
       console.error('Error uploading base64 category image:', error);
     }
   }
+
+  // 3. If it's an empty string or explicitly "null", we might want to clear it
+  if (body.image === '' || body.image === 'null') {
+    body.image = null;
+  }
 }
 
 function mapAdminToCategory(payload) {

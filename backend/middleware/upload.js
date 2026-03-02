@@ -85,23 +85,25 @@ const uploadStoryImages = multer({
  */
 const uploadProductsToS3 = async (req, res, next) => {
   try {
-        console.log('UploadProductsToS3 middleware - req.files:', req.files ? req.files.length : 'undefined');
+    const files = req.files || (req.file ? [req.file] : []);
+    console.log('UploadProductsToS3 middleware - files:', files.length);
     
-    if (!req.files || req.files.length === 0) {
+    if (files.length === 0) {
       console.log('No files to upload, proceeding to next middleware');
       return next();
     }
 
-    console.log('Processing', req.files.length, 'product images for S3 upload');
+    console.log('Processing', files.length, 'product images for S3 upload');
     
     // Process uploaded files and upload to S3 with WebP conversion
-    const s3Urls = await uploadMultipleImages(req.files, 'products');
+    const s3Urls = await uploadMultipleImages(files, 'products');
     
     console.log('Product S3 upload successful, URLs:', s3Urls);
     
     // Replace file information with S3 URLs
     req.s3FileUrls = s3Urls;
     req.files = undefined; // Clear multer files to free memory
+    req.file = undefined;
     
     next();
   } catch (error) {
@@ -116,23 +118,25 @@ const uploadProductsToS3 = async (req, res, next) => {
  */
 const uploadCategoryToS3 = async (req, res, next) => {
   try {
-    console.log('UploadCategoryToS3 middleware - req.files:', req.files ? req.files.length : 'undefined');
+    const files = req.files || (req.file ? [req.file] : []);
+    console.log('UploadCategoryToS3 middleware - files:', files.length);
     
-    if (!req.files || req.files.length === 0) {
+    if (files.length === 0) {
       console.log('No files to upload, proceeding to next middleware');
       return next();
     }
 
-    console.log('Processing', req.files.length, 'category images for S3 upload');
+    console.log('Processing', files.length, 'category images for S3 upload');
     
     // Process uploaded files and upload to S3 with WebP conversion
-    const s3Urls = await uploadMultipleImages(req.files, 'categories');
+    const s3Urls = await uploadMultipleImages(files, 'categories');
     
     console.log('Category S3 upload successful, URLs:', s3Urls);
     
     // Replace file information with S3 URLs
     req.s3FileUrls = s3Urls;
     req.files = undefined; // Clear multer files to free memory
+    req.file = undefined;
     
     next();
   } catch (error) {
@@ -147,23 +151,25 @@ const uploadCategoryToS3 = async (req, res, next) => {
  */
 const uploadBlogToS3 = async (req, res, next) => {
   try {
-    console.log('UploadBlogToS3 middleware - req.files:', req.files ? req.files.length : 'undefined');
+    const files = req.files || (req.file ? [req.file] : []);
+    console.log('UploadBlogToS3 middleware - files:', files.length);
     
-    if (!req.files || req.files.length === 0) {
+    if (files.length === 0) {
       console.log('No files to upload, proceeding to next middleware');
       return next();
     }
 
-    console.log('Processing', req.files.length, 'blog images for S3 upload');
+    console.log('Processing', files.length, 'blog images for S3 upload');
     
     // Process uploaded files and upload to S3 with WebP conversion
-    const s3Urls = await uploadMultipleImages(req.files, 'blogs');
+    const s3Urls = await uploadMultipleImages(files, 'blogs');
     
     console.log('Blog S3 upload successful, URLs:', s3Urls);
     
     // Replace file information with S3 URLs
     req.s3FileUrls = s3Urls;
     req.files = undefined; // Clear multer files to free memory
+    req.file = undefined;
     
     next();
   } catch (error) {
@@ -178,23 +184,25 @@ const uploadBlogToS3 = async (req, res, next) => {
  */
 const uploadStoryToS3 = async (req, res, next) => {
   try {
-    console.log('UploadStoryToS3 middleware - req.files:', req.files ? req.files.length : 'undefined');
+    const files = req.files || (req.file ? [req.file] : []);
+    console.log('UploadStoryToS3 middleware - files:', files.length);
     
-    if (!req.files || req.files.length === 0) {
+    if (files.length === 0) {
       console.log('No files to upload, proceeding to next middleware');
       return next();
     }
 
-    console.log('Processing', req.files.length, 'story images for S3 upload');
+    console.log('Processing', files.length, 'story images for S3 upload');
     
     // Process uploaded files and upload to S3 with WebP conversion
-    const s3Urls = await uploadMultipleImages(req.files, 'stories');
+    const s3Urls = await uploadMultipleImages(files, 'stories');
     
     console.log('Story S3 upload successful, URLs:', s3Urls);
     
     // Replace file information with S3 URLs
     req.s3FileUrls = s3Urls;
     req.files = undefined; // Clear multer files to free memory
+    req.file = undefined;
     
     next();
   } catch (error) {
@@ -209,23 +217,25 @@ const uploadStoryToS3 = async (req, res, next) => {
  */
 const uploadHomeToS3 = async (req, res, next) => {
   try {
-    console.log('UploadHomeToS3 middleware - req.files:', req.files ? req.files.length : 'undefined');
+    const files = req.files || (req.file ? [req.file] : []);
+    console.log('UploadHomeToS3 middleware - files:', files.length);
     
-    if (!req.files || req.files.length === 0) {
+    if (files.length === 0) {
       console.log('No files to upload, proceeding to next middleware');
       return next();
     }
 
-    console.log('Processing', req.files.length, 'home images for S3 upload');
+    console.log('Processing', files.length, 'home images for S3 upload');
     
     // Process uploaded files and upload to S3 with WebP conversion
-    const s3Urls = await uploadMultipleImages(req.files, 'home');
+    const s3Urls = await uploadMultipleImages(files, 'home');
     
     console.log('Home S3 upload successful, URLs:', s3Urls);
     
     // Replace file information with S3 URLs
     req.s3FileUrls = s3Urls;
     req.files = undefined; // Clear multer files to free memory
+    req.file = undefined;
     
     next();
   } catch (error) {
@@ -240,23 +250,25 @@ const uploadHomeToS3 = async (req, res, next) => {
  */
 const uploadReviewToS3 = async (req, res, next) => {
   try {
-    console.log('uploadReviewToS3 middleware - req.files:', req.files ? req.files.length : 'undefined');
+    const files = req.files || (req.file ? [req.file] : []);
+    console.log('uploadReviewToS3 middleware - files:', files.length);
     
-    if (!req.files || req.files.length === 0) {
+    if (files.length === 0) {
       console.log('No files to upload, proceeding to next middleware');
       return next();
     }
 
-    console.log('Processing', req.files.length, 'review images for S3 upload');
+    console.log('Processing', files.length, 'review images for S3 upload');
     
     // Process uploaded files and upload to S3 with WebP conversion
-    const s3Urls = await uploadMultipleImages(req.files, 'reviews');
+    const s3Urls = await uploadMultipleImages(files, 'reviews');
     
     console.log('Review S3 upload successful, URLs:', s3Urls);
     
     // Replace file information with S3 URLs
     req.s3FileUrls = s3Urls;
     req.files = undefined; // Clear multer files to free memory
+    req.file = undefined;
     
     next();
   } catch (error) {

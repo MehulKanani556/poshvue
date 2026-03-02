@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FiStar, FiChevronRight, FiX, FiMessageSquare } from "react-icons/fi";
+import { FiStar, FiChevronRight, FiX, FiMessageSquare, FiMaximize2 } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
 
 function ProductReviews() {
@@ -8,6 +8,7 @@ function ProductReviews() {
   const [error, setError] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [activeImage, setActiveImage] = useState(null); // State for full-screen image
 
   useEffect(() => {
     fetchProductsWithReviews();
@@ -63,8 +64,8 @@ function ProductReviews() {
   }
 
   return (
-    <div >
-      {/* Responsive CSS Overrides */}
+    <div>
+      {/* CSS Overrides */}
       <style>{`
         .reviews-modal-content {
           width: 95%;
@@ -104,6 +105,21 @@ function ProductReviews() {
         .review-image-hover:hover {
           transform: scale(1.05);
           transition: 0.2s;
+          filter: brightness(0.9);
+        }
+
+        .fullscreen-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0,0,0,0.9);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          cursor: zoom-out;
         }
       `}</style>
 
@@ -172,11 +188,29 @@ function ProductReviews() {
         })}
       </div>
 
-      {/* REDESIGNED MODAL */}
+      {/* FULL SCREEN IMAGE PREVIEW */}
+      {activeImage && (
+        <div className="fullscreen-overlay" onClick={() => setActiveImage(null)}>
+          <button 
+             style={{ position: 'absolute', top: 20, right: 20, background: 'white', border: 'none', borderRadius: '50%', padding: 10, cursor: 'pointer', display: 'flex' }}
+             onClick={() => setActiveImage(null)}
+          >
+            <FiX size={24} />
+          </button>
+          <img 
+            src={activeImage} 
+            alt="Full size" 
+            style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: 8, boxShadow: '0 0 20px rgba(0,0,0,0.5)' }} 
+            onClick={(e) => e.stopPropagation()} 
+          />
+        </div>
+      )}
+
+      {/* REVIEWS MODAL */}
       {showReviewsModal && selectedProduct && (
         <div className="x_modal-overlay x_active" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div className="reviews-modal-content">
-            {/* Sticky Header */}
+            {/* Header */}
             <div
               style={{
                 padding: "16px 20px",
@@ -287,25 +321,26 @@ function ProductReviews() {
                           </p>
                         )}
 
-                        {/* Image Gallery */}
+                        {/* Image Gallery with Click to Zoom */}
                         {(review.images?.length > 0 || review.image) && (
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
-                            {(review.images || [review.image]).map((img, idx) => (
-                              <img
-                                key={idx}
-                                className="review-image-hover"
-                                src={getImageUrl(img)}
-                                alt="Review attachment"
-                                style={{
-                                  width: 80,
-                                  height: 80,
-                                  objectFit: "cover",
-                                  borderRadius: 8,
-                                  border: "1px solid #eee",
-                                  cursor: "zoom-in",
-                                }}
-                                // onClick={() => window.open(getImageUrl(img), "_blank")}
-                              />
+                            {(review.images || [review.image]).filter(img => img).map((img, idx) => (
+                              <div key={idx} style={{ position: 'relative' }}>
+                                <img
+                                  className="review-image-hover"
+                                  src={getImageUrl(img)}
+                                  alt="Review attachment"
+                                  style={{
+                                    width: 80,
+                                    height: 80,
+                                    objectFit: "cover",
+                                    borderRadius: 8,
+                                    border: "1px solid #eee",
+                                    cursor: "zoom-in",
+                                  }}
+                                  onClick={() => setActiveImage(getImageUrl(img))}
+                                />
+                              </div>
                             ))}
                           </div>
                         )}

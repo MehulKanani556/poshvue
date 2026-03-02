@@ -108,9 +108,12 @@ function Categories() {
       if (formData.image && typeof formData.image === 'object' && formData.image.file) {
         // If it's a new file object, append as file
         formDataToSend.append("image", formData.image.file);
-      } else if (typeof formData.image === 'string') {
+      } else if (typeof formData.image === 'string' && formData.image) {
         // If it's an existing URL, append as string
         formDataToSend.append("image", formData.image);
+      } else {
+        // If it's null or empty, send empty string to indicate removal
+        formDataToSend.append("image", "");
       }
 
       if (editingId) {
@@ -327,7 +330,11 @@ function Categories() {
                       )}
                     </td>
                     <td>{category.name}</td>
-                    <td>{category.description}</td>
+                   <td>
+                      {category.description.length > 100
+                        ? category.description.slice(0, 100) + "..."
+                        : category.description}
+                    </td>
                     <td>{category.active === false ? "Inactive" : "Active"}</td>
                     <td style={{ textAlign: "center" }}>
                       {/* <button className="x_btn x_btn-primary x_btn-sm" onClick={() => handleEdit(category)}>

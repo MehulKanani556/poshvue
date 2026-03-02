@@ -1,7 +1,7 @@
 import { toast } from "react-toastify";
 
 export const toastSuccess = (message, options = {}) => {
-  const text = message || "Action completed successfully";
+  const text = message;
   const id = options.toastId || `success:${text}`;
   if (toast.isActive(id)) return; // avoid duplicate success toast
   toast.success(text, {

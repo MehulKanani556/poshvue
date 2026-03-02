@@ -164,9 +164,25 @@ function Blog() {
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: "20px" }}>
-        <h1 style={{ fontSize: "24px", fontWeight: 700, color: '#2b4d6e'  }}>Blog</h1>
-        <p style={{ color: "#7f8c8d" }}>Create and manage blog posts</p>
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: "20px",
+      }}>
+        <div>
+          <h1 style={{ fontSize: "24px", fontWeight: 700, color: '#2b4d6e' }}>Blog</h1>
+          <p style={{ color: "#7f8c8d" }}>Create and manage blog posts</p>
+        </div>
+        <button
+          className="x_btn x_btn-primary"
+          onClick={() => {
+            resetForm();
+            setShowModal(true);
+          }}
+        >
+          <FiPlus size={16} /> Create Blog
+        </button>
       </div>
       {error && <div className="x_alert x_alert-danger" style={{ marginBottom: 12 }}>{error}</div>}
 
