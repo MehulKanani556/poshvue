@@ -337,7 +337,7 @@ function Home() {
             .z_poster_main_content { padding: 50px;  }
             .z_poster_title { font-size: 2.5rem; color: #0a2845; margin-bottom: 15px; }
             .z_poster_desc { font-size: 1.2rem; color: #666; margin-bottom: 20px; }
-            .z_poster_btn { background: #b08d57; color: white; border: none; padding: 12px 30px; font-weight: bold; cursor: pointer; }
+            .z_poster_btn { background: #fff; color: #0a2845; border: none; padding: 12px 30px; font-weight: bold; cursor: pointer; }
             .z_poster_img { width: 100%; height: 700px; object-fit: cover;  }
             .d_features-bg { background: #f8f9fa; padding: 50px 0; }
             .d_icon-box { font-size: 2rem; color: #b08d57; margin-bottom: 15px; }
@@ -361,7 +361,7 @@ function Home() {
             .hero-slide-content.text_end { align-items: flex-end; text-align: right; }
             .hero-slide-title { font-size: 3rem; font-weight: bold; margin-bottom: 15px; }
             .hero-slide-subtitle { font-size: 1.5rem; margin-bottom: 20px; }
-            .hero-slide-btn { background: #b08d57; color: white; border: none; padding: 12px 30px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+            .hero-slide-btn { background: #fff; color: #0a2845; border: none; padding: 12px 30px; font-weight: bold; cursor: pointer; }
             .d_vision-section { background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('https://i.pinimg.com/1200x/d3/14/a2/d314a28c5dba7be6776cb93c3b4f9f9e.jpg'); background-size: cover; background-position: center; background-attachment: fixed; padding: 80px 0; color: #fff; text-align: center; }
             .d_vision-content { max-width: 800px; margin: 0 auto; position: relative; padding: 20px; }
             .d_quote-icon { color: #c5a059; opacity: 0.5; margin-bottom: 20px; font-size: 3rem; }

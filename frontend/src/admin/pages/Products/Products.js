@@ -113,11 +113,15 @@ function Products() {
         const countryData = countryRes.data?.items ?? countryRes.data ?? [];
 
         // ensure arrays and normalize images/colors
-        const normalizedProducts = (Array.isArray(prodData) ? prodData : []).map((p) => ({
+        let normalizedProducts = (Array.isArray(prodData) ? prodData : []).map((p) => ({
           ...p,
           images: Array.isArray(p.images) ? p.images.filter(Boolean) : [],
           colors: Array.isArray(p.colors) ? p.colors : [],
         }));
+
+        // sort latest first and keep only the most recently added 12 products
+        normalizedProducts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        normalizedProducts = normalizedProducts.slice(0, 12);
 
         setProducts(normalizedProducts);
         setCategories(Array.isArray(catData) ? catData : []);

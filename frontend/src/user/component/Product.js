@@ -35,14 +35,24 @@ export default function Product({ productId}) {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const res = await client.get("/catalog/products", {
-          params: { limit: 12, sort: "-createdAt" },
-        });
-        const items = Array.isArray(res.data.items) ? res.data.items : [];
+        // request without limit so we can sort and slice client-side
+        const res = await client.get("/catalog/products");
+        let items = Array.isArray(res.data.items) ? res.data.items : [];
         if (!mounted) return;
-        // Filter out current product
+
+        // sort newest first by createdAt (fallback to _id if missing)
+        items.sort((a, b) => {
+          const da = new Date(a.createdAt || a._id);
+          const db = new Date(b.createdAt || b._id);
+          return db - da;
+        });
+
+        // Filter out current product if present
         const filtered = items.filter((p) => String(p._id || p.id) !== String(productId));
-        setProducts(filtered.length ? filtered : items);
+        // keep only up to 12 products
+        const finalList = (filtered.length ? filtered : items).slice(0, 12);
+
+        setProducts(finalList);
       } catch (err) {
         console.warn("Failed to load products", err);
         toast.error("Failed to load products");
