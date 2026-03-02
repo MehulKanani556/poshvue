@@ -496,7 +496,12 @@ function Cart() {
                 ))}
 
                 {/* UPDATE BUTTON */}
-                <button className="z_cart_update">Update Cart</button>
+                <button
+                  className="z_cart_update"
+                  onClick={() => navigate("/ShopPage")}
+                >
+                  Keep Shopping
+                </button>
               </div>
             </div>
           </div>
@@ -547,7 +552,7 @@ function Cart() {
                   </div>
                 ) : (
                   <>
-                    {availableCoupons && availableCoupons.length > 0 && (
+                    {availableCoupons && availableCoupons.length > 0 ? (
                       <select
                         className="z_cart_coupon_select_dropdown"
                         value={couponCode}
@@ -558,9 +563,16 @@ function Cart() {
                         {availableCoupons.map((c) => (
                           <option key={c._id || c.code} value={c.code}>
                             {c.code}
-                            {/* {c.conditions ? ` — ${c.conditions}` : ""} */}
                           </option>
                         ))}
+                      </select>
+                    ) : (
+                      <select
+                        className="z_cart_coupon_select_dropdown"
+                        disabled
+                        style={{ width: "100%", marginBottom: 8, padding: 8, backgroundColor: '#f8f9fa' }}
+                      >
+                        <option value="">No coupons available</option>
                       </select>
                     )}
                     <input
