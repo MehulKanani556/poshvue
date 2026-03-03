@@ -120,8 +120,8 @@ function Products() {
         }));
 
         // sort latest first and keep only the most recently added 12 products
-        normalizedProducts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        normalizedProducts = normalizedProducts.slice(0, 12);
+        // normalizedProducts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        // normalizedProducts = normalizedProducts.slice(0, 12);
 
         setProducts(normalizedProducts);
         setCategories(Array.isArray(catData) ? catData : []);
