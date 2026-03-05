@@ -175,8 +175,8 @@ function Story() {
         .x_btn { padding: 10px 20px; border-radius: 6px; font-weight: 500; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.3s; }
         .x_btn-primary { background: #0a2845; color: #fff; }
         .x_btn-secondary { background: #f0f0f0; color: #2b4d6e; }
-        @media (max-width: 768px) { .grid_2 { grid-template-columns: 1fr; } .x_page_header{ flex-direction: column;} .x_card_body{padding:6px 0px;} .x_form_group{ margin-bottom:15px;} }
-        @media (max-width: 425px) { .x_header_btn{ flex-direction: column;width:100%;} .x_page_header h1{font-size:23px;} }
+        @media (max-width: 768px) { .grid_2 { grid-template-columns: 1fr; gap: 0px;} .x_page_header{ flex-direction: column;} .x_card_body{padding:6px 0px;} .x_form_group{ margin-bottom:15px;} }
+        @media (max-width: 425px) { .x_header_btn{ flex-direction: column;width:100%;} .x_page_header h1{font-size:23px;} .array_item_card{padding: 20px 10px;}}
       `}</style>
 
       <div className="x_page_header">
@@ -223,15 +223,14 @@ function Story() {
                   <div style={{ 
                     marginTop: "10px", 
                     position: "relative",
-                    width: "200px",
-                    height: "120px"
+                    width: "fit-content",
                   }}>
                     <img
                       src={imagePreviews.heroBackground || (typeof story.hero.backgroundImage === 'string' ? story.hero.backgroundImage : story.hero.backgroundImage?.preview)}
                       alt="Hero background"
                       style={{
-                        width: "100%",
-                        height: "100%",
+                        width: "100px",
+                        height: "100px",
                         objectFit: "cover",
                         borderRadius: "6px",
                         border: "1px solid #ddd",
@@ -299,15 +298,14 @@ function Story() {
                   <div style={{ 
                     marginTop: "10px", 
                     position: "relative",
-                    width: "150px",
-                    height: "150px"
+                    width: "fit-content",
                   }}>
                     <img
                       src={imagePreviews.philosophyImage || (typeof story.philosophy.image === 'string' ? story.philosophy.image : story.philosophy.image?.preview)}
                       alt="Philosophy image"
                       style={{
-                        width: "100%",
-                        height: "100%",
+                        width: "100px",
+                        height: "100px",
                         objectFit: "cover",
                         borderRadius: "6px",
                         border: "1px solid #ddd",
@@ -404,15 +402,14 @@ function Story() {
                   <div style={{ 
                     marginTop: "10px", 
                     position: "relative",
-                    width: "150px",
-                    height: "150px"
+                    width: "fit-content"
                   }}>
                     <img
                       src={imagePreviews.craftsmanshipImage || (typeof story.craftsmanship.image === 'string' ? story.craftsmanship.image : story.craftsmanship.image?.preview)}
                       alt="Craftsmanship image"
                       style={{
-                        width: "100%",
-                        height: "100%",
+                        width: "100px",
+                        height: "100px",
                         objectFit: "cover",
                         borderRadius: "6px",
                         border: "1px solid #ddd",
@@ -534,11 +531,13 @@ function Story() {
             .d_story_why { padding: 60px 0; background: #fff; }
             .d_why_box { padding: 20px; border: 1px dashed #b08d57; height: 100%; }
             .d_why_icon { font-size: 30px; color: #b08d57; margin-bottom: 15px; }
-            .d_story_cta { background: linear-gradient(rgba(74, 4, 4, 0.9), rgba(74, 4, 4, 0.9)), url("https://images.unsplash.com/photo-1594142404832-731338604d53?q=80&w=1974&auto=format&fit=crop"); background-size: cover; background-attachment: fixed; color: #fff; text-align: center; padding: 70px 20px; }
-            .d_story_btn { background: #b08d57; color: #fff; border: none; padding: 15px 45px; font-size: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 25px; transition: 0.3s; }
+            .d_story_cta { background: linear-gradient(rgba(74, 4, 4, 0.9), rgba(74, 4, 4, 0.9)), url("https://images.unsplash.com/photo-1594142404832-731338604d53?q=80&w=1974&auto=format&fit=crop"); background-size: cover; background-attachment: fixed; color: #fff; text-align: center; padding: 60px 20px; }
+            .d_story_btn { background: #b08d57; color: #fff; border: none; padding: 11px 45px; font-size: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 25px; transition: 0.3s; }
             .d_story_btn:hover { background: #fff; color: #0a2845; }
+            .d_story_why .row {--bs-gutter-x: 1.5rem !important;}
+            .d_story_values .row {--bs-gutter-x: 1rem;}
             @media (max-width: 1440px){.d_story_why, .d_story_section, .d_story_values {padding: 40px 0;} .d_value_icon {font-size: 30px;   margin-bottom: 10px;}     padding: 50px 20px;}
-            @media (max-width: 768px) {.d_value_card {padding: 15px 25px;}.d_story_values {padding: 40px 0;} .d_story_img { height: 350px; box-shadow: 10px 10px 0px #f4e6d6; } .d_craft_img { height: 300px; border-radius: 10px; } .d_story_btn { padding: 15px 20px; font-size: 14px; } }
+            @media (max-width: 768px) {.d_value_card {padding: 15px 25px;}.d_story_values {padding: 40px 0;} .d_story_img { height: 350px; box-shadow: 10px 10px 0px #f4e6d6; } .d_craft_img { height: 300px; border-radius: 10px; } .d_story_btn { padding: 10px 20px; font-size: 14px; } }
           `}</style>
 
           <section className="d_story_hero">

@@ -185,14 +185,14 @@ const OurStory = ({ story: propStory }) => {
           background-attachment: fixed;
           color: #fff;
           text-align: center;
-          padding: 100px 20px;
+          padding: 60px 20px;
         }
 
         .d_story_btn {
           background: #b08d57;
           color: #fff;
           border: none;
-          padding: 15px 45px;
+          padding: 11px 45px;
           font-size: 18px;
           font-weight: 600;
           text-transform: uppercase;
@@ -210,7 +210,7 @@ const OurStory = ({ story: propStory }) => {
           .d_story_img { height: 350px; box-shadow: 10px 10px 0px #f4e6d6; }
           .d_craft_img { height: 300px; border-radius: 10px; }
           .d_story_values { padding: 20px 0; }
-          .d_story_btn { padding: 15px 22px; font-size: 16px; }
+          .d_story_btn { padding: 12px 22px; font-size: 16px; }
           .d_story_cta { padding: 52px 20px; }
       `}</style>
 

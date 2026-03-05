@@ -167,8 +167,8 @@ function ContactUs() {
         .x_btn { padding: 10px 20px; border-radius: 6px; font-weight: 500; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.3s; }
         .x_btn-primary { background: #0a2845; color: #fff; }
         .x_btn-secondary { background: #f0f0f0; color: #2b4d6e; }
-        @media (max-width: 768px) { .grid_2 { grid-template-columns: 1fr; } .x_page_header{ flex-direction: column;} .x_card_body{padding:6px 0px;} .x_form_group{ margin-bottom:15px;} }
-        @media (max-width: 425px) { .x_header_btn{ flex-direction: column;width:100%;} .x_page_header h1{font-size:23px;} }
+        @media (max-width: 768px) { .grid_2 { grid-template-columns: 1fr; gap: 0px;} .x_page_header{ flex-direction: column;} .x_card_body{padding:6px 0px;} .x_form_group{ margin-bottom:15px;} }
+        @media (max-width: 425px) { .x_header_btn{ flex-direction: column;width:100%;} .x_page_header h1{font-size:23px;} .array_item_card{padding: 20px 10px;}}
       `}</style>
 
             <div className="x_page_header">

@@ -319,8 +319,8 @@ function AboutUs() {
         .x_btn { padding: 10px 20px; border-radius: 6px; font-weight: 500; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.3s; }
         .x_btn-primary { background: #0a2845; color: #fff; }
         .x_btn-secondary { background: #f0f0f0; color: #2b4d6e; }
-        @media (max-width: 768px) { .grid_2 { grid-template-columns: 1fr; } .x_page_header{ flex-direction: column;} .x_card_body{padding:6px 0px;} .x_form_group{ margin-bottom:15px;} }
-        @media (max-width: 425px) { .x_header_btn{ flex-direction: column;width:100%;} .x_page_header h1{font-size:23px;} }
+        @media (max-width: 768px) { .grid_2 { grid-template-columns: 1fr; gap: 0px;} .x_page_header{ flex-direction: column;} .x_card_body{padding:6px 0px;} .x_form_group{ margin-bottom:15px;} }
+        @media (max-width: 425px) { .x_header_btn{ flex-direction: column;width:100%;} .x_page_header h1{font-size:23px;} .array_item_card{padding: 20px 10px;}}
       `}</style>
 
       <div className="x_page_header">
@@ -351,7 +351,7 @@ function AboutUs() {
             .d_text-muted { color: #6c757d; line-height: 1.6; }
             .d_story-img { width: 100%; height: 400px; object-fit: cover; border-radius: 10px; }
             .d_stat-flex { flex-wrap: wrap; }
-            .d_stat-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); min-width: 120px; text-align: center; }
+            .d_stat-card { background: white; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); min-width: 100px; text-align: center; }
             .d_features-bg { background: #f8f9fa; }
             .d_icon-box { font-size: 2rem; color: #b08d57; margin-bottom: 15px; }
             .d_vision-section { background: linear-gradient(135deg, #0a2845 0%, #2d0202 100%); color: white; padding: 80px 0; text-align: center; }
@@ -430,7 +430,7 @@ function AboutUs() {
 
 /* --- Stats Card --- */
 .d_stat-card {
-  padding: 15px;
+  padding: 10px;
   border-left: 3px solid #c5a059;
   background: #fafafa;
 }
@@ -876,15 +876,14 @@ function AboutUs() {
                     <div style={{ 
                       marginTop: "10px", 
                       position: "relative",
-                      width: "150px",
-                      height: "150px"
+                      width: "fit-content",
                     }}>
                       <img
                         src={ourStoryImagePreview || (typeof aboutUs.ourStory.image === 'string' ? aboutUs.ourStory.image : aboutUs.ourStory.image?.preview)}
                         alt="Story preview"
                         style={{
-                          width: "100%",
-                          height: "100%",
+                          width: "100px",
+                          height: "100px",
                           objectFit: "cover",
                           borderRadius: "6px",
                           border: "1px solid #ddd",

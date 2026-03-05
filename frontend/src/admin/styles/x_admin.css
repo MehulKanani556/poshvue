@@ -1501,7 +1501,7 @@ input[type="url"].x_form-control {
   }
 
   .x_card_header {
-    flex-direction: column;
+    flex-direction: row;
     align-items: flex-start;
   }
 
