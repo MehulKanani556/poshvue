@@ -1,6 +1,44 @@
 import React, { useState, useEffect } from "react";
+import * as IconsFi from "react-icons/fi";
+import * as IconsMd from "react-icons/md";
+import * as IconsHi from "react-icons/hi2";
+import * as IconsAi from "react-icons/ai";
+import * as IconsFa from "react-icons/fa";
 import { FiEdit2, FiSave, FiEye, FiPlus, FiTrash2, FiImage, FiType } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
+
+// Helper component to render icons dynamically from string names
+const DynamicIcon = ({ iconName, ...props }) => {
+  if (!iconName) return null;
+
+  // Try different sets based on prefix
+  let IconComponent = null;
+
+  if (iconName.startsWith('Fi')) {
+    IconComponent = IconsFi[iconName];
+  } else if (iconName.startsWith('Fa')) {
+    IconComponent = IconsFa[iconName];
+  } else if (iconName.startsWith('Md')) {
+    IconComponent = IconsMd[iconName];
+  } else if (iconName.startsWith('Hi')) {
+    IconComponent = IconsHi[iconName];
+  } else if (iconName.startsWith('Ai')) {
+    IconComponent = IconsAi[iconName];
+  } else {
+    // Fallback logic: try Fa set first as most icons are Fa, then try Fi
+    const capitalized = iconName.charAt(0).toUpperCase() + iconName.slice(1);
+    const withFa = 'Fa' + capitalized;
+    const withFi = 'Fi' + capitalized;
+
+    IconComponent = IconsFa[withFa] || IconsFi[withFi];
+  }
+
+  if (!IconComponent) {
+    return <span style={{ fontSize: '12px', color: '#999', fontStyle: 'italic' }}>({iconName})</span>;
+  }
+
+  return <IconComponent {...props} />;
+};
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -181,7 +219,7 @@ function Story() {
 
       <div className="x_page_header">
         <h3>Our Story Management</h3>
-        <div style={{ display: 'flex', gap: '10px' }} className="x_header_btn"> 
+        <div style={{ display: 'flex', gap: '10px' }} className="x_header_btn">
           <button className="x_btn x_btn-secondary" onClick={() => setMode(mode === 'edit' ? 'preview' : 'edit')}>
             <FiEye /> {mode === 'edit' ? 'Switch to Preview' : 'Back to Edit'}
           </button>
@@ -220,8 +258,8 @@ function Story() {
                   className="x_form-control"
                 />
                 {(imagePreviews.heroBackground || story.hero.backgroundImage) && (
-                  <div style={{ 
-                    marginTop: "10px", 
+                  <div style={{
+                    marginTop: "10px",
                     position: "relative",
                     width: "fit-content",
                   }}>
@@ -295,8 +333,8 @@ function Story() {
                   className="x_form-control"
                 />
                 {(imagePreviews.philosophyImage || story.philosophy.image) && (
-                  <div style={{ 
-                    marginTop: "10px", 
+                  <div style={{
+                    marginTop: "10px",
                     position: "relative",
                     width: "fit-content",
                   }}>
@@ -360,7 +398,17 @@ function Story() {
                       <button className="btn_remove" onClick={() => removeItem('values', 'cards', index)}><FiTrash2 /></button>
                       <div className="x_form_group">
                         <label>Icon Name (e.g., FiAward)</label>
-                        <input type="text" value={card.icon} onChange={(e) => handleArrayChange('values', 'cards', index, 'icon', e.target.value)} />
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <input
+                            type="text"
+                            value={card.icon}
+                            onChange={(e) => handleArrayChange('values', 'cards', index, 'icon', e.target.value)}
+                            placeholder="FiAward, FiHeart, etc."
+                          />
+                          <div style={{ background: '#f0f0f0', padding: '8px', borderRadius: '4px', display: 'flex' }}>
+                            <DynamicIcon iconName={card.icon} size={20} color="#b08d57" />
+                          </div>
+                        </div>
                       </div>
                       <div className="x_form_group">
                         <label>Card Title</label>
@@ -399,8 +447,8 @@ function Story() {
                   className="x_form-control"
                 />
                 {(imagePreviews.craftsmanshipImage || story.craftsmanship.image) && (
-                  <div style={{ 
-                    marginTop: "10px", 
+                  <div style={{
+                    marginTop: "10px",
                     position: "relative",
                     width: "fit-content"
                   }}>
@@ -446,8 +494,18 @@ function Story() {
                   <button className="btn_remove" onClick={() => removeItem('craftsmanship', 'points', index)}><FiTrash2 /></button>
                   <div className="grid_2">
                     <div className="x_form_group">
-                      <label>Icon</label>
-                      <input type="text" value={point.icon} onChange={(e) => handleArrayChange('craftsmanship', 'points', index, 'icon', e.target.value)} />
+                      <label>Icon (e.g., FiAward)</label>
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          value={point.icon}
+                          onChange={(e) => handleArrayChange('craftsmanship', 'points', index, 'icon', e.target.value)}
+                          placeholder="FiAward, FiHeart, etc."
+                        />
+                        <div style={{ background: '#f0f0f0', padding: '8px', borderRadius: '4px', display: 'flex' }}>
+                          <DynamicIcon iconName={point.icon} size={20} color="#b08d57" />
+                        </div>
+                      </div>
                     </div>
                     <div className="x_form_group">
                       <label>Title</label>
@@ -474,8 +532,18 @@ function Story() {
                     <div className="array_item_card">
                       <button className="btn_remove" onClick={() => removeDirectItem('whyChooseUs', index)}><FiTrash2 /></button>
                       <div className="x_form_group">
-                        <label>Icon</label>
-                        <input type="text" value={item.icon} onChange={(e) => handleDirectArrayChange('whyChooseUs', index, 'icon', e.target.value)} />
+                        <label>Icon (e.g., FiAward)</label>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <input
+                            type="text"
+                            value={item.icon}
+                            onChange={(e) => handleDirectArrayChange('whyChooseUs', index, 'icon', e.target.value)}
+                            placeholder="FiAward, FiHeart, etc."
+                          />
+                          <div style={{ background: '#f0f0f0', padding: '8px', borderRadius: '4px', display: 'flex' }}>
+                            <DynamicIcon iconName={item.icon} size={20} color="#b08d57" />
+                          </div>
+                        </div>
                       </div>
                       <div className="x_form_group">
                         <label>Title</label>
@@ -535,9 +603,11 @@ function Story() {
             .d_story_btn { background: #b08d57; color: #fff; border: none; padding: 11px 45px; font-size: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 25px; transition: 0.3s; }
             .d_story_btn:hover { background: #fff; color: #0a2845; }
             .d_story_why .row {--bs-gutter-x: 1.5rem !important;}
-            .d_story_values .row {--bs-gutter-x: 1rem;}
+            .d_story_values .row {--bs-gutter-x: 1rem !important;}
+            .x_wid{width: 95%;}
             @media (max-width: 1440px){.d_story_why, .d_story_section, .d_story_values {padding: 40px 0;} .d_value_icon {font-size: 30px;   margin-bottom: 10px;}     padding: 50px 20px;}
             @media (max-width: 768px) {.d_value_card {padding: 15px 25px;}.d_story_values {padding: 40px 0;} .d_story_img { height: 350px; box-shadow: 10px 10px 0px #f4e6d6; } .d_craft_img { height: 300px; border-radius: 10px; } .d_story_btn { padding: 10px 20px; font-size: 14px; } }
+             @media (max-width: 991px) {.x_wid{width: 100%;}}
           `}</style>
 
           <section className="d_story_hero">
@@ -551,10 +621,12 @@ function Story() {
             <div className="container">
               <div className="row align-items-center">
                 <div className="col-lg-6 mb-5 mb-lg-0 text-center text-lg-start">
-                  <span className="text-uppercase mb-2 d-block" style={{ color: '#b08d57', letterSpacing: '2px', fontWeight: '600' }}>{story?.philosophy?.established}</span>
-                  <h2>{story?.philosophy?.title}</h2>
-                  <p dangerouslySetInnerHTML={{ __html: story?.philosophy?.text1 }} />
-                  <p>{story?.philosophy?.text2}</p>
+                  <div className="x_wid">
+                    <span className="text-uppercase mb-2 d-block" style={{ color: '#b08d57', letterSpacing: '2px', fontWeight: '600' }}>{story?.philosophy?.established}</span>
+                    <h2>{story?.philosophy?.title}</h2>
+                    <p dangerouslySetInnerHTML={{ __html: story?.philosophy?.text1 }} />
+                    <p>{story?.philosophy?.text2}</p>
+                  </div>
                 </div>
                 <div className="col-lg-6">
                   <img src={story?.philosophy?.image} alt="Story Image" className="d_story_img" />
@@ -573,7 +645,9 @@ function Story() {
                 {story?.values?.cards?.map((card, index) => (
                   <div className="col-md-4 mb-4" key={index}>
                     <div className="d_value_card">
-                      <div className="d_value_icon"><span>{card.icon}</span></div>
+                      <div className="d_value_icon">
+                        <DynamicIcon iconName={card.icon} />
+                      </div>
                       <h4>{card.title}</h4>
                       <p className="text-muted">{card.description}</p>
                     </div>
@@ -595,8 +669,8 @@ function Story() {
                   <div className="mt-4">
                     {story?.craftsmanship?.points?.map((point, index) => (
                       <div className="d-flex mb-3" key={index}>
-                        <div style={{ color: '#b08d57', marginTop: '4px', marginRight: '12px' }}>
-                          <span>{point.icon}</span>
+                        <div style={{ color: '#b08d57', marginTop: '4px', marginRight: '12px', fontSize: '20px' }}>
+                          <DynamicIcon iconName={point.icon} />
                         </div>
                         <div>
                           <h6>{point.title}</h6>
@@ -616,7 +690,9 @@ function Story() {
                 {story?.whyChooseUs?.map((item, index) => (
                   <div className="col-12 col-md-6 col-xl-4 d-flex justify-content-center" key={index}>
                     <div className="d_why_box">
-                      <div className="d_why_icon"><span>{item.icon}</span></div>
+                      <div className="d_why_icon">
+                        <DynamicIcon iconName={item.icon} />
+                      </div>
                       <h5>{item.title}</h5>
                       <p className="small text-muted mb-0">{item.description}</p>
                     </div>
