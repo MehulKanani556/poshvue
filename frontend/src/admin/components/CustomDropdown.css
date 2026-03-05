@@ -17,7 +17,7 @@
 
 .custom-dropdown-label {
   display: block;
-  margin-bottom: 8px;
+  /* margin-bottom: 8px; */
   font-size: 14px;
   font-weight: 500;
   color: var(--x_dark, #2c3e50);
