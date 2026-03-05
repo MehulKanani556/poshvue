@@ -77,8 +77,8 @@ function AboutUs() {
             description: Array.isArray(data.ourStory?.description)
               ? data.ourStory.description
               : data.ourStory?.description
-              ? [data.ourStory.description]
-              : [""],
+                ? [data.ourStory.description]
+                : [""],
 
             stats: Array.isArray(data.ourStory?.stats)
               ? data.ourStory.stats
@@ -748,20 +748,20 @@ function AboutUs() {
           <section className="d_section-padding">
             <div className="container">
               <div className="row align-items-center">
-                <div className="col-lg-6">
-                  <img 
-                    src={aboutUs.ourStory?.image || "https://i.pinimg.com/1200x/51/af/ad/51afad40af61143805d996b127ae4951.jpg"} 
-                    alt="Wedding Dress" 
+                <div className="col-xl-6">
+                  <img
+                    src={aboutUs.ourStory?.image || "https://i.pinimg.com/1200x/51/af/ad/51afad40af61143805d996b127ae4951.jpg"}
+                    alt="Wedding Dress"
                     className="d_story-img"
                   />
                 </div>
-                <div className="col-lg-6 ps-lg-5 mt-4 mt-lg-0">
+                <div className="col-xl-6 ps-xl-5 mt-4 mt-xl-0">
                   <span className="d_section-subtitle">{aboutUs.ourStory?.subtitle || 'The Journey'}</span>
                   <h2 className="d_section-title">{aboutUs.ourStory?.title || 'Defining Elegance in Wedding Wear'}</h2>
                   {Array.isArray(aboutUs.ourStory.description) &&
-  aboutUs.ourStory.description.map((para, index) => (
-    <p key={index}>{para}</p>
-  ))}
+                    aboutUs.ourStory.description.map((para, index) => (
+                      <p key={index}>{para}</p>
+                    ))}
 
                   <div className="d-flex gap-3 mt-4 d_stat-flex">
                     {aboutUs.ourStory?.stats?.map((stat, index) => (
@@ -784,9 +784,9 @@ function AboutUs() {
                   const IconComp = ICON_COMPONENTS[item.icon];
                   return (
                     <div key={index} className="col-md-4 text-center">
-                        <div className="d_icon-box">
-                          {IconComp ? <IconComp size={28} /> : (item.icon || '•')}
-                        </div>
+                      <div className="d_icon-box">
+                        {IconComp ? <IconComp size={28} /> : (item.icon || '•')}
+                      </div>
                       <h5 className="fw-bold mb-2">{item.title}</h5>
                       <p className="d_text-muted small mb-0">{item.desc}</p>
                     </div>
@@ -818,7 +818,7 @@ function AboutUs() {
 
           {/* Experience Banner */}
           <div className="text-center py-5">
-            <div className="text-muted mb-3" style={{fontSize: '28px'}}>
+            <div className="text-muted mb-3" style={{ fontSize: '28px' }}>
               {(() => {
                 const IconComp = ICON_COMPONENTS[aboutUs.experienceBanner?.icon];
                 return IconComp ? <IconComp size={28} /> : (aboutUs.experienceBanner?.icon || '🛍️');
@@ -873,8 +873,8 @@ function AboutUs() {
                     className="x_form-control"
                   />
                   {(ourStoryImagePreview || aboutUs.ourStory.image) && (
-                    <div style={{ 
-                      marginTop: "10px", 
+                    <div style={{
+                      marginTop: "10px",
                       position: "relative",
                       width: "150px",
                       height: "150px"
@@ -989,7 +989,7 @@ function AboutUs() {
           {/* Why Choose Us */}
           <div className="x_card">
             <div className="x_card_header">
-              <h3>Why Choose Us</h3>             
+              <h3>Why Choose Us</h3>
             </div>
             <div className="x_card_body">
               {aboutUs.whyChooseUs.map((item, index) => (
@@ -1000,7 +1000,7 @@ function AboutUs() {
                   <div className="grid_2">
                     <div className="x_form_group">
                       <CustomDropdown
-                      padding="10px 12px"
+                        padding="10px 12px"
                         label="Icon"
                         options={ICON_OPTIONS.map(opt => ({ label: opt, value: opt }))}
                         value={item.icon}
@@ -1042,7 +1042,7 @@ function AboutUs() {
               <div className="grid_2">
                 <div className="x_form_group">
                   <CustomDropdown
-                  padding="10px 12px"
+                    padding="10px 12px"
                     label="Quote Icon"
                     options={ICON_OPTIONS.map(opt => ({ label: opt, value: opt }))}
                     value={aboutUs.visionSection.quoteIcon}
@@ -1089,7 +1089,7 @@ function AboutUs() {
               <div className="grid_2">
                 <div className="x_form_group">
                   <CustomDropdown
-                  padding="10px 12px"
+                    padding="10px 12px"
                     label="Icon"
                     options={ICON_OPTIONS.map(opt => ({ label: opt, value: opt }))}
                     value={aboutUs.experienceBanner.icon}

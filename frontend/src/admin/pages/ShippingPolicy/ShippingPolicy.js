@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { FiEdit2, FiSave, FiEye, FiPlus, FiTrash2, FiType, FiImage } from "react-icons/fi";
+import { 
+  FaTruck, 
+  FaGlobeAmericas, 
+  FaBoxOpen, 
+  FaCalendarCheck, 
+  FaExclamationCircle 
+} from 'react-icons/fa';
 import adminClient from "../../../api/adminClient";
 import { Link } from "react-router-dom";
 
@@ -101,6 +108,19 @@ function ShippingPolicy() {
       sections: newSections
     }));
   };
+
+  const icons = {
+  FaTruck,
+  FaGlobeAmericas,
+  FaBoxOpen,
+  FaCalendarCheck,
+  FaExclamationCircle
+};
+
+const getIconComponent = (iconName) => {
+  const IconComponent = icons[iconName];
+  return IconComponent ? <IconComponent /> : <FaTruck />;
+};
 
   if (loading) return <div className="p-5 text-center">Loading...</div>;
 
@@ -280,8 +300,8 @@ function ShippingPolicy() {
                   <div key={index} className="col-12 col-md-6 col-xl-4">
                     <div className="d_info_card">
                       <div style={{ fontSize: '1.7rem', color: '#d4af37', marginBottom: '15px' }}>
-                        {card.icon}
-                      </div>
+  {getIconComponent(card.icon)}
+</div>
                       <h5>{card.title}</h5>
                       <p>{card.text}</p>
                     </div>

@@ -299,7 +299,7 @@ function StoreLocator() {
                                     .store_preview_header { background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('${pageData?.bannerImage || 'https://via.placeholder.com/1200x400'}'); background-size: cover; background-position: center; padding: 80px 0; text-align: center; color: #fff; }
                                     .store_preview_title { font-size: 36px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
                                     .store_preview_subtitle { font-size: 16px; color: #ddd; }
-                                    .store_card { display: flex; background: #fff; border: 1px solid #eee; border-radius: 8px; overflow: hidden; transition: 0.3s; height: 100%; }
+                                    .store_card { display: flex; background: #fff; border: 1px solid #eee; border-radius: 8px; overflow: hidden; transition: 0.3s; }
                                     .store_card:hover { box-shadow: 0 5px 20px rgba(0,0,0,0.1); transform: translateY(-5px); }
                                     .store_card_image { width: 100%; object-fit: cover; }
                                     .store_card_body { padding: 20px; }
