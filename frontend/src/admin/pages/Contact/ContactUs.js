@@ -5,12 +5,12 @@ import { Facebook, Instagram, Youtube, Send } from 'lucide-react';
 import adminClient from "../../../api/adminClient";
 
 function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(fr.result);
-    fr.onerror = reject;
-    fr.readAsDataURL(file);
-  });
+    return new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result);
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+    });
 }
 
 function ContactUs() {
@@ -32,7 +32,7 @@ function ContactUs() {
         Star: <FiStar size={24} />,
         Heart: <FiHeart size={24} />,
         Gift: <FiGift size={24} />,
-        Award: <FiAward size={24} />, 
+        Award: <FiAward size={24} />,
         TrendingUp: <FiTrendingUp size={24} />,
         MessageCircle: <FiMessageCircle size={24} />,
         CheckCircle: <FiCheckCircle size={24} />,
@@ -89,17 +89,17 @@ function ContactUs() {
             setPageData(prev => ({ ...(prev || {}), bannerImage: { file: value.file, preview } }));
             return;
         }
-        
+
         setPageData(prev => ({ ...(prev || {}), [field]: value }));
     };
-    
+
     const handleBannerImageUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
             handlePageChange('bannerImage', { file }, true);
         }
     };
-    
+
     const removeBannerImage = () => {
         if (bannerImagePreview && pageData?.bannerImage && typeof pageData.bannerImage === 'object') {
             URL.revokeObjectURL(bannerImagePreview);
@@ -126,14 +126,14 @@ function ContactUs() {
     const savePage = async () => {
         try {
             setSavingPage(true);
-            
+
             const payload = { ...pageData };
-            
+
             // Handle banner image: convert file object to base64 if needed
             if (payload.bannerImage && typeof payload.bannerImage === 'object' && payload.bannerImage.file) {
                 payload.bannerImage = await fileToDataUrl(payload.bannerImage.file);
             }
-            
+
             await adminClient.put('/contact-page', payload || {});
             alert('Contact page saved');
         } catch (err) {
@@ -167,12 +167,32 @@ function ContactUs() {
         .x_btn { padding: 10px 20px; border-radius: 6px; font-weight: 500; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.3s; }
         .x_btn-primary { background: #0a2845; color: #fff; }
         .x_btn-secondary { background: #f0f0f0; color: #2b4d6e; }
-        @media (max-width: 768px) { .grid_2 { grid-template-columns: 1fr; } .x_page_header{ flex-direction: column;} .x_card_body{padding:6px 0px;} .x_form_group{ margin-bottom:15px;} }
-        @media (max-width: 425px) { .x_header_btn{ flex-direction: column;width:100%;} .x_page_header h1{font-size:23px;} }
+        @media (max-width: 768px) { 
+            .grid_2 { grid-template-columns: 1fr; } 
+            .x_page_header{ flex-direction: column; gap: 15px; align-items: stretch; } 
+            .x_card_body{ padding: 15px; } 
+            .x_form_group{ margin-bottom: 15px; }
+            .x_header_btn{ flex-direction: column; width: 100%; }
+            .x_btn{ width: 100%; justify-content: center; }
+            .array_item_card{ padding: 15px; }
+        }
+        @media (max-width: 425px) { 
+            .x_header_btn{ flex-direction: column;width:100%;} 
+            .x_page_header h3{font-size: 1.2rem;} 
+             .x_card_body{ padding: 0px; } 
+            .x_card_header h3{font-size: 1rem;}
+            .x_form_group label{font-size: 0.85rem;}
+            .x_form_group input, .x_form_group textarea{font-size: 0.9rem;}
+            .btn_add{font-size: 0.9rem; padding: 8px 16px;}
+            .x_form_group label { width: 90%; }
+            .z_resp_content p, 
+            .z_resp_content h6{font-size: 13px;}
+
+        }
       `}</style>
 
             <div className="x_page_header">
-                <h3 style={{color: '#2b4d6e'}}>Contact Us Management</h3>
+                <h3 style={{ color: '#2b4d6e' }}>Contact Us Management</h3>
                 <div style={{ display: 'flex', gap: '10px' }} className="x_header_btn">
                     <button className="x_btn x_btn-secondary" onClick={() => setMode(mode === 'edit' ? 'preview' : 'edit')}>
                         <FiEye /> {mode === 'edit' ? 'Switch to Preview' : 'Back to Edit'}
@@ -185,7 +205,7 @@ function ContactUs() {
                 </div>
             </div>
 
-            <div className="container">
+            <div>
                 <div className="x_card">
                     <div className="x_card_header">
                         <h3>Contact Page Content</h3>
@@ -213,18 +233,18 @@ function ContactUs() {
                                             className="x_form-control"
                                         />
                                         {(bannerImagePreview || pageData?.bannerImage) && (
-                                            <div style={{ 
-                                                marginTop: "10px", 
+                                            <div style={{
+                                                marginTop: "10px",
                                                 position: "relative",
-                                                width: "200px",
-                                                height: "120px"
+                                                width: "fit-content",
+                                                maxWidth: "300px",
                                             }}>
                                                 <img
                                                     src={bannerImagePreview || (typeof pageData?.bannerImage === 'string' ? pageData?.bannerImage : pageData?.bannerImage?.preview)}
                                                     alt="Banner preview"
                                                     style={{
-                                                        width: "100%",
-                                                        height: "100%",
+                                                        width: "100px",
+                                                        height: "100px",
                                                         objectFit: "cover",
                                                         borderRadius: "6px",
                                                         border: "1px solid #ddd",
@@ -241,10 +261,10 @@ function ContactUs() {
                                                         color: "white",
                                                         border: "none",
                                                         borderRadius: "50%",
-                                                        width: "20px",
-                                                        height: "20px",
+                                                        width: "24px",
+                                                        height: "24px",
                                                         cursor: "pointer",
-                                                        fontSize: "12px",
+                                                        fontSize: "14px",
                                                         display: "flex",
                                                         alignItems: "center",
                                                         justifyContent: "center",
@@ -325,11 +345,11 @@ function ContactUs() {
           .d_input-field {
           border: 1px solid #eee;
           background: #fcfcfc;
-          padding: 14px;
-          font-size: 14px;
+          padding: clamp(10px, 2vw, 14px);
+          font-size: clamp(14px, 2.5vw, 16px);
           border-radius: 6px;
           width: 100%;
-          margin-bottom: 20px;
+          margin-bottom: clamp(12px, 2vw, 20px);
           outline: none;
           transition: 0.3s;
         }
@@ -344,13 +364,14 @@ function ContactUs() {
           background: #2b4d6e;
           color: #fff;
           border: none;
-          padding: 14px 30px;
+          padding: clamp(10px, 2vw, 14px) clamp(15px, 3vw, 30px);
           text-transform: uppercase;
           font-weight: 600;
           letter-spacing: 1px;
           transition: 0.3s;
           width: 100%;
           border-radius: 6px;
+          font-size: clamp(12px, 2vw, 14px);
         }
 
         .d_submit-btn:hover {
@@ -359,7 +380,7 @@ function ContactUs() {
         }
 
         .d_map-container {
-          height: 400px;
+          height: clamp(250px, 40vw, 400px);
           border-radius: 12px;
           overflow: hidden;
         }
@@ -369,7 +390,7 @@ function ContactUs() {
 
 .d_map-container {
   width: 100%;
-  height: 350px;
+  height: clamp(250px, 40vw, 400px);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -384,6 +405,16 @@ function ContactUs() {
   --bs-gutter-x: 1.5rem !important;
 }
 
+.d_contact-form-container {
+  padding: 0 15px;
+}
+
+@media (max-width: 768px) {
+  .d_contact-form-container {
+    padding: 0 10px;
+  }
+}
+
         @media (max-width: 992px) {
           .preview_d_contact-header { padding: 70px 15px; }
           .preview_d_page-title { font-size: 2rem; }
@@ -391,6 +422,7 @@ function ContactUs() {
           .preview_d_map-container { height: 350px; }
           section > div[style*="grid"] { grid-template-columns: 1fr !important; gap: 30px !important; }
           div[style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
+          .col-xl-6 { flex: 0 0 100% !important; max-width: 100% !important; }
         }
 
         @media (max-width: 768px) {
@@ -404,6 +436,8 @@ function ContactUs() {
           .preview_d_icon-circle { width: 50px; height: 50px; }
           section > div[style*="grid"] { grid-template-columns: 1fr !important; gap: 20px !important; }
           div[style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
+          .col-xl-6 { flex: 0 0 100% !important; max-width: 100% !important; }
+          .row.g-5 { --bs-gutter-y: 2rem !important; }
         }
 
         @media (max-width: 480px) {
@@ -420,6 +454,10 @@ function ContactUs() {
           .preview_d_icon-circle { width: 45px; height: 45px; font-size: 0.8rem; }
           section > div[style*="grid"] { grid-template-columns: 1fr !important; gap: 15px !important; }
           div[style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
+          .col-xl-6 { flex: 0 0 100% !important; max-width: 100% !important; }
+          .col-md-6 { flex: 0 0 100% !important; max-width: 100% !important; }
+          .row.g-5 { --bs-gutter-y: 1.5rem !important; }
+          .custom-gutter { --bs-gutter-x: 1rem !important; }
         }
                                 `}</style>
 
@@ -431,10 +469,10 @@ function ContactUs() {
 
                                     {/* Info Cards */}
                                     <section style={{ maxWidth: '100%', overflow: 'hidden', marginTop: '-40px', marginBottom: '50px', padding: '0 15px' }}>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', maxWidth: '100%', overflow: 'hidden' }}>
+                                        <div className="row g-3">
                                             {(pageData?.infoCards || []).map((card, idx) => (
-                                                <div key={idx}>
-                                                    <div className="preview_d_info-card shadow-sm">
+                                                <div key={idx} className="col-xl-3 col-lg-6 col-md-6 col-sm-6 col-12">
+                                                    <div className="preview_d_info-card shadow-sm h-100">
                                                         <div className="preview_d_icon-circle">
                                                             {iconMap[card.icon] || <FiMapPin size={24} />}
                                                         </div>
@@ -455,7 +493,7 @@ function ContactUs() {
                                                         <h3 className="fw-bold mb-2">Get In Touch</h3>
                                                         <p className="text-muted small">Have questions about our bridal collection? We'd love to hear from you.</p>
                                                     </div>
-                                                   
+
                                                     <form>
                                                         <div className="row custom-gutter" >
                                                             <div className="col-md-6">
@@ -481,7 +519,7 @@ function ContactUs() {
                                                         ></textarea>
 
                                                         <button type="submit" className="d_submit-btn">
-                                                           Send Message <Send size={16} className="ms-2" />
+                                                            Send Message <Send size={16} className="ms-2" />
                                                         </button>
                                                     </form>
                                                 </div>
@@ -512,7 +550,7 @@ function ContactUs() {
                                                             </div>
                                                         </div>
 
-                                                        <div className="text-end">
+                                                        <div className="text-end z_resp_content">
                                                             <p className="small text-muted mb-0">Need urgent help?</p>
                                                             <h6 className="fw-bold">{pageData?.contactPhone || "+91 81601 81706"}</h6>
                                                         </div>
