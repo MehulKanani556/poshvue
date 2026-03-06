@@ -184,8 +184,6 @@ function Blog() {
           <FiPlus size={16} /> Create Blog
         </button>
       </div>
-      {error && <div className="x_alert x_alert-danger" style={{ marginBottom: 12 }}>{error}</div>}
-
 
 
       {/* Modal */}
@@ -199,6 +197,8 @@ function Blog() {
           </div>
           <form onSubmit={handleSubmit}>
             <div className="x_modal-body" style={{ maxHeight: "600px", overflowY: "auto" }}>
+              {error && <div className="x_alert x_alert-danger" style={{ marginBottom: 15 }}>{error}</div>}
+              
               <div className="x_form-group">
                 <label className="x_form-label">Title</label>
                 <input

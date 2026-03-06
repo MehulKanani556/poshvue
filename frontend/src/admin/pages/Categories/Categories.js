@@ -188,7 +188,6 @@ function Categories() {
           <FiPlus size={16} /> New Category
         </button>
       </div>
-      {error && <div className="x_alert x_alert-danger" style={{ marginBottom: 12 }}>{error}</div>}
 
 
 
@@ -201,6 +200,8 @@ function Categories() {
           </div>
           <form onSubmit={handleSubmit}>
             <div className="x_modal-body">
+              {error && <div className="x_alert x_alert-danger" style={{ marginBottom: 15 }}>{error}</div>}
+              
               <div className="x_form-group">
                 <label className="x_form-label">Name</label>
                 <input

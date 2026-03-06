@@ -72,7 +72,7 @@ exports.create = async (req, res) => {
     return res.status(201).json({ item });
   } catch (err) {
     console.error('Category create error:', err);
-    return res.status(400).json({ message: 'Invalid data' });
+    return res.status(400).json({ message: err.message || 'Invalid data' });
   }
 };
 
@@ -89,7 +89,7 @@ exports.update = async (req, res) => {
     return res.json({ item });
   } catch (err) {
     console.error('Category update error:', err);
-    return res.status(400).json({ message: 'Invalid data' });
+    return res.status(400).json({ message: err.message || 'Invalid data' });
   }
 };
 

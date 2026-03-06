@@ -51,10 +51,10 @@ function Wishlist(props) {
           },
         }
       );
-      console.log(res.data.items, "res");
-
-
-      setWishlistItems(res.data.items);
+      
+      // Filter out items where the product might have been deleted (item.product is null)
+      const validItems = (res.data.items || []).filter(item => item && item.product);
+      setWishlistItems(validItems);
     } catch (error) {
       console.error("Wishlist fetch error", error.response?.data || error.message);
     }
@@ -74,9 +74,9 @@ function Wishlist(props) {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Update state to remove item from UI
+      // Update state to remove item from UI (with null check for safety)
       setWishlistItems((prev) =>
-        prev.filter((i) => i.product._id !== productId)
+        prev.filter((i) => i.product && i.product._id !== productId)
       );
 
       console.log("Item removed from wishlist");
@@ -127,9 +127,10 @@ function Wishlist(props) {
               <Row className="g-3 g-md-4">
 
                 {wishlistItems.map((item) => {
-                  console.log(item, "item");
-                  console.log("item");
                   const p = item.product; // 🔥 populated product
+                  
+                  // Final safety check to prevent "Cannot read properties of null (reading 'images')"
+                  if (!p) return null;
 
                   return (
                     <Col key={p._id} lg={3} md={4} sm={6} xs={6}>

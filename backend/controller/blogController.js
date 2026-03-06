@@ -153,7 +153,7 @@ exports.create = async (req, res) => {
     return res.status(201).json({ item: obj });
   } catch (err) {
     console.error('Error in blog create:', err);
-    return res.status(400).json({ message: 'Invalid data' });
+    return res.status(400).json({ message: err.message || 'Invalid data' });
   }
 };
 
@@ -190,7 +190,7 @@ exports.update = async (req, res) => {
     return res.json({ item: obj });
   } catch (err) {
     console.error('Error in blog update:', err);
-    return res.status(400).json({ message: 'Invalid data' });
+    return res.status(400).json({ message: err.message || 'Invalid data' });
   }
 };
 
