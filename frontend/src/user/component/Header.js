@@ -1347,7 +1347,7 @@ const Header = () => {
 
                           <img
 
-                            src={product.images[0]}
+                            src={typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url}
 
                             alt={product.title}
 

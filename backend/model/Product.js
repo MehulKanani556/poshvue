@@ -9,12 +9,20 @@ const ColorSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const ProductImageSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true },
+    color: { type: String }, // optional color name or hex to filter by
+  },
+  { _id: false }
+);
+
 const ProductSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
     sku: { type: String, unique: true, sparse: true },
     description: { type: String },
-    images: [{ type: String }],
+    images: [ProductImageSchema],
     colors: { type: [ColorSchema], default: [] },
     // available size options for this product (e.g. ["36","38","40"])
     sizes: { type: [String], default: [] },

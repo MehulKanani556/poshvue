@@ -350,6 +350,36 @@ const ProductDetailPage = () => {
     }
   };
 
+  // --- added: normalize image list and safe helpers to avoid runtime errors ---
+  const allImages = useMemo(() => {
+    return product?.images && product.images.length
+      ? product.images
+      : product?.image
+        ? [{ url: product.image }]
+        : defaultProduct.images.map(img => ({ url: img }));
+  }, [product]);
+
+  // Thumb-stack should display all images
+  const images = useMemo(() => {
+    return allImages.map(img => typeof img === 'string' ? img : img.url);
+  }, [allImages]);
+
+  // Update active image to the first one matching the selected color
+  useEffect(() => {
+    if (!selectedColor) return;
+    
+    const targetIndex = allImages.findIndex(img => {
+      const imgColor = typeof img === 'object' ? img.color : null;
+      if (!imgColor) return false;
+      return imgColor.toLowerCase() === selectedColor.hex?.toLowerCase() || 
+             imgColor.toLowerCase() === selectedColor.name?.toLowerCase();
+    });
+
+    if (targetIndex !== -1) {
+      setActiveImg(targetIndex);
+    }
+  }, [selectedColor, allImages]);
+
   if (loading) {
     return <Loader fullScreen text="Loading product..." />;
   }
@@ -396,14 +426,6 @@ const ProductDetailPage = () => {
       palazzoLength: 104,
     },
   ];
-
-  // --- added: normalize image list and safe helpers to avoid runtime errors ---
-  const images =
-    product?.images && product.images.length
-      ? product.images
-      : product?.image
-        ? [product.image]
-        : defaultProduct.images;
 
   // Use currency context for formatting prices
   const formatPrice = formatPriceWithCurrency;

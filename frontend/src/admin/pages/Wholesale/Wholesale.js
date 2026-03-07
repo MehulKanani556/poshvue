@@ -100,10 +100,17 @@ function Wholesale() {
         setShowDeleteModal(true);
     };
 
-    const handleDeleteConfirm = () => {
-        setWholesalers(wholesalers.filter((w) => w.id !== deletingId));
-        setShowDeleteModal(false);
-        setDeletingId(null);
+    const handleDeleteConfirm = async () => {
+        try {
+            await adminClient.delete(`/support/wholesale/${deletingId}`);
+            setWholesalers(wholesalers.filter((w) => w.id !== deletingId));
+            // adminClient already shows a success toast
+        } catch (err) {
+            console.error("Delete wholesaler error:", err);
+        } finally {
+            setShowDeleteModal(false);
+            setDeletingId(null);
+        }
     };
 
     return (

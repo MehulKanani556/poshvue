@@ -312,7 +312,8 @@ function Cart() {
       return wishEmptyImg;
     }
 
-    const img = product.images[0];
+    const firstImg = product.images?.[0];
+    const img = typeof firstImg === 'object' ? firstImg.url : firstImg;
 
     // If it's already a full HTTP/HTTPS URL (AWS S3/CloudFront), return as-is
     if (img && img.startsWith("http")) {

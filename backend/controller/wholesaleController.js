@@ -34,3 +34,13 @@ exports.updateStatus = async (req, res) => {
     return res.status(400).json({ message: 'Invalid status' });
   }
 };
+
+exports.remove = async (req, res) => {
+  try {
+    const item = await Wholesale.findByIdAndDelete(req.params.id);
+    if (!item) return res.status(404).json({ message: 'Not found' });
+    return res.json({ message: 'Deleted' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error' });
+  }
+};

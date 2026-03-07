@@ -235,8 +235,9 @@ exports.getProductsWithReviews = async (req, res) => {
           // Handle images - could be array or string
           let productImage = '';
           if (review.product.images) {
-            if (Array.isArray(review.product.images) && review.product.images.length > 0) {
-              productImage = review.product.images[0];
+            if (review.product && Array.isArray(review.product.images) && review.product.images.length > 0) {
+              const firstImg = review.product.images[0];
+              productImage = typeof firstImg === 'object' ? firstImg.url : firstImg;
             } else if (typeof review.product.images === 'string') {
               productImage = review.product.images;
             }
@@ -323,8 +324,9 @@ exports.getReviewableProducts = async (req, res) => {
             // Handle images - could be array or string
             let productImage = '';
             if (item.product.images) {
-              if (Array.isArray(item.product.images) && item.product.images.length > 0) {
-                productImage = item.product.images[0];
+              if (item.product && Array.isArray(item.product.images) && item.product.images.length > 0) {
+                const firstImg = item.product.images[0];
+                productImage = typeof firstImg === 'object' ? firstImg.url : firstImg;
               } else if (typeof item.product.images === 'string') {
                 productImage = item.product.images;
               }

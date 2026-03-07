@@ -20,7 +20,7 @@ function Reports() {
   const [loadingDaily, setLoadingDaily] = useState(false);
   const [loadingCategory, setLoadingCategory] = useState(false);
 
-  useEffect(() => {    
+  useEffect(() => {
     // Always load all data once so switching tabs is instant
     fetchStats();
     fetchDailySales();
@@ -114,7 +114,7 @@ function Reports() {
             <div className="d-flex justify-content-between align-items-start">
               <div>
                 <div className="x_stat-label">Total Orders</div>
-                <div className="x_stat-value">{stats.totalOrders}</div>               
+                <div className="x_stat-value">{stats.totalOrders}</div>
               </div>
               <FiShoppingCart size={32} style={{ color: "#0a2845", opacity: 0.3 }} />
             </div>
@@ -128,7 +128,7 @@ function Reports() {
               <div>
                 <div className="x_stat-label">Total Revenue</div>
                 <div className="x_stat-value" style={{ color: "#27ae60" }}>
-                  {stats.TotalSales}
+                  {Math.round(normalizeNumber(stats.TotalSales))}
                 </div>
               </div>
               <FiDollarSign size={32} style={{ color: "#27ae60", opacity: 0.3 }} />
@@ -143,7 +143,7 @@ function Reports() {
               <div>
                 <div className="x_stat-label">New Users</div>
                 <div className="x_stat-value" style={{ color: "#f39c12" }}>
-                 {stats.NewUsers}
+                  {stats.NewUsers}
                 </div>
               </div>
               <FiBox size={32} style={{ color: "#f39c12", opacity: 0.3 }} />
@@ -170,7 +170,7 @@ function Reports() {
       {/* Report Selection */}
       <div className="x_card" style={{ marginBottom: "20px" }}>
         <div className="x_card-body" >
-          <div style={{ display: "flex", gap: "15px", flexWrap: "wrap"}}>
+          <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
             <button
               className={`x_btn ${selectedReport === "daily" ? "x_btn-primary" : "x_btn-secondary"}`}
               onClick={() => setSelectedReport("daily")}
@@ -196,11 +196,11 @@ function Reports() {
           </div>
           <div className="x_card-body">
             {loadingDaily && <p style={{ textAlign: "center", color: "#666" }}>Loading daily sales...</p>}
-            
+
             {!loadingDaily && reportData.daily.length === 0 && (
               <p style={{ textAlign: "center", color: "#666" }}>No daily sales data found</p>
             )}
-            
+
             {!loadingDaily && reportData.daily.length > 0 && (
               <div className="x_table-wrapper">
                 <table className="x_data-table">
@@ -210,7 +210,6 @@ function Reports() {
                       <th>Orders</th>
                       <th>Revenue</th>
                       <th>Products Sold</th>
-                      <th>New Users</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -218,9 +217,8 @@ function Reports() {
                       <tr key={index}>
                         <td style={{ fontWeight: 600 }}>{item.date}</td>
                         <td>{item.orders}</td>
-                        <td style={{ fontWeight: 600, color: "#27ae60" }}>{item.revenue}</td>
+                        <td style={{ fontWeight: 600, color: "#27ae60" }}>{Math.round(normalizeNumber(stats.TotalSales))}</td>
                         <td>{item.products}</td>
-                        <td>{item.users}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -228,43 +226,7 @@ function Reports() {
               </div>
             )}
 
-            {/* Summary */}
-            {/* <div
-              style={{
-                marginTop: "20px",
-                paddingTop: "20px",
-                borderTop: "1px solid #ecf0f1",
-              }}
-            >
-              <div className="x_grid x_grid-4">
-                <div>
-                  <p style={{ margin: "0 0 5px 0", fontSize: "12px", color: "#7f8c8d" }}>
-                    Total Orders
-                  </p>
-                  <p style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>618</p>
-                </div>
-                <div>
-                  <p style={{ margin: "0 0 5px 0", fontSize: "12px", color: "#7f8c8d" }}>
-                    Total Revenue
-                  </p>
-                  <p style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#27ae60" }}>
-                    $21,390
-                  </p>
-                </div>
-                <div>
-                  <p style={{ margin: "0 0 5px 0", fontSize: "12px", color: "#7f8c8d" }}>
-                    Avg Revenue / Order
-                  </p>
-                  <p style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>$34.60</p>
-                </div>
-                <div>
-                  <p style={{ margin: "0 0 5px 0", fontSize: "12px", color: "#7f8c8d" }}>
-                    New Users
-                  </p>
-                  <p style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>129</p>
-                </div>
-              </div>
-            </div> */}
+
           </div>
         </div>
       )}
@@ -275,13 +237,13 @@ function Reports() {
           <div className="x_card-header">
             <h2>Category Wise Sales Report</h2>
           </div>
-              <div className="x_card-body">
+          <div className="x_card-body">
             {loadingCategory && <p style={{ textAlign: "center", color: "#666" }}>Loading category-wise sales...</p>}
-            
+
             {!loadingCategory && reportData.categoryWise.length === 0 && (
               <p style={{ textAlign: "center", color: "#666" }}>No category-wise sales data found</p>
             )}
-            
+
             {!loadingCategory && reportData.categoryWise.length > 0 && (
               <div className="x_table-wrapper">
                 <table className="x_data-table">
@@ -330,37 +292,6 @@ function Reports() {
               </div>
             )}
 
-            {/* Summary */}
-            {/* <div
-              style={{
-                marginTop: "20px",
-                paddingTop: "20px",
-                borderTop: "1px solid #ecf0f1",
-              }}
-            >
-              <div className="x_grid x_grid-3">
-                <div>
-                  <p style={{ margin: "0 0 5px 0", fontSize: "12px", color: "#7f8c8d" }}>
-                    Total Sales
-                  </p>
-                  <p style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>1,370</p>
-                </div>
-                <div>
-                  <p style={{ margin: "0 0 5px 0", fontSize: "12px", color: "#7f8c8d" }}>
-                    Total Revenue
-                  </p>
-                  <p style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#27ae60" }}>
-                    $44,000
-                  </p>
-                </div>
-                <div>
-                  <p style={{ margin: "0 0 5px 0", fontSize: "12px", color: "#7f8c8d" }}>
-                    Top Category
-                  </p>
-                  <p style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>Electronics</p>
-                </div>
-              </div>
-            </div> */}
           </div>
         </div>
       )}

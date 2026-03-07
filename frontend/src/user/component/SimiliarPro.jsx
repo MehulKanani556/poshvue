@@ -258,7 +258,7 @@ function SimiliarPro({ items, productId, category }) {
                       />
                     </button>
                     <img 
-                      src={product.images?.[0] || product.image} 
+                      src={(product.images?.[0]?.url || product.images?.[0]) || product.image} 
                       alt={product.name || product.title} 
                       className="d_product-img"
                       onClick={() => navigate(`/product/${productId}`)}

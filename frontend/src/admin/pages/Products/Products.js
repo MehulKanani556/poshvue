@@ -84,15 +84,29 @@ function Products() {
 
   const predefinedColors = [
     { name: "Red", hex: "#FF0000" },
-    { name: "Blue", hex: "#0a28450FF" },
-    { name: "Green", hex: "#00AA00" },
+    { name: "Blue", hex: "#0000FF" },
+    { name: "Green", hex: "#008000" },
     { name: "Yellow", hex: "#FFFF00" },
-    { name: "Black", hex: "#0a2845000" },
+    { name: "Black", hex: "#000000" },
     { name: "White", hex: "#FFFFFF" },
     { name: "Pink", hex: "#FFC0CB" },
     { name: "Orange", hex: "#FFA500" },
     { name: "Purple", hex: "#800080" },
     { name: "Gray", hex: "#808080" },
+    { name: "Brown", hex: "#A52A2A" },
+    { name: "Maroon", hex: "#800000" },
+    { name: "Navy", hex: "#000080" },
+    { name: "Teal", hex: "#008080" },
+    { name: "Olive", hex: "#808000" },
+    { name: "Silver", hex: "#C0C0C0" },
+    { name: "Gold", hex: "#FFD700" },
+    { name: "Beige", hex: "#F5F5DC" },
+    { name: "Turquoise", hex: "#40E0D0" },
+    { name: "Lavender", hex: "#E6E6FA" },
+    { name: "Coral", hex: "#FF7F50" },
+    { name: "Cyan", hex: "#00FFFF" },
+    { name: "Magenta", hex: "#FF00FF" },
+    { name: "Ivory", hex: "#FFFFF0" },
   ];
 
   useEffect(() => {
@@ -150,7 +164,11 @@ function Products() {
 
     if (type === "file") {
       // convert to objects with preview for client-side preview
-      const newImages = Array.from(files).map((f) => ({ file: f, preview: URL.createObjectURL(f) }));
+      const newImages = Array.from(files).map((f) => ({ 
+        file: f, 
+        preview: URL.createObjectURL(f),
+        color: "" // Added default empty color
+      }));
       setFormData((prev) => ({
         ...prev,
         images: [...(prev.images || []), ...newImages],
@@ -175,23 +193,37 @@ function Products() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const addColor = (color) => {
-    if (!formData.colors.some((c) => c.hex === color.hex)) {
-      setFormData((prev) => ({ ...prev, colors: [...prev.colors, color] }));
-    }
-    setShowColorPicker(false);
-  };
-
-  const removeColor = (colorHex) => {
-    setFormData((prev) => ({ ...prev, colors: prev.colors.filter((c) => c.hex !== colorHex) }));
-  };
-
   const removeImage = (index) => {
     const item = formData.images[index];
     if (item && item.preview && item.file) {
       URL.revokeObjectURL(item.preview);
     }
-    setFormData((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
+    setFormData((prev) => {
+      const newImages = prev.images.filter((_, i) => i !== index);
+      // Sync colors from remaining images
+      const usedColorHexes = [...new Set(newImages.map(img => img.color).filter(Boolean))];
+      const newColors = usedColorHexes.map(hex => predefinedColors.find(c => c.hex === hex)).filter(Boolean);
+      return { ...prev, images: newImages, colors: newColors };
+    });
+  };
+
+  const setImageColor = (index, colorHex) => {
+    setFormData((prev) => {
+      const newImages = [...prev.images];
+      const img = newImages[index];
+      if (typeof img === 'string') {
+        newImages[index] = { url: img, color: colorHex };
+      } else {
+        newImages[index] = { ...img, color: colorHex };
+      }
+      
+      // Sync colors: find all unique colors used in any image
+      const usedColorHexes = [...new Set(newImages.map(img => img.color).filter(Boolean))];
+      // Map hex back to color objects { name, hex } from predefinedColors
+      const newColors = usedColorHexes.map(hex => predefinedColors.find(c => c.hex === hex)).filter(Boolean);
+      
+      return { ...prev, images: newImages, colors: newColors };
+    });
   };
 
   const handleCountryPriceChange = (countryId, field, value) => {
@@ -266,11 +298,11 @@ function Products() {
       const payload = { ...formData };
 
       // Handle images: upload files to AWS S3 first
-      const existingUrls = (payload.images || []).filter((i) => typeof i === "string");
+      const existingImages = (payload.images || []).filter((i) => typeof i === "string" || (i && typeof i === "object" && !i.file));
       const fileObjs = (payload.images || []).filter((i) => i && typeof i === "object" && i.file);
 
       // Upload new images to AWS S3
-      const uploadedUrls = [];
+      const uploadedImages = [];
       for (const fileObj of fileObjs) {
         try {
           const formDataForUpload = new FormData();
@@ -281,7 +313,10 @@ function Products() {
           });
 
           if (uploadRes.data.urls && uploadRes.data.urls.length > 0) {
-            uploadedUrls.push(...uploadRes.data.urls);
+            uploadedImages.push({
+              url: uploadRes.data.urls[0],
+              color: fileObj.color || null
+            });
           }
         } catch (error) {
           console.error('Error uploading image:', error);
@@ -289,7 +324,13 @@ function Products() {
         }
       }
 
-      payload.images = [...existingUrls, ...uploadedUrls];
+      payload.images = [
+        ...existingImages.map(img => {
+          if (typeof img === 'string') return { url: img };
+          return { url: img.url, color: img.color };
+        }),
+        ...uploadedImages
+      ];
 
       // send category as name (backend resolveCategory will convert)
       if (!payload.name && payload.title) payload.name = payload.title;
@@ -350,18 +391,25 @@ function Products() {
       id: product._id || null,
       name: product.title || product.name || "",
       images: Array.isArray(product.images) ? product.images.map(img => {
-        // If image is already a string URL, keep it as is
+        // If image is already a string URL, normalize to object
         if (typeof img === 'string') {
-          return img;
+          return { url: img };
         }
-        // If image is an object with file property, create preview
+        // If image is an object with url property, keep it
+        if (img && typeof img === 'object' && img.url) {
+          return {
+            url: img.url,
+            color: img.color || null
+          };
+        }
+        // If image is an object with file property (new image during edit), create preview
         if (img && img.file) {
           return {
             file: img.file,
-            preview: URL.createObjectURL(img.file)
+            preview: URL.createObjectURL(img.file),
+            color: img.color || null
           };
         }
-        // If image is an object but no file, return null
         return null;
       }).filter(Boolean) : [], // Filter out null values
       colors: Array.isArray(product.colors) ? product.colors.slice() : [],
@@ -438,7 +486,7 @@ function Products() {
         detail: { deletedProductId: deletingId }
       }));
 
-      toast.success("Product deleted successfully");
+      // toast.success("Product deleted successfully"); // adminClient already shows a toast
     } catch (err) {
       setError(err.message || "Delete failed");
       toast.error("Failed to delete product");
@@ -572,56 +620,35 @@ function Products() {
                 {formData.images && formData.images.length > 0 && (
                   <div
                     style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "10px",
-                      marginTop: "10px",
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+                      gap: "15px",
+                      marginTop: "15px",
+                      backgroundColor: "#f8f9fa",
+                      padding: "15px",
+                      borderRadius: "8px",
+                      border: "1px dashed #ccc"
                     }}
                   >
-                    {formData.images.map((img, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          position: "relative",
-                          width: "60px",
-                          height: "60px",
-                        }}
-                      >
-                        {typeof img === "object" && img.preview ? (
-                          <>
+                    {formData.images.map((img, idx) => {
+                      const imgUrl = typeof img === "object" ? (img.preview || img.url) : img;
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            position: "relative",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "8px",
+                            padding: "8px",
+                            backgroundColor: "white",
+                            borderRadius: "6px",
+                            boxShadow: "0 2px 4px rgba(0,0,0,0.05)"
+                          }}
+                        >
+                          <div style={{ position: "relative", width: "100%", height: "100px" }}>
                             <img
-                              src={img.preview}
-                              alt={img.file?.name || "preview"}
-                              style={{
-                                width: "100%",
-                                height: "100%",
-                                objectFit: "cover",
-                                borderRadius: "4px",
-                              }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeImage(idx)}
-                              style={{
-                                position: "absolute",
-                                top: "-8px",
-                                right: "-8px",
-                                backgroundColor: "#ff4444",
-                                color: "white",
-                                border: "none",
-                                borderRadius: "50%",
-                                width: "20px",
-                                height: "20px",
-                                cursor: "pointer",
-                              }}
-                            >
-                              ×
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <img
-                              src={img}
+                              src={imgUrl}
                               alt={`img-${idx}`}
                               style={{
                                 width: "100%",
@@ -641,157 +668,46 @@ function Products() {
                                 color: "white",
                                 border: "none",
                                 borderRadius: "50%",
-                                width: "20px",
-                                height: "20px",
+                                width: "22px",
+                                height: "22px",
                                 cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: "bold",
+                                zIndex: 1
                               }}
                             >
                               ×
                             </button>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Colors Section */}
-              <div className="x_form-group">
-                <label className="x_form-label">
-                  Colors (Multi-Select with Color Picker)
-                </label>
-                <div
-                  style={{ display: "flex", gap: "10px", alignItems: "center" }}
-                >
-                  <button
-                    type="button"
-                    className="x_btn x_btn-primary"
-                    onClick={() => setShowColorPicker(!showColorPicker)}
-                    style={{ padding: "8px 12px", fontSize: "14px" }}
-                  >
-                    Add Color
-                  </button>
-                </div>
-
-                {showColorPicker && (
-                  <div
-                    style={{
-                      marginTop: "10px",
-                      padding: "10px",
-                      backgroundColor: "#f9f9f9",
-                      borderRadius: "4px",
-                      border: "1px solid #ddd",
-                    }}
-                  >
-                    <div style={{ marginBottom: "10px" }}>
-                      <label
-                        style={{
-                          fontSize: "12px",
-                          display: "block",
-                          marginBottom: "5px",
-                        }}
-                      >
-                        Select Color:
-                      </label>
-                      <input
-                        type="color"
-                        value={selectedColorHex}
-                        onChange={(e) => setSelectedColorHex(e.target.value)}
-                        style={{
-                          width: "50px",
-                          height: "40px",
-                          cursor: "pointer",
-                        }}
-                      />
-                    </div>
-                    <div
-                      style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}
-                    >
-                      {predefinedColors.map((color) => (
-                        <button
-                          key={color.hex}
-                          type="button"
-                          onClick={() => addColor(color)}
-                          style={{
-                            width: "40px",
-                            height: "40px",
-                            backgroundColor: color.hex,
-                            border: "2px solid #ccc",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            title: color.name,
-                          }}
-                          title={color.name}
-                        />
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      className="x_btn x_btn-primary"
-                      onClick={() =>
-                        addColor({ name: "Custom", hex: selectedColorHex })
-                      }
-                      style={{
-                        marginTop: "10px",
-                        padding: "6px 10px",
-                        fontSize: "12px",
-                      }}
-                    >
-                      Add Custom Color
-                    </button>
-                  </div>
-                )}
-
-                {formData.colors && formData.colors.length > 0 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "10px",
-                      marginTop: "10px",
-                      alignItems: "center",
-                    }}
-                  >
-                    {formData.colors.map((color) => (
-                      <div
-                        key={color.hex}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          padding: "6px 10px",
-                          backgroundColor: "#f0f0f0",
-                          borderRadius: "4px",
-                          border: `3px solid ${color.hex}`,
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: "20px",
-                            height: "20px",
-                            backgroundColor: color.hex,
-                            borderRadius: "3px",
-                            border: "1px solid #999",
-                          }}
-                        />
-                        <span style={{ fontSize: "13px" }}>{color.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeColor(color.hex)}
-                          style={{
-                            backgroundColor: "transparent",
-                            border: "none",
-                            cursor: "pointer",
-                            color: "#ff0000",
-                            fontSize: "16px",
-                            fontWeight: "bold",
-                          }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
+                          </div>
+                          
+                          {/* Color selector for image */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            <label style={{ fontSize: "10px", color: "#666", fontWeight: "bold" }}>ASSIGN COLOR</label>
+                            <select
+                              value={img.color || ""}
+                              onChange={(e) => setImageColor(idx, e.target.value)}
+                              className="x_form-control"
+                              style={{
+                                width: "100%",
+                                fontSize: "11px",
+                                padding: "4px",
+                                height: "auto",
+                                borderColor: img.color ? "#2b4d6e" : "#ccc"
+                              }}
+                            >
+                              <option value="">No Color</option>
+                              {predefinedColors.map(c => (
+                                <option key={c.hex} value={c.hex}>
+                                  {c.name} ({c.hex})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1230,9 +1146,7 @@ function Products() {
                       <img
                         src={
                           product.images && product.images.length > 0
-                            ? typeof product.images[0] === 'string'
-                              ? product.images[0]
-                              : product.images[0].preview || product.images[0].url || "https://via.placeholder.com/45"
+                            ? (typeof product.images[0] === 'string' ? product.images[0] : (product.images[0].preview || product.images[0].url))
                             : "https://via.placeholder.com/45"
                         }
                         alt={product.title || "Product"}

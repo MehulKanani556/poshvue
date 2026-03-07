@@ -1238,7 +1238,7 @@ function Checkout() {
                   >
                     <div className="z_chck_product_img_wrap">
                       <img
-                        src={item.product.images?.[0] || "/placeholder.jpg"}
+                        src={(item.product.images?.[0]?.url || item.product.images?.[0]) || "/placeholder.jpg"}
                         alt={item.product.title}
                       />
                       <span className="z_chck_product_qty_badge">{item.quantity}</span>
