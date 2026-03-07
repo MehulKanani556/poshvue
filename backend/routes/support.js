@@ -20,7 +20,8 @@ router.put('/complaints/:id/status', auth, requireRole('admin'), complaint.updat
 // Wholesale inquiries
 router.get('/wholesale', auth, requireRole('admin'), wholesale.list);
 router.post('/wholesale', wholesale.create);
-router.put('/wholesale/:id/status', auth, requireRole('admin'), wholesale.updateStatus);
+router.put('/wholesale/:id', auth, requireRole('admin'), wholesale.update);
+router.delete('/wholesale/:id', auth, requireRole('admin'), wholesale.remove);
 
 // Subscriptions
 router.post('/subscriptions', subscription.subscribe);

@@ -11,6 +11,7 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import client from "../../api/client";
 import { useCurrency } from "../../context/CurrencyContext";
+import API_BASE_URL from "../../config/api";
 import { toast } from "react-toastify";
 import Loader from "./Loader";
 import { Link, NavLink } from "react-router-dom";
@@ -137,6 +138,28 @@ const ShopPage = () => {
 
     fetchWishlist();
   }, [token]);
+
+  const getImageUrl = (product) => {
+    if (!product) return "/placeholder.jpg";
+    
+    let img = "";
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      const firstImg = product.images[0];
+      img = typeof firstImg === 'string' ? firstImg : (firstImg.url || "");
+    } else if (product.image) {
+      img = product.image;
+    }
+
+    if (!img || typeof img !== 'string') return "/placeholder.jpg";
+
+    // The backend now provides absolute URLs. If it's already absolute, return it.
+    if (img.startsWith("http")) return img;
+
+    // Fallback for relative URLs
+    const baseUrl = API_BASE_URL.replace("/api", "");
+    const slash = img.startsWith("/") ? "" : "/";
+    return `${baseUrl}${slash}${img}`;
+  };
 
   const toggleWishlist = async (productId) => {
     try {
@@ -867,11 +890,7 @@ const ShopPage = () => {
                         />
                       </button>
                       <LazyImage
-                        src={
-                          Array.isArray(product.images)
-                            ? (product.images[0]?.url || (typeof product.images[0] === 'string' ? product.images[0] : ""))
-                            : product.image
-                        }
+                        src={getImageUrl(product)}
                         alt={product.title}
                         className="d_product-img"
                       />

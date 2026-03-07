@@ -350,26 +350,10 @@ function Products() {
       }
       resetForm();
     } catch (err) {
-      // Map server validation errors to field highlights if possible
+      // adminClient interceptor already handles error toasts.
+      // We only update local error state for UI display if needed.
       const resp = err?.response?.data;
-      if (resp) {
-        // If server returned { errors: { field: 'msg' } } or { errors: [ ... ] }
-        if (resp.errors && typeof resp.errors === "object" && !Array.isArray(resp.errors)) {
-          setInvalidFields(resp.errors);
-          const msg = Object.values(resp.errors).join(". ");
-          toast.error(msg);
-        } else if (Array.isArray(resp.errors) && resp.errors.length) {
-          toast.error(resp.errors.join(". "));
-        } else if (resp.message) {
-          toast.error(resp.message);
-        } else {
-          toast.error("Save failed");
-        }
-        setError(resp.message || "Save failed");
-      } else {
-        setError(err.message || "Save failed");
-        toast.error(err.message || "Save failed");
-      }
+      setError(resp?.message || err.message || "Save failed");
     } finally {
       setLoading(false);
     }
@@ -472,10 +456,8 @@ function Products() {
         detail: { deletedProductId: deletingId }
       }));
 
-      toast.success("Product deleted successfully");
     } catch (err) {
       setError(err.message || "Delete failed");
-      toast.error("Failed to delete product");
     } finally {
       setLoading(false);
     }

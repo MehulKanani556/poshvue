@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import { FaPlus, FaMinus, FaTrash, FaShoppingBag } from "react-icons/fa";
 import { RiDeleteBin6Fill } from "react-icons/ri";
 import client from "../../api/client";
-import { API_ENDPOINTS } from "../../config/api";
+import API_BASE_URL, { API_ENDPOINTS } from "../../config/api";
 import wishEmptyImg from "../../img/image1.png";
 import Loader from "../component/Loader";
 import { useCurrency } from "../../context/CurrencyContext";
@@ -315,24 +315,15 @@ function Cart() {
     const imgData = product.images[0];
     const img = typeof imgData === 'string' ? imgData : (imgData?.url || "");
 
-    // If it's already a full HTTP/HTTPS URL (AWS S3/CloudFront), return as-is
-    if (img && typeof img === 'string' && img.startsWith("http")) {
-      // Fix -website URLs in frontend as well
-      const fixedImg = img
-        .replace('s3-website.', 's3.')  // Fix domain
-        .replace('-website.s3.', '.s3.')  // Fix bucket name
-        .replace('-website', '');  // Remove -website from bucket name
-      
-      return fixedImg;
-    }
+    if (!img) return wishEmptyImg;
 
-    // For local uploads, construct localhost URL
-    if (img) {
-      const localUrl = `http://localhost:5000${img}`;
-      return localUrl;
-    }
+    // The backend now provides absolute URLs. If it's already absolute, return it.
+    if (img.startsWith("http")) return img;
 
-    return wishEmptyImg;
+    // Fallback for relative URLs
+    const baseUrl = API_BASE_URL.replace("/api", "");
+    const slash = img.startsWith("/") ? "" : "/";
+    return `${baseUrl}${slash}${img}`;
   };
 
   // Validate and apply coupon
@@ -558,7 +549,6 @@ function Cart() {
                         className="z_cart_coupon_select_dropdown"
                         value={couponCode}
                         onChange={(e) => setCouponCode(e.target.value)}
-                        style={{ width: "100%", marginBottom: 8, padding: 8 }}
                       >
                         <option value="">Select coupon</option>
                         {availableCoupons.map((c) => (
@@ -571,33 +561,35 @@ function Cart() {
                       <select
                         className="z_cart_coupon_select_dropdown"
                         disabled
-                        style={{ width: "100%", marginBottom: 8, padding: 8, backgroundColor: '#f8f9fa' }}
+                        style={{ backgroundColor: '#f8f9fa' }}
                       >
                         <option value="">No coupons available</option>
                       </select>
                     )}
-                    <input
-                      type="text"
-                      className="z_cart_coupon_select"
-                      placeholder="Enter coupon code"
-                      value={couponCode}
-                      onChange={(e) => {
-                        setCouponCode(e.target.value.toUpperCase());
-                        setCouponError("");
-                      }}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter") {
-                          applyCoupon();
-                        }
-                      }}
-                    />
-                    <button
-                      className="z_cart_coupon_btn"
-                      onClick={applyCoupon}
-                      disabled={validatingCoupon || !couponCode.trim()}
-                    >
-                      {validatingCoupon ? "Validating..." : "Apply"}
-                    </button>
+                    <div className="z_cart_coupon_input_group">
+                      <input
+                        type="text"
+                        className="z_cart_coupon_select"
+                        placeholder="Enter coupon code"
+                        value={couponCode}
+                        onChange={(e) => {
+                          setCouponCode(e.target.value.toUpperCase());
+                          setCouponError("");
+                        }}
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter") {
+                            applyCoupon();
+                          }
+                        }}
+                      />
+                      <button
+                        className="z_cart_coupon_btn"
+                        onClick={applyCoupon}
+                        disabled={validatingCoupon || !couponCode.trim()}
+                      >
+                        {validatingCoupon ? "Validating..." : "Apply"}
+                      </button>
+                    </div>
                   </>
                 )}
                 {couponError && (

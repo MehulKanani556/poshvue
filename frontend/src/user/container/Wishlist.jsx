@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import wishEmptyImg from "../../img/image.png";
 import axios from "axios";
 import { useCurrency } from "../../context/CurrencyContext";
+import API_BASE_URL from "../../config/api";
 
 function Wishlist(props) {
   const navigate = useNavigate();
@@ -29,11 +30,17 @@ function Wishlist(props) {
   }, []);
 
   const getImageUrl = (imgData) => {
-    if (!imgData) return wishEmptyImg; // fallback
+    if (!imgData) return wishEmptyImg;
     const img = typeof imgData === 'string' ? imgData : (imgData?.url || "");
     if (!img || typeof img !== 'string') return wishEmptyImg;
+    
+    // The backend now provides absolute URLs. If it's already absolute, return it.
     if (img.startsWith("http")) return img;
-    return `http://localhost:5000${img}`;
+    
+    // Fallback for any relative URLs that might have missed backend processing
+    const baseUrl = API_BASE_URL.replace("/api", "");
+    const slash = img.startsWith("/") ? "" : "/";
+    return `${baseUrl}${slash}${img}`;
   };
 
   const fetchWishlist = async () => {
@@ -46,7 +53,7 @@ function Wishlist(props) {
       }
 
       const res = await axios.get(
-        "https://api.poshwue.com/api/wishlist",
+        `${API_BASE_URL}/wishlist`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -72,7 +79,7 @@ function Wishlist(props) {
       }
 
       // Call API to remove item
-      await axios.delete(`https://api.poshwue.com/api/wishlist/${productId}`, {
+      await axios.delete(`${API_BASE_URL}/wishlist/${productId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -146,8 +153,8 @@ function Wishlist(props) {
                           </button>
 
                           <img
-                            src={getImageUrl(p.images[0])}
-                            alt={p.name}
+                            src={getImageUrl(p.images?.[0])}
+                            alt={p.title || p.name}
                             className="d_product-img"
                             onClick={() => navigate(`/product/${p._id}`)}
                           />

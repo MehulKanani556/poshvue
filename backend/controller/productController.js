@@ -267,7 +267,10 @@ exports.create = async (req, res) => {
     const obj = populated.toObject();
     obj.images = makeAbsoluteImages(obj.images, req);
 
-    res.status(201).json({ item: obj });
+    res.status(201).json({ 
+      item: obj,
+      message: 'Product created successfully'
+    });
   } catch (err) {
     res.status(400).json({ message: err.message || 'Invalid data' });
   }
@@ -341,7 +344,10 @@ exports.update = async (req, res) => {
     const obj = updated.toObject();
     obj.images = makeAbsoluteImages(obj.images, req);
 
-    res.json({ item: obj });
+    res.json({ 
+      item: obj,
+      message: 'Product updated successfully'
+    });
   } catch (err) {
     res.status(400).json({ message: 'Invalid data' });
   }
@@ -360,7 +366,7 @@ exports.remove = async (req, res) => {
     }
 
     console.log('✅ Product deleted successfully:', item.title || item.name);
-    res.json({ message: 'Deleted' });
+    res.json({ message: 'Product deleted successfully' });
   } catch (err) {
     console.log('❌ Delete error:', err.message);
     res.status(500).json({ message: 'Server error' });

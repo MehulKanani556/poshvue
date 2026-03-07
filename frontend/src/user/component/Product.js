@@ -3,6 +3,7 @@ import { Heart, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import client from "../../api/client";
 import { useCurrency } from "../../context/CurrencyContext";
+import API_BASE_URL from "../../config/api";
 import { toast } from "react-toastify";
 import Loader from "./Loader";
 
@@ -77,11 +78,11 @@ export default function Product({ productId}) {
 
     if (!img || typeof img !== 'string') return "/placeholder.jpg";
 
-    // Absolute URLs
+    // The backend now provides absolute URLs. If it's already absolute, return it.
     if (img.startsWith("http")) return img;
 
     // Relative URLs
-    const baseUrl = (process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || "http://localhost:5000/api").replace("/api", "");
+    const baseUrl = API_BASE_URL.replace("/api", "");
     const slash = img.startsWith("/") ? "" : "/";
     return `${baseUrl}${slash}${img}`;
   };

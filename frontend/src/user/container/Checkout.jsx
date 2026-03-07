@@ -14,6 +14,8 @@ import {
 } from "@stripe/react-stripe-js";
 import { useCurrency } from "../../context/CurrencyContext";
 import client from "../../api/client";
+import API_BASE_URL from "../../config/api";
+import wishEmptyImg from "../../img/image1.png";
 import {
   createPaymentIntent,
   createCashfreeOrder,
@@ -878,6 +880,26 @@ function Checkout() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { formatPrice, getConvertedPrice, selectedCountry } = useCurrency();
+
+  const getImageUrl = (product) => {
+    if (!product || !product.images || product.images.length === 0) {
+      return wishEmptyImg;
+    }
+
+    const imgData = product.images[0];
+    const img = typeof imgData === 'string' ? imgData : (imgData?.url || "");
+
+    if (!img) return wishEmptyImg;
+
+    // The backend now provides absolute URLs. If it's already absolute, return it.
+    if (img.startsWith("http")) return img;
+
+    // Fallback for relative URLs
+    const baseUrl = API_BASE_URL.replace("/api", "");
+    const slash = img.startsWith("/") ? "" : "/";
+    return `${baseUrl}${slash}${img}`;
+  };
+
   // live exchange rate from INR -> selected local currency (value: 1 INR = X local)
   const [liveExchangeRate, setLiveExchangeRate] = useState(null);
 
@@ -1238,7 +1260,7 @@ function Checkout() {
                   >
                     <div className="z_chck_product_img_wrap">
                       <img
-                        src={item.product.images?.[0] || "/placeholder.jpg"}
+                        src={getImageUrl(item.product)}
                         alt={item.product.title}
                       />
                       <span className="z_chck_product_qty_badge">{item.quantity}</span>

@@ -164,7 +164,10 @@ exports.create = async (req, res) => {
 
     });
 
-    return res.status(201).json({ item });
+    return res.status(201).json({ 
+      item,
+      message: 'Country created successfully'
+    });
 
   } catch (err) {
 
@@ -230,7 +233,10 @@ exports.update = async (req, res) => {
 
     if (!item) return res.status(404).json({ message: 'Not found' });
 
-    return res.json({ item });
+    return res.json({ 
+      item,
+      message: 'Country updated successfully'
+    });
 
   } catch (err) {
 
@@ -249,21 +255,13 @@ exports.update = async (req, res) => {
 
 
 exports.remove = async (req, res) => {
-
   try {
-
     const item = await Country.findByIdAndDelete(req.params.id);
-
     if (!item) return res.status(404).json({ message: 'Not found' });
-
-    return res.json({ message: 'Deleted' });
-
+    return res.json({ message: 'Country deleted successfully' });
   } catch (err) {
-
     return res.status(500).json({ message: 'Server error' });
-
   }
-
 };
 
 

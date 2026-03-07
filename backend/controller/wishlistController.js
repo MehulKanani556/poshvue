@@ -1,13 +1,53 @@
 const { Wishlist } = require('../model');
 
+// Helper function to fix image URLs
+function makeAbsoluteImages(images, req) {
+  if (!Array.isArray(images)) return images;
+  const host = `${req.protocol}://${req.get('host')}`;
+
+  return images.map((img) => {
+    let finalImg = img;
+    
+    // Fix -website in bucket name and s3-website. in domain
+    if (typeof img === 'string') {
+      finalImg = img
+        .replace('s3-website.', 's3.')
+        .replace('-website.s3.', '.s3.');
+    } else if (img && typeof img === 'object' && img.url) {
+        finalImg = { ...img };
+        finalImg.url = img.url
+            .replace('s3-website.', 's3.')
+            .replace('-website.s3.', '.s3.');
+    }
+    
+    // Handle relative URLs
+    if (typeof finalImg === 'string' && finalImg.startsWith('/uploads/')) {
+      return host + finalImg;
+    } else if (finalImg && typeof finalImg === 'object' && typeof finalImg.url === 'string' && finalImg.url.startsWith('/uploads/')) {
+        finalImg.url = host + finalImg.url;
+    }
+    
+    return finalImg;
+  });
+}
+
 /* GET WISHLIST */
 exports.getWishlist = async (req, res) => {
   try {
     const wishlist = await Wishlist.findOne({ user: req.user.id })
       .populate("items.product");
 
+    if (wishlist && wishlist.items) {
+      wishlist.items = wishlist.items.map(item => {
+        if (item.product && item.product.images) {
+          item.product.images = makeAbsoluteImages(item.product.images, req);
+        }
+        return item;
+      });
+    }
+
     res.json(wishlist || { user: req.user.id, items: [] });
-  } catch (err) {z
+  } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };

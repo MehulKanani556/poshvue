@@ -9,23 +9,26 @@ function makeAbsoluteImages(images, req) {
   return images.map((img) => {
     let finalImg = img;
     
-    
     // Fix -website in bucket name and s3-website. in domain
     if (typeof img === 'string') {
-      // Multiple replacement strategies to catch all -website variations
       finalImg = img
-        .replace('s3-website.', 's3.')  // Fix domain
-        .replace('-website.s3.', '.s3.')  // Fix bucket name
-        // .replace('-website', '');  // Remove -website from bucket name completely
-        
+        .replace('s3-website.', 's3.')
+        .replace('-website.s3.', '.s3.');
+    } else if (img && typeof img === 'object' && img.url) {
+        finalImg = { ...img };
+        finalImg.url = img.url
+            .replace('s3-website.', 's3.')
+            .replace('-website.s3.', '.s3.');
     }
     
-    // Then handle relative URLs
+    // Handle relative URLs
     if (typeof finalImg === 'string' && finalImg.startsWith('/uploads/')) {
       return host + finalImg;
+    } else if (finalImg && typeof finalImg === 'object' && typeof finalImg.url === 'string' && finalImg.url.startsWith('/uploads/')) {
+        finalImg.url = host + finalImg.url;
     }
     
-    return finalImg; // Keep S3 URLs as-is (but fixed)
+    return finalImg;
   });
 }
 

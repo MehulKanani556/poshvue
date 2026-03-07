@@ -25,12 +25,22 @@ exports.create = async (req, res) => {
   }
 };
 
-exports.updateStatus = async (req, res) => {
+exports.update = async (req, res) => {
   try {
-    const item = await Wholesale.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
+    const item = await Wholesale.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!item) return res.status(404).json({ message: 'Not found' });
-    return res.json({ item });
+    return res.json({ item, message: 'Wholesale partner updated successfully' });
   } catch (err) {
-    return res.status(400).json({ message: 'Invalid status' });
+    return res.status(400).json({ message: 'Invalid data' });
+  }
+};
+
+exports.remove = async (req, res) => {
+  try {
+    const item = await Wholesale.findByIdAndDelete(req.params.id);
+    if (!item) return res.status(404).json({ message: 'Not found' });
+    return res.json({ message: 'Wholesale partner deleted successfully' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error' });
   }
 };

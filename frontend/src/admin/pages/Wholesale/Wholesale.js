@@ -60,16 +60,57 @@ function Wholesale() {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (editingId) {
-            setWholesalers(
-                wholesalers.map((w) => (w.id === editingId ? { ...formData, id: editingId } : w))
-            );
-        } else {
-            setWholesalers([...wholesalers, { ...formData, id: Date.now() }]);
+        try {
+            setLoading(true);
+            if (editingId) {
+                const res = await adminClient.put(`/support/wholesale/${editingId}`, formData);
+                const updated = res.data.item;
+                setWholesalers(
+                    wholesalers.map((w) => (w.id === editingId ? {
+                        id: updated._id,
+                        name: updated.name,
+                        companyName: updated.company,
+                        address: updated.address,
+                        email: updated.email,
+                        city: updated.city,
+                        phone: updated.phone,
+                        state: updated.state,
+                        mobile: updated.mobile,
+                        country: updated.country,
+                        pincode: updated.pincode,
+                        details: updated.details,
+                        status: updated.status,
+                        createdAt: updated.createdAt,
+                    } : w))
+                );
+            } else {
+                const res = await adminClient.post("/support/wholesale", formData);
+                const newItem = res.data.item;
+                setWholesalers([...wholesalers, {
+                    id: newItem._id,
+                    name: newItem.name,
+                    companyName: newItem.company,
+                    address: newItem.address,
+                    email: newItem.email,
+                    city: newItem.city,
+                    phone: newItem.phone,
+                    state: newItem.state,
+                    mobile: newItem.mobile,
+                    country: newItem.country,
+                    pincode: newItem.pincode,
+                    details: newItem.details,
+                    status: newItem.status,
+                    createdAt: newItem.createdAt,
+                }]);
+            }
+            resetForm();
+        } catch (err) {
+            console.error("Submit wholesaler error:", err);
+        } finally {
+            setLoading(false);
         }
-        resetForm();
     };
 
     const resetForm = () => {
@@ -90,7 +131,18 @@ function Wholesale() {
     };
 
     const handleEdit = (wholesaler) => {
-        setFormData(wholesaler);
+        setFormData({
+            name: wholesaler.name,
+            companyName: wholesaler.companyName,
+            address: wholesaler.address,
+            email: wholesaler.email,
+            city: wholesaler.city,
+            phone: wholesaler.phone,
+            state: wholesaler.state,
+            country: wholesaler.country,
+            pincode: wholesaler.pincode,
+            details: wholesaler.details,
+        });
         setEditingId(wholesaler.id);
         setShowModal(true);
     };
@@ -100,10 +152,18 @@ function Wholesale() {
         setShowDeleteModal(true);
     };
 
-    const handleDeleteConfirm = () => {
-        setWholesalers(wholesalers.filter((w) => w.id !== deletingId));
-        setShowDeleteModal(false);
-        setDeletingId(null);
+    const handleDeleteConfirm = async () => {
+        try {
+            setLoading(true);
+            await adminClient.delete(`/support/wholesale/${deletingId}`);
+            setWholesalers(wholesalers.filter((w) => w.id !== deletingId));
+        } catch (err) {
+            console.error("Delete wholesaler error:", err);
+        } finally {
+            setLoading(false);
+            setShowDeleteModal(false);
+            setDeletingId(null);
+        }
     };
 
     return (

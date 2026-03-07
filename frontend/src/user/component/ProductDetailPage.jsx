@@ -30,6 +30,7 @@ import SimiliarPro from "./SimiliarPro";
 import { useNavigate, useParams } from "react-router-dom";
 import client from "../../api/client";
 import { useCurrency } from "../../context/CurrencyContext";
+import API_BASE_URL from "../../config/api";
 import { toast } from "react-toastify";
 import Loader from "./Loader";
 
@@ -292,15 +293,30 @@ const ProductDetailPage = () => {
 
   const isCurrentSelectionInCart = isAlreadyInCart || justAdded;
 
+  const getImageUrl = (imgData) => {
+    if (!imgData) return "/placeholder.jpg";
+    const img = typeof imgData === 'string' ? imgData : (imgData?.url || "");
+    if (!img || typeof img !== 'string') return "/placeholder.jpg";
+
+    // The backend now provides absolute URLs. If it's already absolute, return it.
+    if (img.startsWith("http")) return img;
+
+    // Fallback for relative URLs
+    const baseUrl = API_BASE_URL.replace("/api", "");
+    const slash = img.startsWith("/") ? "" : "/";
+    return `${baseUrl}${slash}${img}`;
+  };
+
   // --- added: normalize image list and filter by color ---
   const allImages = useMemo(() => {
     if (!product?.images || !product.images.length) {
-      if (product?.image) return [{ url: product.image, color: "" }];
-      return defaultProduct.images.map(url => ({ url, color: "" }));
+      if (product?.image) return [{ url: getImageUrl(product.image), color: "" }];
+      return defaultProduct.images.map(url => ({ url: getImageUrl(url), color: "" }));
     }
     return product.images.map(img => {
-      if (typeof img === 'string') return { url: img, color: "" };
-      return { url: img.url || "", color: img.color || "" };
+      const url = typeof img === 'string' ? img : img.url;
+      const color = typeof img === 'string' ? "" : (img.color || "");
+      return { url: getImageUrl(url), color };
     });
   }, [product, defaultProduct.images]);
 

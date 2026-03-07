@@ -69,7 +69,10 @@ exports.create = async (req, res) => {
     // slug from name if not provided
     if (body.name && !body.slug) body.slug = body.name.toLowerCase().replace(/\s+/g, '-');
     const item = await Category.create(body);
-    return res.status(201).json({ item });
+    return res.status(201).json({ 
+      item,
+      message: 'Category created successfully'
+    });
   } catch (err) {
     console.error('Category create error:', err);
     return res.status(400).json({ message: err.message || 'Invalid data' });
@@ -86,7 +89,10 @@ exports.update = async (req, res) => {
     if (body.name && !body.slug) body.slug = body.name.toLowerCase().replace(/\s+/g, '-');
     const item = await Category.findByIdAndUpdate(req.params.id, body, { new: true });
     if (!item) return res.status(404).json({ message: 'Not found' });
-    return res.json({ item });
+    return res.json({ 
+      item,
+      message: 'Category updated successfully'
+    });
   } catch (err) {
     console.error('Category update error:', err);
     return res.status(400).json({ message: err.message || 'Invalid data' });
@@ -97,7 +103,7 @@ exports.remove = async (req, res) => {
   try {
     const item = await Category.findByIdAndDelete(req.params.id);
     if (!item) return res.status(404).json({ message: 'Not found' });
-    return res.json({ message: 'Deleted' });
+    return res.json({ message: 'Category deleted successfully' });
   } catch (err) {
     return res.status(500).json({ message: 'Server error' });
   }

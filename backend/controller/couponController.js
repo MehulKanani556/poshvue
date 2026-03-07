@@ -141,7 +141,10 @@ exports.create = async (req, res) => {
       return res.status(400).json({ message: 'Condition / Notes is required when creating a coupon' });
     }
     const item = await Coupon.create(body);
-    return res.status(201).json({ item });
+    return res.status(201).json({ 
+      item,
+      message: 'Coupon created successfully'
+    });
   } catch (err) {
     return res.status(400).json({ message: 'Invalid data' });
   }
@@ -156,7 +159,10 @@ exports.update = async (req, res) => {
       runValidators: true,
     });
     if (!item) return res.status(404).json({ message: 'Not found' });
-    return res.json({ item });
+    return res.json({ 
+      item,
+      message: 'Coupon updated successfully'
+    });
   } catch (err) {
     return res.status(400).json({ message: 'Invalid data' });
   }
@@ -166,7 +172,7 @@ exports.remove = async (req, res) => {
   try {
     const item = await Coupon.findByIdAndDelete(req.params.id);
     if (!item) return res.status(404).json({ message: 'Not found' });
-    return res.json({ message: 'Deleted' });
+    return res.json({ message: 'Coupon deleted successfully' });
   } catch (err) {
     return res.status(500).json({ message: 'Server error' });
   }
