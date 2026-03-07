@@ -35,8 +35,8 @@ export default function Product({ productId}) {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        // request without limit so we can sort and slice client-side
-        const res = await client.get("/catalog/products");
+        // Add timestamp to prevent caching issues
+        const res = await client.get(`/catalog/products?t=${Date.now()}`);
         let items = Array.isArray(res.data.items) ? res.data.items : [];
         if (!mounted) return;
 
@@ -63,6 +63,28 @@ export default function Product({ productId}) {
     fetchProducts();
     return () => { mounted = false; };
   }, [productId, refreshKey]); // Add refreshKey to dependency array
+
+  const getImageUrl = (product) => {
+    if (!product) return "/placeholder.jpg";
+    
+    let img = "";
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      const firstImg = product.images[0];
+      img = typeof firstImg === 'string' ? firstImg : (firstImg.url || "");
+    } else if (product.image) {
+      img = product.image;
+    }
+
+    if (!img || typeof img !== 'string') return "/placeholder.jpg";
+
+    // Absolute URLs
+    if (img.startsWith("http")) return img;
+
+    // Relative URLs
+    const baseUrl = (process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || "http://localhost:5000/api").replace("/api", "");
+    const slash = img.startsWith("/") ? "" : "/";
+    return `${baseUrl}${slash}${img}`;
+  };
 
   // Listen for product deletion events
   useEffect(() => {
@@ -275,7 +297,7 @@ export default function Product({ productId}) {
                       />
                     </button>
                     <img 
-                      src={product.images?.[0] || product.image} 
+                      src={getImageUrl(product)} 
                       alt={product.name || product.title} 
                       className="d_product-img"
                       onClick={() => navigate(`/product/${productId}`)}

@@ -103,7 +103,8 @@ const ProductDetailPage = () => {
       try {
         setLoading(true);
         setError("");
-        const res = await client.get(`/catalog/products/${id}`);
+        // Add timestamp to prevent caching issues
+        const res = await client.get(`/catalog/products/${id}?t=${Date.now()}`);
         const data = res.data?.item ?? res.data;
         if (!mounted) return;
 

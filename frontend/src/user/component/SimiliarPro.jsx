@@ -37,7 +37,9 @@ function SimiliarPro({ items, productId, category }) {
       try {
         setLoading(true);
         // try to fetch by category, fallback to all
-        const params = {};
+        const params = {
+          t: Date.now() // Add timestamp to prevent caching
+        };
         if (category) params.category = category;
         params.limit = 12;
         const res = await client.get("/catalog/products", { params });
@@ -130,6 +132,28 @@ function SimiliarPro({ items, productId, category }) {
     } finally {
       setWishlistLoading((prev) => ({ ...prev, [productId]: false }));
     }
+  };
+
+  const getImageUrl = (product) => {
+    if (!product) return "/placeholder.jpg";
+    
+    let img = "";
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      const firstImg = product.images[0];
+      img = typeof firstImg === 'string' ? firstImg : (firstImg.url || "");
+    } else if (product.image) {
+      img = product.image;
+    }
+
+    if (!img || typeof img !== 'string') return "/placeholder.jpg";
+
+    // Absolute URLs
+    if (img.startsWith("http")) return img;
+
+    // Relative URLs
+    const baseUrl = (process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || "http://localhost:5000/api").replace("/api", "");
+    const slash = img.startsWith("/") ? "" : "/";
+    return `${baseUrl}${slash}${img}`;
   };
 
   const checkScroll = () => {
@@ -258,10 +282,7 @@ function SimiliarPro({ items, productId, category }) {
                       />
                     </button>
                     <img 
-                      src={
-                        product.images?.[0]?.url || 
-                        (typeof product.images?.[0] === 'string' ? product.images[0] : product.image)
-                      } 
+                      src={getImageUrl(product)} 
                       alt={product.name || product.title} 
                       className="d_product-img"
                       onClick={() => navigate(`/product/${productId}`)}
