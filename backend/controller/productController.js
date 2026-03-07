@@ -53,7 +53,11 @@ function mapAdminToProduct(payload) {
   }
 
   if (Array.isArray(body.images)) {
-    body.images = body.images.filter((img) => typeof img === 'string');
+    body.images = body.images.filter((img) => {
+      if (typeof img === 'string') return true;
+      if (img && typeof img === 'object' && img.url) return true;
+      return false;
+    });
   }
 
   return body;
@@ -71,16 +75,19 @@ async function saveBase64Image(dataUrl) {
 async function processImagesArray(images) {
   const out = [];
 
-  for (const img of images) {
-    if (typeof img === 'string' && img.startsWith('data:')) {
-      const saved = await saveBase64Image(img);
-      out.push(saved);
-    } else if (typeof img === 'string') {
+  for (const imgItem of images) {
+    let imgUrl = typeof imgItem === 'string' ? imgItem : imgItem.url;
+    const imgColor = typeof imgItem === 'string' ? null : imgItem.color;
+
+    if (typeof imgUrl === 'string' && imgUrl.startsWith('data:')) {
+      const saved = await saveBase64Image(imgUrl);
+      out.push({ url: saved, color: imgColor });
+    } else if (typeof imgUrl === 'string') {
       // Keep S3 URLs as-is
-      if (img.startsWith('http')) {
-        out.push(img);
+      if (imgUrl.startsWith('http')) {
+        out.push({ url: imgUrl, color: imgColor });
       } else {
-        out.push(img);
+        out.push({ url: imgUrl, color: imgColor });
       }
     }
   }
@@ -92,20 +99,22 @@ function makeAbsoluteImages(images, req) {
   if (!Array.isArray(images)) return images;
   const host = `${req.protocol}://${req.get('host')}`;
 
-  return images.map((img) => {
-    let finalImg = img;
+  return images.map((imgItem) => {
+    // backward compatibility: if imgItem is string, wrap it
+    let imgObj = typeof imgItem === 'string' ? { url: imgItem } : imgItem;
+    let finalUrl = imgObj.url;
     
     // First fix any -website URLs
-    if (typeof img === 'string') {
-      finalImg = fixWebsiteUrl(img);
+    if (typeof finalUrl === 'string') {
+      finalUrl = fixWebsiteUrl(finalUrl);
     }
     
     // Then handle relative URLs
-    if (typeof finalImg === 'string' && finalImg.startsWith('/uploads/')) {
-      return host + finalImg;
+    if (typeof finalUrl === 'string' && finalUrl.startsWith('/uploads/')) {
+      finalUrl = host + finalUrl;
     }
     
-    return finalImg; // Keep S3 URLs as-is (but fixed)
+    return { ...imgObj, url: finalUrl };
   });
 }
 
@@ -129,6 +138,11 @@ exports.list = async (req, res) => {
     const query = {};
     if (q) query.title = { $regex: q, $options: 'i' };
     if (category) query.categories = { $in: [category] };
+    
+    // Only show active products for public view, unless all=true is specified (for admin)
+    if (req.query.all !== 'true') {
+      query.active = { $ne: false }; // Show active or where active field is missing
+    }
 
     const findQuery = Product.find(query)
       .sort(sort)
@@ -225,7 +239,7 @@ exports.create = async (req, res) => {
 
     if (req.s3FileUrls && req.s3FileUrls.length > 0) {
       // Limit to 10 images for products
-      imagePaths = req.s3FileUrls.slice(0, 10);
+      imagePaths = req.s3FileUrls.slice(0, 10).map(url => ({ url }));
       console.log('Using S3 URLs for products:', imagePaths);
     }
 
@@ -285,8 +299,10 @@ exports.update = async (req, res) => {
       
       // 🟢 Step 3: Only delete images that are being replaced
       // Find images to delete (old images that are not in the new set)
-      const newImageUrls = new Set(newImages);
-      const imagesToDelete = oldImages.filter(oldImg => !newImageUrls.has(oldImg));
+      const newImageUrls = new Set(newImages.map(img => img.url));
+      const imagesToDelete = oldImages
+        .map(img => typeof img === 'string' ? img : img.url)
+        .filter(oldImg => !newImageUrls.has(oldImg));
       
       if (imagesToDelete.length > 0) {
         console.log(`🗑️  Deleting ${imagesToDelete.length} old images from S3...`);

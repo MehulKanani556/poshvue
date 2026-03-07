@@ -42,8 +42,11 @@ const emaCacheMiddleware = (req, res, next) => {
       
       console.log('EMA cache headers applied for:', url);
     } else {
-      // Default caching for non-image content
-      res.set('Cache-Control', 'max-age=86400, public');
+      // API responses should not be cached aggressively
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '-1');
+      res.set('Surrogate-Control', 'no-store');
       res.set('X-EMA-Cache', 'disabled');
     }
     

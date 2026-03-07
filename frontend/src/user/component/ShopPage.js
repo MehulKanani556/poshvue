@@ -210,10 +210,15 @@ const ShopPage = () => {
       try {
         setLoading(true);
         setError("");
-        const res = await client.get("/catalog/products");
+        // Add timestamp to bypass any browser/CDN cache
+        const res = await client.get(`/catalog/products?t=${new Date().getTime()}`);
         const items = Array.isArray(res.data.items) ? res.data.items : [];
-        setAllProducts(items);
-        setProducts(items);
+        
+        // Remove duplicates just in case
+        const uniqueItems = Array.from(new Map(items.map(item => [item._id || item.id, item])).values());
+        
+        setAllProducts(uniqueItems);
+        setProducts(uniqueItems);
 
         const prices = items.map((p) =>
           typeof p.salePrice === "number" ? p.salePrice : p.price || 0,
@@ -864,7 +869,7 @@ const ShopPage = () => {
                       <LazyImage
                         src={
                           Array.isArray(product.images)
-                            ? product.images[0]
+                            ? (product.images[0]?.url || (typeof product.images[0] === 'string' ? product.images[0] : ""))
                             : product.image
                         }
                         alt={product.title}

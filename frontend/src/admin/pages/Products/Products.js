@@ -102,7 +102,7 @@ function Products() {
         setLoading(true);
         setError("");
         const [prodRes, catRes, countryRes] = await Promise.all([
-          adminClient.get("/catalog/products"),
+          adminClient.get("/catalog/products", { params: { all: "true" } }),
           adminClient.get("/catalog/categories"),
           adminClient.get("/country/active"),
         ]);
@@ -150,7 +150,11 @@ function Products() {
 
     if (type === "file") {
       // convert to objects with preview for client-side preview
-      const newImages = Array.from(files).map((f) => ({ file: f, preview: URL.createObjectURL(f) }));
+      const newImages = Array.from(files).map((f) => ({ 
+        file: f, 
+        preview: URL.createObjectURL(f),
+        color: "" // Default empty color
+      }));
       setFormData((prev) => ({
         ...prev,
         images: [...(prev.images || []), ...newImages],
@@ -192,6 +196,14 @@ function Products() {
       URL.revokeObjectURL(item.preview);
     }
     setFormData((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
+  };
+
+  const handleImageColorChange = (index, color) => {
+    setFormData((prev) => {
+      const updated = [...prev.images];
+      updated[index] = { ...updated[index], color: typeof color === 'string' ? color : color.name };
+      return { ...prev, images: updated };
+    });
   };
 
   const handleCountryPriceChange = (countryId, field, value) => {
@@ -266,12 +278,27 @@ function Products() {
       const payload = { ...formData };
 
       // Handle images: upload files to AWS S3 first
-      const existingUrls = (payload.images || []).filter((i) => typeof i === "string");
-      const fileObjs = (payload.images || []).filter((i) => i && typeof i === "object" && i.file);
+      const existingItems = (payload.images || []).filter((i) => 
+        typeof i === "string" || (i && typeof i === "object" && !i.file)
+      );
+      const fileItems = (payload.images || []).filter((i) => 
+        i && typeof i === "object" && i.file
+      );
+
+      // Final images array for payload
+      const finalImages = [];
+
+      // Add existing images
+      existingItems.forEach(item => {
+        if (typeof item === "string") {
+          finalImages.push({ url: item, color: "" });
+        } else {
+          finalImages.push({ url: item.url || item.preview, color: item.color || "" });
+        }
+      });
 
       // Upload new images to AWS S3
-      const uploadedUrls = [];
-      for (const fileObj of fileObjs) {
+      for (const fileObj of fileItems) {
         try {
           const formDataForUpload = new FormData();
           formDataForUpload.append('images', fileObj.file);
@@ -281,7 +308,10 @@ function Products() {
           });
 
           if (uploadRes.data.urls && uploadRes.data.urls.length > 0) {
-            uploadedUrls.push(...uploadRes.data.urls);
+            // Associated the color from fileObj
+            uploadRes.data.urls.forEach(url => {
+              finalImages.push({ url, color: fileObj.color || "" });
+            });
           }
         } catch (error) {
           console.error('Error uploading image:', error);
@@ -289,7 +319,7 @@ function Products() {
         }
       }
 
-      payload.images = [...existingUrls, ...uploadedUrls];
+      payload.images = finalImages;
 
       // send category as name (backend resolveCategory will convert)
       if (!payload.name && payload.title) payload.name = payload.title;
@@ -350,20 +380,24 @@ function Products() {
       id: product._id || null,
       name: product.title || product.name || "",
       images: Array.isArray(product.images) ? product.images.map(img => {
-        // If image is already a string URL, keep it as is
+        // If image is already a string URL, wrap it
         if (typeof img === 'string') {
-          return img;
+          return { url: img, color: "" };
         }
-        // If image is an object with file property, create preview
+        // If image is an object { url, color }
+        if (img && img.url) {
+          return { url: img.url, color: img.color || "" };
+        }
+        // If image is an object with file property (from a previous edit attempt)
         if (img && img.file) {
           return {
             file: img.file,
-            preview: URL.createObjectURL(img.file)
+            preview: URL.createObjectURL(img.file),
+            color: img.color || ""
           };
         }
-        // If image is an object but no file, return null
         return null;
-      }).filter(Boolean) : [], // Filter out null values
+      }).filter(Boolean) : [],
       colors: Array.isArray(product.colors) ? product.colors.slice() : [],
       sizes: Array.isArray(product.sizes) ? product.sizes.slice() : [],
       category: "",
@@ -574,24 +608,36 @@ function Products() {
                     style={{
                       display: "flex",
                       flexWrap: "wrap",
-                      gap: "10px",
+                      gap: "15px",
                       marginTop: "10px",
                     }}
                   >
-                    {formData.images.map((img, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          position: "relative",
-                          width: "60px",
-                          height: "60px",
-                        }}
-                      >
-                        {typeof img === "object" && img.preview ? (
-                          <>
+                    {formData.images.map((img, idx) => {
+                      const imgUrl = img.preview || img.url || (typeof img === 'string' ? img : "");
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "8px",
+                            padding: "8px",
+                            border: "1px solid #e0e0e0",
+                            borderRadius: "6px",
+                            backgroundColor: "#fcfcfc",
+                            width: "120px"
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: "relative",
+                              width: "100%",
+                              height: "100px",
+                            }}
+                          >
                             <img
-                              src={img.preview}
-                              alt={img.file?.name || "preview"}
+                              src={imgUrl}
+                              alt={`product-img-${idx}`}
                               style={{
                                 width: "100%",
                                 height: "100%",
@@ -610,48 +656,45 @@ function Products() {
                                 color: "white",
                                 border: "none",
                                 borderRadius: "50%",
-                                width: "20px",
-                                height: "20px",
+                                width: "22px",
+                                height: "22px",
                                 cursor: "pointer",
+                                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "14px"
                               }}
                             >
                               ×
                             </button>
-                          </>
-                        ) : (
-                          <>
-                            <img
-                              src={img}
-                              alt={`img-${idx}`}
-                              style={{
-                                width: "100%",
-                                height: "100%",
-                                objectFit: "cover",
-                                borderRadius: "4px",
+                          </div>
+                          
+                          {/* Color Selection for this Image */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            <label style={{ fontSize: "10px", fontWeight: 600, color: "#666" }}>IMAGE COLOR</label>
+                            <select
+                              className="x_form-control"
+                              style={{ 
+                                fontSize: "11px", 
+                                padding: "4px", 
+                                height: "auto",
+                                borderColor: img.color ? "#2b4d6e" : "#ddd"
                               }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeImage(idx)}
-                              style={{
-                                position: "absolute",
-                                top: "-8px",
-                                right: "-8px",
-                                backgroundColor: "#ff4444",
-                                color: "white",
-                                border: "none",
-                                borderRadius: "50%",
-                                width: "20px",
-                                height: "20px",
-                                cursor: "pointer",
-                              }}
+                              value={img.color || ""}
+                              onChange={(e) => handleImageColorChange(idx, e.target.value)}
                             >
-                              ×
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    ))}
+                              <option value="">No Color</option>
+                              {formData.colors && formData.colors.map((c) => (
+                                <option key={c.hex} value={c.name}>
+                                  {c.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

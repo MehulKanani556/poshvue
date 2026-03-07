@@ -312,10 +312,11 @@ function Cart() {
       return wishEmptyImg;
     }
 
-    const img = product.images[0];
+    const imgData = product.images[0];
+    const img = typeof imgData === 'string' ? imgData : (imgData?.url || "");
 
     // If it's already a full HTTP/HTTPS URL (AWS S3/CloudFront), return as-is
-    if (img && img.startsWith("http")) {
+    if (img && typeof img === 'string' && img.startsWith("http")) {
       // Fix -website URLs in frontend as well
       const fixedImg = img
         .replace('s3-website.', 's3.')  // Fix domain

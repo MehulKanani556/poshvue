@@ -291,6 +291,18 @@ const ProductDetailPage = () => {
 
   const isCurrentSelectionInCart = isAlreadyInCart || justAdded;
 
+  // --- added: normalize image list and filter by color ---
+  const allImages = useMemo(() => {
+    if (!product?.images || !product.images.length) {
+      if (product?.image) return [{ url: product.image, color: "" }];
+      return defaultProduct.images.map(url => ({ url, color: "" }));
+    }
+    return product.images.map(img => {
+      if (typeof img === 'string') return { url: img, color: "" };
+      return { url: img.url || "", color: img.color || "" };
+    });
+  }, [product, defaultProduct.images]);
+
   const handleAddToBag = async () => {
     const token = localStorage.getItem("userToken");
     if (!token) {
@@ -397,17 +409,11 @@ const ProductDetailPage = () => {
     },
   ];
 
-  // --- added: normalize image list and safe helpers to avoid runtime errors ---
-  const images =
-    product?.images && product.images.length
-      ? product.images
-      : product?.image
-        ? [product.image]
-        : defaultProduct.images;
-
-  // Use currency context for formatting prices
-  const formatPrice = formatPriceWithCurrency;
+  // --- added: normalize image list and filter by color ---
+  // Hooks moved up to avoid conditional call errors
   // --- end additions ---
+
+  const formatPrice = formatPriceWithCurrency;
 
   // --- map dynamic backend fields into a unified display object ---
   const displayProduct = (() => {
@@ -517,14 +523,13 @@ const ProductDetailPage = () => {
               <Row className="gx-3">
                 <Col md={2} className="d-none d-md-block pe-2">
                   <div className="g3-thumb-stack">
-                    {images.map((img, i) => (
+                    {allImages.map((img, i) => (
                       <div
                         key={i}
-                        className={`g3-thumb-wrapper ${activeImg === i ? "active" : ""
-                          }`}
+                        className={`g3-thumb-wrapper ${activeImg === i ? "active" : ""}`}
                         onMouseEnter={() => setActiveImg(i)}
                       >
-                        <LazyImage src={img} alt={`view-${i}`} />
+                        <LazyImage src={img.url} alt={`view-${i}`} />
                       </div>
                     ))}
                   </div>
@@ -533,12 +538,12 @@ const ProductDetailPage = () => {
                 <Col md={10} xs={12}>
                   <div className="g3-main-viewport">
                     <LazyImage
-                      src={images[activeImg] || images[0]}
+                      src={allImages[activeImg]?.url || allImages[0]?.url}
                       alt={product?.name || "product"}
                       className="g3-featured-img"
                     />
                     <div className="g3-mobile-dots d-md-none">
-                      {images.map((_, i) => (
+                      {allImages.map((_, i) => (
                         <span
                           key={i}
                           className={`dot ${activeImg === i ? "active" : ""}`}
@@ -548,10 +553,10 @@ const ProductDetailPage = () => {
                   </div>
 
                   <div className="g3-mobile-thumbs d-flex d-md-none overflow-auto mt-3 gap-2 pb-2">
-                    {images.map((img, i) => (
+                    {allImages.map((img, i) => (
                       <img
                         key={i}
-                        src={img}
+                        src={img.url}
                         className={`g3-m-thumb ${activeImg === i ? "active" : ""
                           }`}
                         onClick={() => setActiveImg(i)}
@@ -641,6 +646,14 @@ const ProductDetailPage = () => {
                           onClick={() => {
                             setSelectedColor(c);
                             setJustAdded(false);
+                            // Set active image to the first image of the selected color
+                            if (c) {
+                              const colorName = c.name;
+                              const index = allImages.findIndex(img => img.color === colorName);
+                              if (index !== -1) {
+                                setActiveImg(index);
+                              }
+                            }
                           }}
                         >
                           <span

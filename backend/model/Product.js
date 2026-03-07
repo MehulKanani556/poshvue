@@ -14,7 +14,10 @@ const ProductSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     sku: { type: String, unique: true, sparse: true },
     description: { type: String },
-    images: [{ type: String }],
+    images: [{
+      url: { type: String },
+      color: { type: String }, // Optional color name/hex associated with this image
+    }],
     colors: { type: [ColorSchema], default: [] },
     // available size options for this product (e.g. ["36","38","40"])
     sizes: { type: [String], default: [] },

@@ -51,8 +51,12 @@ function ProductReviews() {
 
   const getImageUrl = (img) => {
     if (!img) return "";
-    if (img.startsWith("http") || img.startsWith("data:image")) return img;
-    return `http://localhost:5000${img}`;
+    // If img is an object (like {url, color}), get the url
+    const url = typeof img === 'string' ? img : img.url;
+    if (!url || typeof url !== 'string') return "";
+    
+    if (url.startsWith("http") || url.startsWith("data:image")) return url;
+    return `http://localhost:5000${url}`;
   };
 
   if (loading) {

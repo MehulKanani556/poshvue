@@ -10,6 +10,7 @@ function Blog() {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [formData, setFormData] = useState({
@@ -44,18 +45,93 @@ function Blog() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    // Clear field error as user types
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
   const handleSectionChange = (index, field, value) => {
     const newSections = [...formData.sections];
     newSections[index] = { ...newSections[index], [field]: value };
     setFormData((prev) => ({ ...prev, sections: newSections }));
+    // Clear section error as user types
+    if (fieldErrors.sections?.[index]?.[field]) {
+      setFieldErrors((prev) => {
+        const newErrors = { ...prev };
+        const newSectionErrors = [...(prev.sections || [])];
+        if (newSectionErrors[index]) {
+          const newS = { ...newSectionErrors[index] };
+          delete newS[field];
+          newSectionErrors[index] = Object.keys(newS).length > 0 ? newS : null;
+        }
+        newErrors.sections = newSectionErrors;
+        return newErrors;
+      });
+    }
   };
 
   const handleTipsChange = (index, value) => {
     const newTips = [...formData.tips];
     newTips[index] = value;
     setFormData((prev) => ({ ...prev, tips: newTips }));
+    // Clear tip error as user types
+    if (fieldErrors.tips?.[index]) {
+      setFieldErrors((prev) => {
+        const newErrors = { ...prev };
+        const newTipErrors = [...(prev.tips || [])];
+        newTipErrors[index] = null;
+        newErrors.tips = newTipErrors;
+        return newErrors;
+      });
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.title.trim()) errors.title = "Title is required";
+    if (!formData.author.trim()) errors.author = "Author is required";
+    if (!formData.category) errors.category = "Category is required";
+    if (!formData.excerpt.trim()) errors.excerpt = "Excerpt is required";
+    if (!formData.introduction.trim()) errors.introduction = "Introduction is required";
+    
+    if (formData.images.length === 0) {
+      errors.images = "At least one image is required";
+    }
+
+    const sectionErrors = formData.sections.map((s) => {
+      const sErr = {};
+      if (!s.heading.trim()) sErr.heading = "Heading is required";
+      if (!s.body.trim()) sErr.body = "Body is required";
+      return Object.keys(sErr).length > 0 ? sErr : null;
+    });
+
+    if (sectionErrors.some(e => e !== null)) {
+      errors.sections = sectionErrors;
+    }
+
+    const tipErrors = formData.tips.map((t) => {
+      if (!t.trim()) return "Tip is required";
+      return null;
+    });
+
+    if (tipErrors.some(e => e !== null)) {
+      errors.tips = tipErrors;
+    }
+
+    setFieldErrors(errors);
+    
+    // If there are errors, set a general error message
+    if (Object.keys(errors).length > 0) {
+      setError("Please fix the errors in the form before submitting.");
+      return false;
+    }
+    
+    return true;
   };
 
   const addSection = () => {
@@ -88,9 +164,11 @@ function Blog() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
     try {
       setLoading(true);
       setError("");
+      setFieldErrors({});
       if (editingId) {
         const res = await adminClient.put(`/content/blogs/${editingId}`, formData);
         setBlogs((prev) => prev.map((b) => (b._id === editingId ? res.data.item : b)));
@@ -121,6 +199,8 @@ function Blog() {
     });
     setEditingId(null);
     setShowModal(false);
+    setFieldErrors({});
+    setError("");
   };
 
   const handleEdit = (blog) => {
@@ -137,6 +217,8 @@ function Blog() {
     });
     setEditingId(blog._id);
     setShowModal(true);
+    setFieldErrors({});
+    setError("");
   };
 
   const handleDeleteClick = (id) => {
@@ -204,12 +286,12 @@ function Blog() {
                 <input
                   type="text"
                   name="title"
-                  className="x_form-control"
+                  className={`x_form-control ${fieldErrors.title ? "is-invalid" : ""}`}
                   value={formData.title}
                   onChange={handleInputChange}
                   placeholder="Blog post title"
-                  required
                 />
+                {fieldErrors.title && <div style={{ color: "#e74c3c", fontSize: "12px", marginTop: "4px" }}>{fieldErrors.title}</div>}
               </div>
 
               <div className="x_form-group">
@@ -217,12 +299,12 @@ function Blog() {
                 <input
                   type="text"
                   name="author"
-                  className="x_form-control"
+                  className={`x_form-control ${fieldErrors.author ? "is-invalid" : ""}`}
                   value={formData.author}
                   onChange={handleInputChange}
                   placeholder="Author name"
-                  required
                 />
+                {fieldErrors.author && <div style={{ color: "#e74c3c", fontSize: "12px", marginTop: "4px" }}>{fieldErrors.author}</div>}
               </div>
 
               <div className="x_form-group">
@@ -235,32 +317,42 @@ function Blog() {
                     { label: "Other", value: "other" }
                   ]}
                   value={formData.category}
-                  onChange={(val) => setFormData(prev => ({ ...prev, category: val }))}
+                  onChange={(val) => {
+                    setFormData(prev => ({ ...prev, category: val }));
+                    if (fieldErrors.category) {
+                      setFieldErrors(prev => {
+                        const newE = { ...prev };
+                        delete newE.category;
+                        return newE;
+                      });
+                    }
+                  }}
                 />
+                {fieldErrors.category && <div style={{ color: "#e74c3c", fontSize: "12px", marginTop: "4px" }}>{fieldErrors.category}</div>}
               </div>
 
               <div className="x_form-group">
                 <label className="x_form-label">Excerpt</label>
                 <textarea
                   name="excerpt"
-                  className="x_form-control"
+                  className={`x_form-control ${fieldErrors.excerpt ? "is-invalid" : ""}`}
                   value={formData.excerpt}
                   onChange={handleInputChange}
                   placeholder="Short summary"
-                  required
                 />
+                {fieldErrors.excerpt && <div style={{ color: "#e74c3c", fontSize: "12px", marginTop: "4px" }}>{fieldErrors.excerpt}</div>}
               </div>
 
               <div className="x_form-group">
                 <label className="x_form-label">Introduction</label>
                 <textarea
                   name="introduction"
-                  className="x_form-control"
+                  className={`x_form-control ${fieldErrors.introduction ? "is-invalid" : ""}`}
                   value={formData.introduction}
                   onChange={handleInputChange}
                   placeholder="Blog introduction"
-                  required
                 />
+                {fieldErrors.introduction && <div style={{ color: "#e74c3c", fontSize: "12px", marginTop: "4px" }}>{fieldErrors.introduction}</div>}
               </div>
 
               <div className="x_form-group">
@@ -285,7 +377,7 @@ function Blog() {
                     type="file"
                     multiple
                     accept="image/*"
-                    className="x_form-control"
+                    className={`x_form-control ${fieldErrors.images ? "is-invalid" : ""}`}
                     onChange={(e) => {
                       const files = Array.from(e.target.files || []);
                       files.forEach((file) => {
@@ -298,8 +390,17 @@ function Blog() {
                         };
                         reader.readAsDataURL(file);
                       });
+                      // Clear image error
+                      if (fieldErrors.images) {
+                        setFieldErrors(prev => {
+                          const newE = { ...prev };
+                          delete newE.images;
+                          return newE;
+                        });
+                      }
                     }}
                   />
+                  {fieldErrors.images && <div style={{ color: "#e74c3c", fontSize: "12px", marginTop: "4px" }}>{fieldErrors.images}</div>}
                 </div>
 
                 {/* Image Preview */}
@@ -361,25 +462,27 @@ function Blog() {
                   Sections
                 </h3>
                 {formData.sections.map((section, index) => (
-                  <div key={index} style={{ marginBottom: "15px", padding: "10px", backgroundColor: "#f8f9fa", borderRadius: "4px" }}>
+                  <div key={index} style={{ marginBottom: "15px", padding: "10px", backgroundColor: "#f8f9fa", borderRadius: "4px", border: fieldErrors.sections?.[index] ? "1px solid #e74c3c" : "none" }}>
                     <div className="x_form-group">
                       <label className="x_form-label">Heading</label>
                       <input
                         type="text"
-                        className="x_form-control"
+                        className={`x_form-control ${fieldErrors.sections?.[index]?.heading ? "is-invalid" : ""}`}
                         value={section.heading}
                         onChange={(e) => handleSectionChange(index, "heading", e.target.value)}
                         placeholder="Section heading"
                       />
+                      {fieldErrors.sections?.[index]?.heading && <div style={{ color: "#e74c3c", fontSize: "12px", marginTop: "4px" }}>{fieldErrors.sections[index].heading}</div>}
                     </div>
                     <div className="x_form-group">
                       <label className="x_form-label">Body</label>
                       <textarea
-                        className="x_form-control"
+                        className={`x_form-control ${fieldErrors.sections?.[index]?.body ? "is-invalid" : ""}`}
                         value={section.body}
                         onChange={(e) => handleSectionChange(index, "body", e.target.value)}
                         placeholder="Section content"
                       />
+                      {fieldErrors.sections?.[index]?.body && <div style={{ color: "#e74c3c", fontSize: "12px", marginTop: "4px" }}>{fieldErrors.sections[index].body}</div>}
                     </div>
                     {formData.sections.length > 1 && (
                       <button
@@ -408,24 +511,27 @@ function Blog() {
                   Tips
                 </h3>
                 {formData.tips.map((tip, index) => (
-                  <div key={index} style={{ marginBottom: "10px", display: "flex", gap: "10px" }}>
-                    <input
-                      type="text"
-                      className="x_form-control"
-                      value={tip}
-                      onChange={(e) => handleTipsChange(index, e.target.value)}
-                      placeholder={`Tip ${index + 1}`}
-                    />
-                    {formData.tips.length > 1 && (
-                      <button
-                        type="button"
-                        className="x_btn x_btn-danger x_btn-sm"
-                        onClick={() => removeTip(index)}
-                        style={{ minWidth: "45px" }}
-                      >
-                        <FiX size={14} />
-                      </button>
-                    )}
+                  <div key={index} style={{ marginBottom: "10px" }}>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <input
+                        type="text"
+                        className={`x_form-control ${fieldErrors.tips?.[index] ? "is-invalid" : ""}`}
+                        value={tip}
+                        onChange={(e) => handleTipsChange(index, e.target.value)}
+                        placeholder={`Tip ${index + 1}`}
+                      />
+                      {formData.tips.length > 1 && (
+                        <button
+                          type="button"
+                          className="x_btn x_btn-danger x_btn-sm"
+                          onClick={() => removeTip(index)}
+                          style={{ minWidth: "45px" }}
+                        >
+                          <FiX size={14} />
+                        </button>
+                      )}
+                    </div>
+                    {fieldErrors.tips?.[index] && <div style={{ color: "#e74c3c", fontSize: "12px", marginTop: "4px" }}>{fieldErrors.tips[index]}</div>}
                   </div>
                 ))}
                 <button

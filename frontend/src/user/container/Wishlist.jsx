@@ -28,8 +28,10 @@ function Wishlist(props) {
     fetchWishlist();
   }, []);
 
-  const getImageUrl = (img) => {
-    if (!img) return wishEmptyImg; // fallback
+  const getImageUrl = (imgData) => {
+    if (!imgData) return wishEmptyImg; // fallback
+    const img = typeof imgData === 'string' ? imgData : (imgData?.url || "");
+    if (!img || typeof img !== 'string') return wishEmptyImg;
     if (img.startsWith("http")) return img;
     return `http://localhost:5000${img}`;
   };
