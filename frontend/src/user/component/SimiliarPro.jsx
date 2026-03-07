@@ -105,6 +105,7 @@ function SimiliarPro({ items, productId, category }) {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          _skipToast: true
         }
       );
 

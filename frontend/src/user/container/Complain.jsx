@@ -119,7 +119,7 @@ function Complain() {
           }
         }
 
-        await client.post("/support/complaints", payload);
+        await client.post("/support/complaints", payload, { _skipToast: true });
 
         toast.success("Complaint submitted successfully");
         resetForm();

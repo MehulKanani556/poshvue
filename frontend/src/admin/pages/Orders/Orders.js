@@ -123,9 +123,9 @@ function Orders() {
         <div className="x_card-body">
           <div className="x_grid x_grid-2">
             <div className="x_form-group">
+              <label className="x_form-label">Filter by Status</label>
               <CustomDropdown
-              padding="10px 12px"
-                label="Filter by Status"
+              padding="12px 12px"
                 options={[
                   { label: "All Status", value: "" },
                   { label: "Pending", value: "pending" },

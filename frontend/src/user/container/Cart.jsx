@@ -349,7 +349,7 @@ function Cart() {
         code: couponCode.trim(),
         subtotal: subTotal,
         countryCode: selectedCountry?.code || undefined,
-      });
+      }, { _skipToast: true });
 
       if (res.data && res.data.valid) {
         setAppliedCoupon(res.data.coupon);

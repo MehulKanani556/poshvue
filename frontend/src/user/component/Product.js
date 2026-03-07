@@ -122,6 +122,7 @@ export default function Product({ productId}) {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          _skipToast: true
         }
       );
 

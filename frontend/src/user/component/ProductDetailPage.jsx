@@ -216,6 +216,7 @@ const ProductDetailPage = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          _skipToast: true
         }
       );
 
@@ -341,10 +342,8 @@ const ProductDetailPage = () => {
       } catch (fetchErr) {
         console.error("Failed to refresh cart:", fetchErr);
       }
-
-      // alert("Added to cart");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to add to cart");
+      console.error("Failed to add to cart:", err);
     } finally {
       setAddingToCart(false);
     }

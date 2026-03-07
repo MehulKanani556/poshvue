@@ -17,14 +17,16 @@ adminClient.interceptors.request.use((config) => {
 
 adminClient.interceptors.response.use(
   (res) => {
+    // If the request explicitly asks to skip global toast, don't show it
+    if (res.config?._skipToast) return res;
+
     const method = res.config?.method?.toLowerCase();
     const msgFromServer = res.data?.message;
-    if (method === "post") {
-      toastSuccess(msgFromServer || "Added successfully");
-    } else if (method === "put" || method === "patch") {
-      toastSuccess(msgFromServer || "Updated successfully");
-    } else if (method === "delete") {
-      toastSuccess(msgFromServer || "Deleted successfully");
+    
+    // Only show success toast for mutations
+    if (["post", "put", "patch", "delete"].includes(method)) {
+      // If server provides a message, use it, otherwise use default
+      toastSuccess(msgFromServer || (method === "delete" ? "Deleted successfully" : "Saved successfully"));
     }
     return res;
   },
@@ -33,10 +35,19 @@ adminClient.interceptors.response.use(
       localStorage.removeItem("adminToken");
       localStorage.removeItem("adminInfo");
     }
-    const msg =
-      err.response?.data?.message ||
-      err.message ||
-      "Something went wrong while calling API";
+
+    // If the request explicitly asks to skip global toast, don't show it
+    if (err.config?._skipToast) return Promise.reject(err);
+
+    let msg = "Something went wrong while calling API";
+    if (err.response?.data) {
+      const data = err.response.data;
+      // Priority: data.message > first validation error > generic message
+      msg = data.message || (data.errors && typeof data.errors === 'object' ? Object.values(data.errors)[0] : null) || err.message || msg;
+    } else {
+      msg = err.message || msg;
+    }
+
     toastError(msg);
     return Promise.reject(err);
   }

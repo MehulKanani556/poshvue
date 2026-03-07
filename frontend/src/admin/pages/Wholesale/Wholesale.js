@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FiEdit2, FiTrash2, FiPlus, FiX, FiEye } from "react-icons/fi";
 import adminClient from "../../../api/adminClient";
 import Modal from "../../components/Modal";
+import { toast } from "react-toastify";
 
 function Wholesale() {
     const [wholesalers, setWholesalers] = useState([]);
@@ -100,10 +101,19 @@ function Wholesale() {
         setShowDeleteModal(true);
     };
 
-    const handleDeleteConfirm = () => {
-        setWholesalers(wholesalers.filter((w) => w.id !== deletingId));
-        setShowDeleteModal(false);
-        setDeletingId(null);
+    const handleDeleteConfirm = async () => {
+        if (!deletingId) return;
+        try {
+            setLoading(true);
+            await adminClient.delete(`/support/wholesale/${deletingId}`);
+            setWholesalers(wholesalers.filter((w) => w.id !== deletingId));
+        } catch (err) {
+            console.error("Delete wholesaler error:", err);
+        } finally {
+            setLoading(false);
+            setShowDeleteModal(false);
+            setDeletingId(null);
+        }
     };
 
     return (

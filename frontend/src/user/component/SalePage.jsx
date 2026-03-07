@@ -141,6 +141,7 @@ const SalePage = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          _skipToast: true
         },
       );
 
@@ -177,6 +178,7 @@ const SalePage = () => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
+          _skipToast: true
         },
       );
       toast.success("Added to cart");

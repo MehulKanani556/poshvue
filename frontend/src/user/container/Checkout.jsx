@@ -1042,7 +1042,7 @@ function Checkout() {
       const res = await client.post("/commerce/coupons/validate", {
         code: codeToUse,
         subtotal: subTotal,
-      });
+      }, { _skipToast: true });
 
       if (res.data && res.data.valid) {
         setAppliedCoupon(res.data.coupon);
