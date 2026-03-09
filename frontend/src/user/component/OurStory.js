@@ -10,6 +10,7 @@ import {
 } from "react-icons/fa";
 import { getStory } from "../../api/client";
 import Loader from "./Loader";
+import { Link } from "react-router-dom";
 
 const iconMap = {
   FaCrown,
@@ -44,7 +45,7 @@ const OurStory = ({ story: propStory }) => {
   }, [propStory]);
 
   if (loading) {
-    return <Loader fullScreen  text="Loading Data..." />;
+    return <Loader fullScreen text="Loading Data..." />;
   }
 
   if (!story) {
@@ -328,7 +329,9 @@ const OurStory = ({ story: propStory }) => {
         <Container>
           <h2 className="mb-3">{story?.cta?.title}</h2>
           <p className="lead">{story?.cta?.subtitle}</p>
-          <button className="d_story_btn">Explore Collections</button>
+          <Link to="/ShopPage">
+            <button className="d_story_btn">Explore Collections</button>
+          </Link>
         </Container>
       </section>
     </div>

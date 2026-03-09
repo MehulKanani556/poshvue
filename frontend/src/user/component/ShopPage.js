@@ -24,7 +24,7 @@ const ShopPage = () => {
   const [selectedFilters, setSelectedFilters] = useState({});
   const [selectedSort, setSelectedSort] = useState("NEWEST");
   const navigate = useNavigate();
-  const { formatPrice, selectedCountry } = useCurrency(); // Add selectedCountry to trigger re-render
+  const { formatPrice, selectedCountry, getConvertedPrice } = useCurrency(); // Add getConvertedPrice for sorting
   const [wishlistIds, setWishlistIds] = useState([]);
   const [cartLoadingId, setCartLoadingId] = useState(null);
   const [products, setProducts] = useState([]);
@@ -243,9 +243,7 @@ const ShopPage = () => {
         setAllProducts(uniqueItems);
         setProducts(uniqueItems);
 
-        const prices = items.map((p) =>
-          typeof p.salePrice === "number" ? p.salePrice : p.price || 0,
-        );
+        const prices = items.map((p) => getConvertedPrice(p, 'salePrice'));
         const min = prices.length ? Math.min(...prices) : 2000;
         const max = prices.length ? Math.max(...prices) : 100000;
         setMinPrice(min);
@@ -446,8 +444,7 @@ const ShopPage = () => {
     let list = [...allProducts];
 
     list = list.filter((p) => {
-      const price =
-        typeof p.salePrice === "number" ? p.salePrice : p.price || 0;
+      const price = getConvertedPrice(p, 'salePrice');
       return price <= Number(priceRange || 0);
     });
 
@@ -511,10 +508,8 @@ const ShopPage = () => {
 
     const sortKey = selectedSort;
     list.sort((a, b) => {
-      const priceA =
-        typeof a.salePrice === "number" ? a.salePrice : a.price || 0;
-      const priceB =
-        typeof b.salePrice === "number" ? b.salePrice : b.price || 0;
+      const priceA = getConvertedPrice(a, 'salePrice');
+      const priceB = getConvertedPrice(b, 'salePrice');
       switch (sortKey) {
         case "PRICE_LOW_HIGH":
           return priceA - priceB;
