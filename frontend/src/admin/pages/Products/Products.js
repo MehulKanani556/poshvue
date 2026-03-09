@@ -1292,7 +1292,7 @@ function Products() {
                         }
                         const displayPrice = priceInfo.salePrice != null ? priceInfo.salePrice : priceInfo.price;
                         return (
-                          <div style={{ fontWeight: "700", color: "#2b4d6e" }}>
+                          <div style={{ fontWeight: "700", color: "#2b4d6e", textAlign: "center" }}>
                             {selectedCurrencySymbol}{typeof displayPrice === "number" ? displayPrice.toFixed(2) : displayPrice}
                           </div>
                         );
