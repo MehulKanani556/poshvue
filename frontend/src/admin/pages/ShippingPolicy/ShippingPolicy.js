@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FiEdit2, FiSave, FiEye, FiPlus, FiTrash2, FiType, FiImage } from "react-icons/fi";
+import { FaTruck, FaCalendarCheck, FaGlobeAmericas } from "react-icons/fa";
 import adminClient from "../../../api/adminClient";
 import { Link } from "react-router-dom";
 
@@ -17,6 +18,19 @@ function ShippingPolicy() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [mode, setMode] = useState('edit');
+
+  const Icon = ({ name }) => {
+    switch (name) {
+      case 'FaTruck':
+        return <FaTruck />;
+      case 'FaCalendarCheck':
+        return <FaCalendarCheck />;
+      case 'FaGlobeAmericas':
+        return <FaGlobeAmericas />;
+      default:
+        return null;
+    }
+  };
 
   useEffect(() => {
     const fetchShippingPolicy = async () => {
@@ -292,7 +306,7 @@ function ShippingPolicy() {
                   <div key={index} className="col-12 col-md-6 col-xl-4">
                     <div className="d_info_card">
                       <div style={{ fontSize: '1.7rem', color: '#d4af37', marginBottom: '15px' }}>
-                        {card.icon}
+                        <Icon name={card.icon} />
                       </div>
                       <h5>{card.title}</h5>
                       <p>{card.text}</p>
