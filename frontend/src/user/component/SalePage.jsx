@@ -1,20 +1,12 @@
 import React, { useState, useEffect } from "react";
-import {
-  Heart,
-  // ShoppingCart,
-  ChevronDown,
-  ChevronUp,
-  X,
-  Filter,
-  ArrowUpDown,
-  Check,
-} from "lucide-react";
+import { Heart, ChevronDown, ChevronUp, X, Filter, ArrowUpDown, Check} from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import client from "../../api/client";
 import { useCurrency } from "../../context/CurrencyContext";
 import { toast } from "react-toastify";
 import Loader from "./Loader";
 import { Link, NavLink } from "react-router-dom";
+import API_BASE_URL from "../../config/api";
 
 const SalePage = () => {
   // Logic updated: Max 2 categories open at once
@@ -60,6 +52,29 @@ const SalePage = () => {
       window.removeEventListener("countryChanged", handleCountryChange);
   }, []);
 
+
+  const getImageUrl = (product) => {
+    if (!product) return "/placeholder.jpg";
+
+    let img = "";
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      const firstImg = product.images[0];
+      img = typeof firstImg === 'string' ? firstImg : (firstImg.url || "");
+    } else if (product.image) {
+      img = product.image;
+    }
+
+    if (!img || typeof img !== 'string') return "/placeholder.jpg";
+
+    // The backend now provides absolute URLs. If it's already absolute, return it.
+    if (img.startsWith("http")) return img;
+
+    // Relative URLs
+    const baseUrl = API_BASE_URL.replace("/api", "");
+    const slash = img.startsWith("/") ? "" : "/";
+    return `${baseUrl}${slash}${img}`;
+  };
+
   // Handle offcanvas backdrop clicks and cleanup
   useEffect(() => {
     const filterOffcanvasEl = document.getElementById('offcanvasFilters');
@@ -97,14 +112,14 @@ const SalePage = () => {
 
     // Attach backdrop click handler to document with capture phase
     document.addEventListener('click', handleBackdropClick, true);
-    
+
     if (filterOffcanvasEl) {
       filterOffcanvasEl.addEventListener('hidden.bs.offcanvas', handleHide);
     }
     if (sortOffcanvasEl) {
       sortOffcanvasEl.addEventListener('hidden.bs.offcanvas', handleHide);
     }
-    
+
     return () => {
       document.removeEventListener('click', handleBackdropClick, true);
       if (filterOffcanvasEl) {
@@ -211,28 +226,61 @@ const SalePage = () => {
 
         const items = Array.isArray(res.data.items) ? res.data.items : [];
 
-        // ✅ ONLY SALE / DISCOUNT PRODUCTS
+        // ✅ ONLY SALE / DISCOUNT PRODUCTS based on selectedCountry
         const discounted = items.filter((p) => {
-          const discountPercent =
-            typeof p.discountPercent === "number" ? p.discountPercent : 0;
+          let finalDiscountPercent = 0;
+          let hasSale = false;
 
-          const hasDiscountPercent = discountPercent > 0;
+          if (selectedCountry && p.pricesByCountry && Array.isArray(p.pricesByCountry)) {
+            const countryPrice = p.pricesByCountry.find(
+              (cp) =>
+                cp.country &&
+                (cp.country._id === selectedCountry._id ||
+                  cp.country === selectedCountry._id ||
+                  cp.country === selectedCountry.code)
+            );
 
-          const hasSalePrice =
-            typeof p.salePrice === "number" &&
-            typeof p.price === "number" &&
-            p.salePrice < p.price;
+            if (countryPrice) {
+              finalDiscountPercent =
+                typeof countryPrice.discountPercent === "number"
+                  ? countryPrice.discountPercent
+                  : 0;
+              
+              // Also check if salePrice < price for this country
+              if (typeof countryPrice.salePrice === "number" && 
+                  typeof countryPrice.price === "number" && 
+                  countryPrice.salePrice < countryPrice.price) {
+                hasSale = true;
+              }
+            }
+          } else {
+            // Fallback to global values if no country selected or no country-specific prices
+            finalDiscountPercent = typeof p.discountPercent === "number" ? p.discountPercent : 0;
+            hasSale = typeof p.salePrice === "number" && typeof p.price === "number" && p.salePrice < p.price;
+          }
 
-          return hasDiscountPercent || hasSalePrice;
+          return finalDiscountPercent > 0 || hasSale;
         });
 
         setAllProducts(discounted);
         setProducts(discounted);
 
-        // ✅ Dynamic price range only from sale products
-        const prices = discounted.map((p) =>
-          typeof p.salePrice === "number" ? p.salePrice : p.price || 0,
-        );
+        // ✅ Dynamic price range only from sale products for the current country
+        const prices = discounted.map((p) => {
+          if (selectedCountry && p.pricesByCountry && Array.isArray(p.pricesByCountry)) {
+            const cp = p.pricesByCountry.find(
+              (cp) =>
+                cp.country &&
+                (cp.country._id === selectedCountry._id ||
+                  cp.country === selectedCountry._id ||
+                  cp.country === selectedCountry.code)
+            );
+            if (cp) {
+              return typeof cp.salePrice === "number" ? cp.salePrice : cp.price || 0;
+            }
+          }
+          return typeof p.salePrice === "number" ? p.salePrice : p.price || 0;
+        });
 
         const min = prices.length ? Math.min(...prices) : 2000;
         const max = prices.length ? Math.max(...prices) : 100000;
@@ -250,7 +298,7 @@ const SalePage = () => {
     };
 
     fetchProducts();
-  }, []);
+  }, [selectedCountry]);
 
   // Build dynamic filter options whenever allProducts changes
   useEffect(() => {
@@ -274,7 +322,21 @@ const SalePage = () => {
     const works = uniq(allProducts.map((p) => p.work));
     const styles = uniq(allProducts.map((p) => p.productType));
 
-    const discountsRaw = uniq(allProducts.map((p) => p.discountPercent)).filter(
+    const discountsRaw = uniq(allProducts.map((p) => {
+      if (selectedCountry && p.pricesByCountry && Array.isArray(p.pricesByCountry)) {
+        const cp = p.pricesByCountry.find(
+          (cp) =>
+            cp.country &&
+            (cp.country._id === selectedCountry._id ||
+              cp.country === selectedCountry._id ||
+              cp.country === selectedCountry.code)
+        );
+        if (cp && typeof cp.discountPercent === "number") {
+          return cp.discountPercent;
+        }
+      }
+      return p.discountPercent;
+    })).filter(
       (n) => typeof n === "number" && n > 0,
     );
     const bucketsSet = new Set(
@@ -436,9 +498,28 @@ const SalePage = () => {
   useEffect(() => {
     let list = [...allProducts];
 
+    const getProductData = (p) => {
+      let price = typeof p.salePrice === "number" ? p.salePrice : p.price || 0;
+      let discount = typeof p.discountPercent === "number" ? p.discountPercent : 0;
+
+      if (selectedCountry && p.pricesByCountry && Array.isArray(p.pricesByCountry)) {
+        const cp = p.pricesByCountry.find(
+          (cp) =>
+            cp.country &&
+            (cp.country._id === selectedCountry._id ||
+              cp.country === selectedCountry._id ||
+              cp.country === selectedCountry.code)
+        );
+        if (cp) {
+          price = typeof cp.salePrice === "number" ? cp.salePrice : cp.price || 0;
+          discount = typeof cp.discountPercent === "number" ? cp.discountPercent : 0;
+        }
+      }
+      return { price, discount };
+    };
+
     list = list.filter((p) => {
-      const price =
-        typeof p.salePrice === "number" ? p.salePrice : p.price || 0;
+      const { price } = getProductData(p);
       return price <= Number(priceRange || 0);
     });
 
@@ -479,7 +560,10 @@ const SalePage = () => {
         .filter((n) => !isNaN(n));
       const minThreshold = thresholds.length ? Math.min(...thresholds) : null;
       if (minThreshold !== null) {
-        list = list.filter((p) => (p.discountPercent || 0) >= minThreshold);
+        list = list.filter((p) => {
+          const { discount } = getProductData(p);
+          return discount >= minThreshold;
+        });
       }
     }
 
@@ -492,7 +576,7 @@ const SalePage = () => {
             return (
               catName &&
               String(catName).toLowerCase().trim() ===
-                categoryFilter.toLowerCase().trim()
+              categoryFilter.toLowerCase().trim()
             );
           });
         }
@@ -502,17 +586,16 @@ const SalePage = () => {
 
     const sortKey = selectedSort;
     list.sort((a, b) => {
-      const priceA =
-        typeof a.salePrice === "number" ? a.salePrice : a.price || 0;
-      const priceB =
-        typeof b.salePrice === "number" ? b.salePrice : b.price || 0;
+      const { price: priceA, discount: discountA } = getProductData(a);
+      const { price: priceB, discount: discountB } = getProductData(b);
+
       switch (sortKey) {
         case "PRICE_LOW_HIGH":
           return priceA - priceB;
         case "PRICE_HIGH_LOW":
           return priceB - priceA;
         case "DISCOUNT":
-          return (b.discountPercent || 0) - (a.discountPercent || 0);
+          return discountB - discountA;
         case "NEWEST":
         default:
           return (
@@ -522,7 +605,7 @@ const SalePage = () => {
     });
 
     setProducts(list);
-  }, [allProducts, selectedFilters, priceRange, selectedSort, categoryFilter]);
+  }, [allProducts, selectedFilters, priceRange, selectedSort, categoryFilter, selectedCountry]);
 
   const FilterContent = () => (
     <div className="p-3 p-lg-0">
@@ -700,7 +783,7 @@ const SalePage = () => {
           </Link>
           {" | "}
           <NavLink to="/SalePage" className="breadcrumb-link active">
-           SALE PRODUCTS
+            SALE PRODUCTS
           </NavLink>
         </div>
       </section>
@@ -778,9 +861,8 @@ const SalePage = () => {
             ].map((opt) => (
               <div
                 key={opt.value}
-                className={`sort-option-item p-3 border-bottom d-flex justify-content-between align-items-center ${
-                  selectedSort === opt.value ? "bg-light fw-bold" : ""
-                }`}
+                className={`sort-option-item p-3 border-bottom d-flex justify-content-between align-items-center ${selectedSort === opt.value ? "bg-light fw-bold" : ""
+                  }`}
                 onClick={() => {
                   setSelectedSort(opt.value);
                   const offcanvasElement = document.getElementById('offcanvasSort');
@@ -838,13 +920,13 @@ const SalePage = () => {
               )}
               {(Object.values(selectedFilters).flat().length > 0 ||
                 categoryFilter) && (
-                <button
-                  className="btn btn-link btn-sm text-dark fw-bold small text-decoration-none"
-                  onClick={clearAllFilters}
-                >
-                  Clear All
-                </button>
-              )}
+                  <button
+                    className="btn btn-link btn-sm text-dark fw-bold small text-decoration-none"
+                    onClick={clearAllFilters}
+                  >
+                    Clear All
+                  </button>
+                )}
             </div>
 
             <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
@@ -891,7 +973,7 @@ const SalePage = () => {
                           stroke="black"
                         />
                       </button>
-                      <img
+                      {/* <img
                         src={
                           Array.isArray(product.images)
                             ? product.images[0]
@@ -899,6 +981,12 @@ const SalePage = () => {
                         }
                         alt={product.title}
                         className="d_product-img"
+                      /> */}
+                      <img
+                        src={getImageUrl(product)}
+                        alt={product.name || product.title}
+                        className="d_product-img"
+                        onClick={() => navigate(`/product/${product._id}`)}
                       />
                       <div className="d_product-overlay">
                         <button
