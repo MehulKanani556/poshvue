@@ -8,6 +8,8 @@ import "./admin/styles/x_admin.css";
 import "./admin/styles/x_table.css";
 
 import { CurrencyProvider } from "./context/CurrencyContext";
+import { CartProvider } from "./context/CartContext";
+import { WishlistProvider } from "./context/WishlistContext";
 import adminClient from "./api/adminClient";
 import client from "./api/client";
 
@@ -197,45 +199,49 @@ function App() {
           path="*"
           element={
             <CurrencyProvider>
-              <CountryRestriction>
-                <div>
-                  <Header />
-                  <Routes>
-                    <Route path="/" element={<Main />} />
-                    <Route path="/Register" element={<Register mode="register" />} />
-                    <Route path="/Login" element={<Register mode="login" />} />
-                    <Route path="/heroslider" element={<HeroSlider />} />
-                    <Route path="/ShopPage" element={<ShopPage />} />
-                    <Route path="/SalePage" element={<SalePage />} />
-                    <Route path="/HomeSlider" element={<HomeSlider />} />
-                    <Route path="/HomePoster" element={<HomePoster />} />
-                    <Route path="/TermAndConditions" element={<TermAndConditionsUser />} />
-                    <Route path="/Cart" element={<Cart />} />
-                    <Route path="/Checkout" element={<Checkout />} />
-                    <Route path="/AboutUs" element={<AboutUsUser />} />
-                    <Route path="/ContactUs" element={<ContactUsUser />} />
-                    <Route path="/OurStory" element={<OurStory />} />
-                    <Route path="/StoreLocator" element={<StoreLocatorUser />} />
-                    <Route path="/PrivacyPolicy" element={<PrivacyPolicyUser />} />
-                    <Route path="/ReturnPolicy" element={<ReturnPolicyUser />} />
-                    <Route path="/Wishlist" element={<Wishlist />} />
-                    <Route path="/Profile" element={<Profile />} />
-                    <Route path="/product/:id" element={<ProductDetailPage />} />
-                    <Route path="/pro" element={<Product />} />
-                    <Route path="/Blog" element={<BlogUser />} />
-                    <Route path="/blog" element={<BlogUser />} />
-                    <Route path="/blog/:slug" element={<BlogDetail />} />
-                    <Route path="/Review" element={<Review />} />
-                    <Route path="/GeneralFeedback" element={<GeneralFeedback />} />
-                    <Route path="/ShippingPolicy" element={<ShippingPolicyUser />} />
-                    <Route path="/TrackOrder" element={<TrackOrderUser />} />
-                    <Route path="/Complain" element={<Complain />} />
-                    <Route path="/wholesale" element={<WholesaleUser />} />
-                    <Route path="/search" element={<SearchPage />} />
-                  </Routes>
-                  <Footer />
-                </div>
-              </CountryRestriction>
+              <CartProvider>
+                <WishlistProvider>
+                  <CountryRestriction>
+                    <div>
+                      <Header />
+                      <Routes>
+                        <Route path="/" element={<Main />} />
+                        <Route path="/Register" element={<Register mode="register" />} />
+                        <Route path="/Login" element={<Register mode="login" />} />
+                        <Route path="/heroslider" element={<HeroSlider />} />
+                        <Route path="/ShopPage" element={<ShopPage />} />
+                        <Route path="/SalePage" element={<SalePage />} />
+                        <Route path="/HomeSlider" element={<HomeSlider />} />
+                        <Route path="/HomePoster" element={<HomePoster />} />
+                        <Route path="/TermAndConditions" element={<TermAndConditionsUser />} />
+                        <Route path="/Cart" element={<Cart />} />
+                        <Route path="/Checkout" element={<Checkout />} />
+                        <Route path="/AboutUs" element={<AboutUsUser />} />
+                        <Route path="/ContactUs" element={<ContactUsUser />} />
+                        <Route path="/OurStory" element={<OurStory />} />
+                        <Route path="/StoreLocator" element={<StoreLocatorUser />} />
+                        <Route path="/PrivacyPolicy" element={<PrivacyPolicyUser />} />
+                        <Route path="/ReturnPolicy" element={<ReturnPolicyUser />} />
+                        <Route path="/Wishlist" element={<Wishlist />} />
+                        <Route path="/Profile" element={<Profile />} />
+                        <Route path="/product/:id" element={<ProductDetailPage />} />
+                        <Route path="/pro" element={<Product />} />
+                        <Route path="/Blog" element={<BlogUser />} />
+                        <Route path="/blog" element={<BlogUser />} />
+                        <Route path="/blog/:slug" element={<BlogDetail />} />
+                        <Route path="/Review" element={<Review />} />
+                        <Route path="/GeneralFeedback" element={<GeneralFeedback />} />
+                        <Route path="/ShippingPolicy" element={<ShippingPolicyUser />} />
+                        <Route path="/TrackOrder" element={<TrackOrderUser />} />
+                        <Route path="/Complain" element={<Complain />} />
+                        <Route path="/wholesale" element={<WholesaleUser />} />
+                        <Route path="/search" element={<SearchPage />} />
+                      </Routes>
+                      <Footer />
+                    </div>
+                  </CountryRestriction>
+                </WishlistProvider>
+              </CartProvider>
             </CurrencyProvider>
           }
         />

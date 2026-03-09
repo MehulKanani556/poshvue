@@ -19,7 +19,11 @@ const Footer = () => {
   const [msg, setMsg] = useState("");
 
   const handleSubmit = async () => {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email) return setMsg("Please enter email");
+    if (!emailPattern.test(email)) {
+      return setMsg("Please enter a valid email address");
+    }
     if (!consent) return setMsg("Please accept privacy policy");
 
     try {
@@ -52,6 +56,7 @@ const Footer = () => {
               placeholder="Enter your Email Address"
               className="d_newsletter-input"
               value={email}
+              required
               onChange={(e) => setEmail(e.target.value)}
             />
             <button className="d_subscribe-btn" onClick={handleSubmit}>

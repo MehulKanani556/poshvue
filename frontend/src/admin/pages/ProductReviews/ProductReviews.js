@@ -302,21 +302,7 @@ function ProductReviews() {
                             <div style={{ display: "flex", gap: 2, marginTop: 2 }}>
                               {renderStars(review.rating || 0, 12)}
                             </div>
-                          </div>
-                          <span
-                            style={{
-                              fontSize: 10,
-                              textTransform: "uppercase",
-                              letterSpacing: "0.5px",
-                              padding: "4px 8px",
-                              borderRadius: 6,
-                              fontWeight: 700,
-                              background: review.status === "approved" ? "#e8f5e9" : "#fff3e0",
-                              color: review.status === "approved" ? "#2e7d32" : "#ef6c00",
-                            }}
-                          >
-                            {review.status || "pending"}
-                          </span>
+                          </div>                         
                         </div>
 
                         {review.comment && (

@@ -5,29 +5,17 @@ import { useNavigate } from "react-router-dom";
 import wishEmptyImg from "../../img/image.png";
 import axios from "axios";
 import { useCurrency } from "../../context/CurrencyContext";
+import { useWishlist } from "../../context/WishlistContext";
 import API_BASE_URL from "../../config/api";
 
 function Wishlist(props) {
   const navigate = useNavigate();
   const { formatPrice, selectedCountry } = useCurrency();
-  const [wishlistItems, setWishlistItems] = useState([]);
-  { console.log(wishlistItems, "wishlistItems") }
-  const [loading, setLoading] = useState(true);
+  const { wishlistItems, loading, toggleWishlist } = useWishlist();
   
-  // Listen for country changes and force re-render
-  useEffect(() => {
-    const handleCountryChange = () => {
-      // Force re-render when country changes
-      setWishlistItems((prev) => [...prev]);
-    };
-    window.addEventListener("countryChanged", handleCountryChange);
-    return () =>
-      window.removeEventListener("countryChanged", handleCountryChange);
-  }, []);
 
-  useEffect(() => {
-    fetchWishlist();
-  }, []);
+
+
 
   const getImageUrl = (imgData) => {
     if (!imgData) return wishEmptyImg;
@@ -43,51 +31,9 @@ function Wishlist(props) {
     return `${baseUrl}${slash}${img}`;
   };
 
-  const fetchWishlist = async () => {
-    try {
-      const token = localStorage.getItem("userToken");
-
-      if (!token) {
-        console.log("No token found");
-        return;
-      }
-
-      const res = await axios.get(
-        `${API_BASE_URL}/wishlist`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      
-      // Filter out items where the product might have been deleted (item.product is null)
-      const validItems = (res.data.items || []).filter(item => item && item.product);
-      setWishlistItems(validItems);
-    } catch (error) {
-      console.error("Wishlist fetch error", error.response?.data || error.message);
-    }
-  };
-
   const removeFromWishlist = async (productId) => {
     try {
-      const token = localStorage.getItem("userToken");
-
-      if (!token) {
-        console.log("User not logged in");
-        return;
-      }
-
-      // Call API to remove item
-      await axios.delete(`${API_BASE_URL}/wishlist/${productId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      // Update state to remove item from UI (with null check for safety)
-      setWishlistItems((prev) =>
-        prev.filter((i) => i.product && i.product._id !== productId)
-      );
-
+      await toggleWishlist(productId);
       console.log("Item removed from wishlist");
     } catch (err) {
       console.error("Error removing item", err.response?.data || err.message);

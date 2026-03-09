@@ -30,6 +30,8 @@ import SimiliarPro from "./SimiliarPro";
 import { useNavigate, useParams } from "react-router-dom";
 import client from "../../api/client";
 import { useCurrency } from "../../context/CurrencyContext";
+import { useCart } from "../../context/CartContext";
+import { useWishlist } from "../../context/WishlistContext";
 import API_BASE_URL from "../../config/api";
 import { toast } from "react-toastify";
 import Loader from "./Loader";
@@ -40,14 +42,16 @@ const ProductDetailPage = () => {
   const { id } = useParams(); // product id from route
   const navigate = useNavigate();
   const { formatPrice: formatPriceWithCurrency, selectedCountry } = useCurrency(); // Add selectedCountry to trigger re-render
+  const { addToCart, cartItems } = useCart();
+  const { wishlistItems, toggleWishlist: toggleWishlistAction } = useWishlist();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [addingToCart, setAddingToCart] = useState(false);
-  const [cartItems, setCartItems] = useState([]);
+
   const [justAdded, setJustAdded] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0); // Force re-render when country changes
-  const [wishlistIds, setWishlistIds] = useState([]);
+
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const token = localStorage.getItem("userToken");
 
@@ -146,57 +150,9 @@ const ProductDetailPage = () => {
     };
   }, [id]);
 
-  // fetch cart to check if current selection already added
-  useEffect(() => {
-    let mounted = true;
-    const token = localStorage.getItem("userToken");
-    if (!token) {
-      setCartItems([]);
-      return;
-    }
-    (async () => {
-      try {
-        const res = await client.get("/cart", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!mounted) return;
-        // Handle both response formats: { items: [] } or direct array
-        const items = res.data?.items || (Array.isArray(res.data) ? res.data : []);
-        setCartItems(items);
-      } catch (err) {
-        console.error("Cart fetch error:", err);
-        if (mounted) setCartItems([]);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [id]); // Re-fetch when product ID changes
 
-  // Fetch wishlist
-  useEffect(() => {
-    let mounted = true;
-    if (!token) {
-      setWishlistIds([]);
-      return;
-    }
-    (async () => {
-      try {
-        const res = await client.get("/wishlist", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!mounted) return;
-        const ids = res.data?.items?.map((i) => i.product._id || i.product) || [];
-        setWishlistIds(ids);
-      } catch (err) {
-        // user not logged in or empty wishlist
-        if (mounted) setWishlistIds([]);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [id, token]);
+
+  const wishlistIds = useMemo(() => wishlistItems.map(item => item.product?._id || item.product), [wishlistItems]);
 
   // Toggle wishlist
   const toggleWishlist = async () => {
@@ -211,23 +167,8 @@ const ProductDetailPage = () => {
 
     try {
       setWishlistLoading(true);
-      await client.post(
-        "/wishlist/toggle",
-        { productId },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
+      await toggleWishlistAction(productId);
       const isInWishlist = wishlistIds.includes(productId);
-      setWishlistIds((prev) =>
-        prev.includes(productId)
-          ? prev.filter((id) => id !== productId)
-          : [...prev, productId]
-      );
-
       if (isInWishlist) {
         toast.success("Removed from wishlist");
       } else {
@@ -321,7 +262,6 @@ const ProductDetailPage = () => {
   }, [product, defaultProduct.images]);
 
   const handleAddToBag = async () => {
-    const token = localStorage.getItem("userToken");
     if (!token) {
       toast.warning("Please login to add items to cart");
       navigate("/Register");
@@ -344,36 +284,17 @@ const ProductDetailPage = () => {
 
     try {
       setAddingToCart(true);
-      await client.post(
-        "/cart/add",
-        {
-          productId: product?._id || product?.id || id,
-          qty: 1,
-          size: selectedSize,
-          color: colorToSend,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await addToCart({
+        productId: product?._id || product?.id || id,
+        qty: 1,
+        size: selectedSize,
+        color: colorToSend,
+      });
 
-      // સફળતાપૂર્વક એડ થયા પછી:
       setJustAdded(true);
-
-      // લેટેસ્ટ કાર્ટ ડેટા ફેચ કરો જેથી બટન તરત 'Already in Cart' થઈ જાય
-      try {
-        const res = await client.get("/cart", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const items = res.data?.items || (Array.isArray(res.data) ? res.data : []);
-        setCartItems(items);
-      } catch (fetchErr) {
-        console.error("Failed to refresh cart:", fetchErr);
-      }
-
-      // alert("Added to cart");
+      toast.success("Added to cart");
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to add to cart");
+      toast.error(err?.response?.data?.message || "Failed to add to cart");
     } finally {
       setAddingToCart(false);
     }

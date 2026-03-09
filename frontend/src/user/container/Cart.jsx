@@ -9,6 +9,7 @@ import API_BASE_URL, { API_ENDPOINTS } from "../../config/api";
 import wishEmptyImg from "../../img/image1.png";
 import Loader from "../component/Loader";
 import { useCurrency } from "../../context/CurrencyContext";
+import { useCart } from "../../context/CartContext";
 
 function Cart() {
   const navigate = useNavigate();
@@ -26,8 +27,7 @@ function Cart() {
     return `${selectedCountry.currencySymbol}${formatted}`;
   };
 
-  // Cart items state
-  const [cartItems, setCartItems] = useState([]);
+  const { cartItems, updateQty, removeFromCart, loading: cartLoading } = useCart();
 
   // Coupon state - initialize early to avoid initialization issues
   const [couponCode, setCouponCode] = useState("");
@@ -217,57 +217,7 @@ function Cart() {
     calculateTotals();
   }, [cartItems, appliedCoupon, selectedCountry, calculateShippingCharges, getConvertedPrice, liveExchangeRate]);
 
-  useEffect(() => {
-    const fetchCart = async () => {
-      const token = localStorage.getItem("userToken");
-      if (!token) {
-        toast.warning("Please login to continue");
-        navigate("/Register");
-        return;
-      }
-      try {
-        const res = await axios.get(API_ENDPOINTS.CART, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setCartItems(res.data.items || []);
-      } catch (err) {
-        console.error("Error fetching cart:", err);
-      }
-    };
-    fetchCart();
 
-    // fetch active coupons for dropdown (filtered by selected country)
-    (async () => {
-      try {
-        const params = selectedCountry?.code ? { countryCode: selectedCountry.code } : {};
-        const res = await client.get("/commerce/coupons/active", { params });
-        setAvailableCoupons(Array.isArray(res.data) ? res.data : []);
-      } catch (err) {
-        console.error("Failed to fetch coupons for cart:", err);
-      }
-    })();
-  }, [selectedCountry?.code]);
-
-  // Update quantity for a specific variant (product + size + color)
-  const updateQty = async ({ productId, size, color }, qty) => {
-    const token = localStorage.getItem("userToken");
-    if (!token) {
-      // alert("Please login to continue");
-      navigate("/Register");
-      return;
-    }
-    try {
-      const res = await axios.put(
-        API_ENDPOINTS.CART_UPDATE,
-        { productId, qty, size: size ?? null, color: color ?? null },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      setCartItems(res.data.items || []);
-    } catch (err) {
-      console.error("Error updating quantity:", err);
-      alert(err.response?.data?.message || "Failed to update quantity");
-    }
-  };
 
   const increaseQty = (item) => {
     if (!item.product?._id) return;
@@ -288,22 +238,11 @@ function Cart() {
 
   // Remove item
   const deleteItem = async (item) => {
-    const token = localStorage.getItem("userToken");
-    if (!token || !item.product?._id) return;
-
+    if (!item.product?._id) return;
     try {
-      const res = await axios.delete(
-        `${API_ENDPOINTS.CART}/remove/${item.product._id}?size=${encodeURIComponent(
-          item.size || "",
-        )}&color=${encodeURIComponent(item.color || "")}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setCartItems(res.data.items || []);
+      await removeFromCart(item.product._id);
       toast.success("Item removed from cart");
     } catch (err) {
-      console.error("Error deleting item:", err);
       toast.error(err.response?.data?.message || "Failed to remove item");
     }
   };

@@ -23,6 +23,8 @@ import { useNavigate } from "react-router-dom";
 import client from "../../api/client";
 
 import { useCurrency } from "../../context/CurrencyContext";
+import { useCart } from "../../context/CartContext";
+import { useWishlist } from "../../context/WishlistContext";
 
 import { FaWhatsapp } from "react-icons/fa";
 
@@ -56,55 +58,8 @@ const Header = () => {
 
   const [loading, setLoading] = useState(false);
 
-  // Counts for wishlist and cart (badges)
-  const [cartCount, setCartCount] = useState(0);
-  const [wishlistCount, setWishlistCount] = useState(0);
-
-  // Fetch counts from backend
-  const fetchCounts = async () => {
-    const token = localStorage.getItem("userToken");
-    if (!token) {
-      setCartCount(0);
-      setWishlistCount(0);
-      return;
-    }
-    try {
-      const [cartRes, wishRes] = await Promise.all([
-        client.get("/cart", { headers: { Authorization: `Bearer ${token}` } }),
-        client.get("/wishlist", { headers: { Authorization: `Bearer ${token}` } }),
-      ]);
-      const cartItems = cartRes?.data?.items || [];
-      const wishItems = wishRes?.data?.items || [];
-      setCartCount(Array.isArray(cartItems) ? cartItems.length : 0);
-      setWishlistCount(Array.isArray(wishItems) ? wishItems.length : 0);
-    } catch (err) {
-      console.error("Header counts fetch error:", err?.response?.data || err.message);
-    }
-  };
-
-  // Refresh counts when login state changes
-  useEffect(() => {
-    if (isLoggedIn) {
-      fetchCounts();
-    } else {
-      setCartCount(0);
-      setWishlistCount(0);
-    }
-  }, [isLoggedIn]);
-
-  // Refresh counts on focus and optional custom events
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    const refresh = () => fetchCounts();
-    window.addEventListener("focus", refresh);
-    window.addEventListener("cartUpdated", refresh);
-    window.addEventListener("wishlistUpdated", refresh);
-    return () => {
-      window.removeEventListener("focus", refresh);
-      window.removeEventListener("cartUpdated", refresh);
-      window.removeEventListener("wishlistUpdated", refresh);
-    };
-  }, [isLoggedIn]);
+  const { cartCount } = useCart();
+  const { wishlistCount } = useWishlist();
 
 
 
