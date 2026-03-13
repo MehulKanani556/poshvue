@@ -1045,13 +1045,14 @@ function Checkout() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await client.get("/commerce/coupons/active");
+        const countryParam = selectedCountry?.code ? `?country=${selectedCountry.code}` : '';
+        const res = await client.get(`/commerce/coupons/active${countryParam}`);
         setAvailableCoupons(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error("Failed to fetch coupons:", err);
       }
     })();
-  }, []);
+  }, [selectedCountry]);
 
   // Apply coupon (can pass code param to apply directly from available list)
 

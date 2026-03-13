@@ -40,6 +40,8 @@ function Cart() {
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [total, setTotal] = useState(0);
   const [liveExchangeRate, setLiveExchangeRate] = useState(null);
+  console.log(couponCode,"couponCode");
+  
 
   // Listen for country changes and force re-render
   // useEffect(() => {
@@ -284,6 +286,8 @@ function Cart() {
         subtotal: subTotal,
         countryCode: selectedCountry?.code || undefined,
       });
+      console.log(res.data,"coupon validation response");
+      
 
       if (res.data && res.data.valid) {
         setAppliedCoupon(res.data.coupon);
@@ -307,18 +311,20 @@ function Cart() {
     toast.info("Coupon removed");
   };
 
-  // Totals - Use getConvertedPrice for location-based pricing
-  // const subTotal = cartItems.reduce(
-  //   (acc, item) =>
-  //     acc + getConvertedPrice(item.product, "salePrice") * (item.quantity || 0),
-  //   0,
-  // );
+  // Fetch available coupons based on selected country
+  useEffect(() => {
+    (async () => {
+      try {
+        const countryParam = selectedCountry?.code ? `?country=${selectedCountry.code}` : '';
+        const res = await client.get(`/commerce/coupons/active${countryParam}`);
+        setAvailableCoupons(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error("Failed to fetch coupons:", err);
+      }
+    })();
+  }, [selectedCountry]);
 
-  // // Discount from coupon (not automatic 10%)
-  // const discount = appliedCoupon?.discountAmount || 0;
-  // const deliveryFee = cartItems.length > 0 ? 50 : 0;
-  // const total = subTotal - discount + deliveryFee;
-
+ 
   if (cartItems.length === 0) {
     return (
       <section className="z_cart_section">
