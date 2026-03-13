@@ -240,10 +240,13 @@ function Cart() {
   const deleteItem = async (item) => {
     if (!item.product?._id) return;
     try {
-      await removeFromCart(item.product._id);
-      toast.success("Item removed from cart");
+      // pass variant info if available so backend can locate exact entry
+      await removeFromCart(item.product._id, item.size, item.color);
+      // toast will be handled by the axios interceptor (see api/client.js),
+      // avoiding double notifications.
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to remove item");
+      // interceptor already displays the error toast. we just log for debug.
+      console.error("removeFromCart failed", err);
     }
   };
   const getImageUrl = (product) => {

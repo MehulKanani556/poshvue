@@ -542,7 +542,7 @@ const ProductDetailPage = () => {
                 </div>
                 <div className="g3-size-grid">
                   {(
-                    (Array.isArray(product?.sizes) && product.sizes.length
+                    (Array.isArray(product?.sizes) && product.sizes.length 
                       ? product.sizes
                       : defaultProduct.sizes) || []
                   ).map((size) => (

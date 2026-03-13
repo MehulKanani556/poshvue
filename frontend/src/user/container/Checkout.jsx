@@ -80,7 +80,7 @@ function CheckoutForm({
     try {
       const amount = Number(total || 0);
       if (!amount || amount <= 0) {
-        alert("Invalid amount");
+        toast.error("Invalid amount");
         return { success: false, error: "Invalid amount" };
       }
       console.log("amount:", amount);
@@ -121,7 +121,7 @@ function CheckoutForm({
 
       if (!data?.ok) {
         console.error("Cashfree order failed:", data);
-        alert("Cashfree order failed");
+        toast.error("Cashfree order failed");
         return { success: false, error: "Cashfree order failed" };
       }
       const { orderId, paymentSessionId } = data;
@@ -172,7 +172,7 @@ function CheckoutForm({
       }
     } catch (err) {
       console.error("UPI pay error:", err);
-      alert("UPI payment init failed");
+      toast.error("UPI payment init failed");
       return { success: false, error: err.message };
     }
   };
@@ -205,7 +205,7 @@ function CheckoutForm({
       }
 
       if (!HAS_STRIPE) {
-        alert("Payment gateway is not configured. Please contact support.");
+        toast.error("Payment gateway is not configured. Please contact support.");
         setLoading(false);
         return;
       }
@@ -219,7 +219,7 @@ function CheckoutForm({
         const upiResult = await handlePayUPI(values);
         if (!upiResult.success) {
           console.error("UPI payment failed:", upiResult.error);
-          alert(upiResult.error || "UPI payment failed");
+          toast.error(upiResult.error || "UPI payment failed");
           setLoading(false);
           return;
         }
@@ -244,7 +244,7 @@ function CheckoutForm({
           const clientSecret = piRes.data.clientSecret;
           const cardElement = elements.getElement(CardElement);
           if (!cardElement) {
-            alert("Card details are required");
+            toast.error("Card details are required");
             setLoading(false);
             return;
           }
@@ -263,12 +263,12 @@ function CheckoutForm({
           );
           if (error) {
             console.error("Card payment error:", error);
-            alert(error.message || "Payment failed");
+            toast.error(error.message || "Payment failed");
             setLoading(false);
             return;
           }
           if (paymentIntent.status !== "succeeded") {
-            alert("Payment not completed. Status: " + paymentIntent.status);
+            toast.error("Payment not completed. Status: " + paymentIntent.status);
             setLoading(false);
             return;
           }
@@ -276,7 +276,7 @@ function CheckoutForm({
           paymentStatus = "completed";
         } catch (cardErr) {
           console.error("Card payment error:", cardErr);
-          alert(cardErr.response?.data?.message || "Card payment failed");
+          toast.error(cardErr.response?.data?.message || "Card payment failed");
           setLoading(false);
           return;
         }
@@ -285,7 +285,7 @@ function CheckoutForm({
       await createOrder(values, paymentIntentId, paymentStatus);
     } catch (err) {
       console.error("Checkout error:", err);
-      alert(
+      toast.error(
         err.response?.data?.message || "Something went wrong during checkout",
       );
       setLoading(false);
@@ -395,7 +395,7 @@ function CheckoutForm({
         orderRes.data.message;
       if (shiprocketMsg) {
         console.warn("Shiprocket error:", shiprocketMsg);
-        alert(
+        toast.error(
           "Order placed successfully, but shipping could not be created: " +
             shiprocketMsg,
         );
@@ -412,7 +412,7 @@ function CheckoutForm({
       navigate("/TrackOrder");
     } catch (orderErr) {
       console.error("Order creation error:", orderErr);
-      alert(orderErr.response?.data?.message || "Failed to create order");
+      toast.error(orderErr.response?.data?.message || "Failed to create order");
       setLoading(false);
     }
   };

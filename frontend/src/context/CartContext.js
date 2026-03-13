@@ -54,9 +54,19 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  const removeFromCart = async (productId) => {
+  const removeFromCart = async (productId, size, color) => {
     try {
-      await client.delete(`/cart/remove/${productId}`);
+      // build url with optional size/color query params (server uses them to
+      // disambiguate variants).  If not provided, they default to null and the
+      // backend matching logic still works (empty string comparison), but
+      // including them prevents 404 when variant info is available.
+      let url = `/cart/remove/${productId}`;
+      const params = new URLSearchParams();
+      if (size !== undefined && size !== null) params.append('size', size);
+      if (color !== undefined && color !== null) params.append('color', color);
+      if ([...params].length) url += `?${params.toString()}`;
+
+      await client.delete(url);
       await fetchCart(); // Refetch cart to update state
     } catch (error) {
       console.error('Failed to remove from cart:', error);

@@ -10,6 +10,7 @@ import {
   Spinner,
 } from "react-bootstrap";
 import { Star, Camera, X } from "lucide-react";
+import { toast } from "react-toastify";
 import client from "../../api/client";
 import { useNavigate } from "react-router-dom";
 
@@ -72,7 +73,7 @@ const Review = () => {
       const filesToAdd = files.slice(0, remainingSlots);
       
       if (filesToAdd.length === 0) {
-        alert("You can only upload up to 4 images");
+        toast.error("You can only upload up to 4 images");
         return;
       }
       
@@ -81,7 +82,7 @@ const Review = () => {
       setImageFiles((prev) => [...prev, ...filesToAdd]);
       
       if (files.length > remainingSlots) {
-        alert(`Only ${remainingSlots} image(s) added. Maximum 4 images allowed.`);
+        toast.error(`Only ${remainingSlots} image(s) added. Maximum 4 images allowed.`);
       }
     }
   };
@@ -104,12 +105,11 @@ const Review = () => {
     }
     
     if (userRating === 0) {
-      alert("Please select a rating");
-      return;
+      toast.error("Please select a rating");
     }
 
     if (!reviewComment.trim()) {
-      alert("Please write a review");
+      toast.error("Please write a review");
       return;
     }
 
