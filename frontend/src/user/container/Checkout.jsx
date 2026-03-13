@@ -881,12 +881,30 @@ function Checkout() {
   const navigate = useNavigate();
   const { formatPrice, getConvertedPrice, selectedCountry } = useCurrency();
 
-  const getImageUrl = (product) => {
+  const getImageUrl = (product, color) => {
     if (!product || !product.images || product.images.length === 0) {
       return wishEmptyImg;
     }
 
-    const imgData = product.images[0];
+    const normalizeColor = (val) => {
+      if (!val) return "";
+      if (typeof val === "object") return normalizeColor(val.name || val.color || "");
+      return String(val).trim().toLowerCase();
+    };
+
+    const targetColor = normalizeColor(color);
+
+    let images = product.images;
+    if (targetColor) {
+      images = images.filter((img) => {
+        if (typeof img === "string") return true;
+        const imgColor = normalizeColor(img.color);
+        return imgColor && imgColor === targetColor;
+      });
+      if (images.length === 0) images = product.images;
+    }
+
+    const imgData = images[0];
     const img = typeof imgData === 'string' ? imgData : (imgData?.url || "");
 
     if (!img) return wishEmptyImg;
@@ -1261,7 +1279,7 @@ function Checkout() {
                   >
                     <div className="z_chck_product_img_wrap">
                       <img
-                        src={getImageUrl(item.product)}
+                        src={getImageUrl(item.product, item.color)}
                         alt={item.product.title}
                       />
                       <span className="z_chck_product_qty_badge">{item.quantity}</span>

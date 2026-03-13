@@ -40,19 +40,6 @@ function Cart() {
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [total, setTotal] = useState(0);
   const [liveExchangeRate, setLiveExchangeRate] = useState(null);
-  console.log(couponCode,"couponCode");
-  
-
-  // Listen for country changes and force re-render
-  // useEffect(() => {
-  //   const handleCountryChange = () => {
-  //     // Force re-render by updating a state or re-fetching cart
-  //     setCartItems((prev) => [...prev]);
-  //   };
-  //   window.addEventListener("countryChanged", handleCountryChange);
-  //   return () =>
-  //     window.removeEventListener("countryChanged", handleCountryChange);
-  // }, []);
 
   // Calculate shipping charges based on package weight and destination
   const calculateShippingCharges = useCallback(async () => {
@@ -219,8 +206,6 @@ function Cart() {
     calculateTotals();
   }, [cartItems, appliedCoupon, selectedCountry, calculateShippingCharges, getConvertedPrice, liveExchangeRate]);
 
-
-
   const increaseQty = (item) => {
     if (!item.product?._id) return;
     updateQty(
@@ -251,12 +236,30 @@ function Cart() {
       console.error("removeFromCart failed", err);
     }
   };
-  const getImageUrl = (product) => {
+  const getImageUrl = (product, color) => {
     if (!product || !product.images || product.images.length === 0) {
       return wishEmptyImg;
     }
 
-    const imgData = product.images[0];
+    const normalizeColor = (val) => {
+      if (!val) return "";
+      if (typeof val === "object") return normalizeColor(val.name || val.color || "");
+      return String(val).trim().toLowerCase();
+    };
+
+    const targetColor = normalizeColor(color);
+
+    let images = product.images;
+    if (targetColor) {
+      images = images.filter((img) => {
+        if (typeof img === "string") return true;
+        const imgColor = normalizeColor(img.color);
+        return imgColor && imgColor === targetColor;
+      });
+      if (images.length === 0) images = product.images;
+    }
+
+    const imgData = images[0];
     const img = typeof imgData === 'string' ? imgData : (imgData?.url || "");
 
     if (!img) return wishEmptyImg;
@@ -376,7 +379,7 @@ function Cart() {
                   >
                     <div className="z_cart_product">
                       <img
-                        src={getImageUrl(item.product)}
+                        src={getImageUrl(item.product, item.color)}
                         alt={item.product?.title || "Product"}
                         className="d_product-img"
                         onClick={() => {
