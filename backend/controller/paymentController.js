@@ -5,8 +5,8 @@ const axios = require('axios');
 
 // ================= ENV =================
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
-const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
+// const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
+// const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
 
 const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID || '';
 const CASHFREE_SECRET = process.env.CASHFREE_SECRET || '';
@@ -21,19 +21,19 @@ const CASHFREE_BASE =
 if (!stripeSecretKey) {
   console.warn('STRIPE_SECRET_KEY is not set. Payment intents will not work.');
 }
-if (!razorpayKeyId || !razorpayKeySecret) {
-  console.warn('RAZORPAY_KEY_ID/SECRET not set.');
-}
+// if (!razorpayKeyId || !razorpayKeySecret) {
+//   console.warn('RAZORPAY_KEY_ID/SECRET not set.');
+// }
 if (!CASHFREE_APP_ID || !CASHFREE_SECRET) {
   console.warn('CASHFREE_APP_ID/SECRET not set.');
 }
 
 // ================= CLIENTS =================
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
-const razorpay =
-  razorpayKeyId && razorpayKeySecret
-    ? new Razorpay({ key_id: razorpayKeyId, key_secret: razorpayKeySecret })
-    : null;
+// const razorpay =
+//   razorpayKeyId && razorpayKeySecret
+//     ? new Razorpay({ key_id: razorpayKeyId, key_secret: razorpayKeySecret })
+//     : null;
 
 // =====================================================
 // STRIPE - CREATE PAYMENT INTENT (AUTO METHODS)
