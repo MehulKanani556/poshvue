@@ -130,7 +130,7 @@ function Reviews() {
         if (!img) return "";
         if (img.startsWith("http")) return img;
         if (img.startsWith("data:image")) return img;
-        return `http://localhost:5000${img}`;
+        return `${process.env.REACT_APP_API_URL}${img}`;
     };
 
     if (loading) {

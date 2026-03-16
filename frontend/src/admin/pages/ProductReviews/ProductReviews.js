@@ -56,7 +56,7 @@ function ProductReviews() {
     if (!url || typeof url !== 'string') return "";
     
     if (url.startsWith("http") || url.startsWith("data:image")) return url;
-    return `http://localhost:5000${url}`;
+    return `${process.env.REACT_APP_API_URL}${url}`;
   };
 
   if (loading) {
