@@ -10,32 +10,32 @@ import {
   Send,
 } from "lucide-react";
 import { useState } from "react";
+import { toastError, toastSuccess } from "../../utils/toast";
 import { API_ENDPOINTS } from "../../config/api";
 import { Link } from "react-router-dom";
 
 const Footer = () => {
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
-  const [msg, setMsg] = useState("");
 
   const handleSubmit = async () => {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email) return setMsg("Please enter email");
+    if (!email) return toastError("Please enter email");
     if (!emailPattern.test(email)) {
-      return setMsg("Please enter a valid email address");
+      return toastError("Please enter a valid email address");
     }
-    if (!consent) return setMsg("Please accept privacy policy");
+    if (!consent) return toastError("Please accept privacy policy");
 
     try {
       const res = await axios.post(API_ENDPOINTS.NEWSLETTER_SUBSCRIBE, {
         email,
         source: "frontend",
       });
-      setMsg(res.data.message || "Subscribed successfully");
+      toastSuccess(res.data.message || "Subscribed successfully");
       setEmail("");
       setConsent(false);
     } catch (err) {
-      setMsg("Something went wrong");
+      toastError(err?.response?.data?.message || "Something went wrong");
     }
   };
   return (
@@ -146,7 +146,7 @@ const Footer = () => {
                 <div>
                   <Mail size={18} className="text-secondary" />
                 </div>
-                <span>customercare@g3fashions.in</span>
+                <span>customercare@poshvuefashions.in</span>
               </div>
               <div className="d_info-item">
                 <div>
